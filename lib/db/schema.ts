@@ -1,0 +1,93 @@
+/// lib/db/schema.ts
+export const TABLES = {
+  USERS: "nextauth_users",
+  ACCOUNTS: "nextauth_accounts",
+  SESSIONS: "nextauth_sessions",
+  VERIFICATION_TOKENS: "nextauth_verification_tokens",
+  HEALTH_SNAPSHOTS: "health_snapshots",
+  BIOMARKERS: "biomarkers",
+  UPLOADS: "uploads",
+  PROTOCOLS: "protocols",
+  BOOKMARKS: "bookmarks",
+  CHECKIN_RESPONSES: "checkin_responses",
+  // Ingestion pipeline (migration 001)
+  HEALTH_UPLOADS: "health_uploads",
+  WEARABLE_SNAPSHOTS: "wearable_snapshots",
+  PROTOCOL_OUTPUTS: "protocol_outputs",
+  RATE_LIMIT_BUCKETS: "rate_limit_buckets",
+} as const;
+
+export type TableName = (typeof TABLES)[keyof typeof TABLES];
+
+export const COLS = {
+  ID: "id",
+  USER_ID: "user_id",
+  CREATED_AT: "created_at",
+  UPDATED_AT: "updated_at",
+  EMAIL: "email",
+  NAME: "name",
+  IMAGE: "image",
+  EMAIL_VERIFIED: "email_verified",
+  PLAN: "plan",
+  FILE_NAME: "file_name",
+  FILE_SIZE: "file_size",
+  MIME_TYPE: "mime_type",
+  STORAGE_PATH: "storage_path",
+  PARSE_STATUS: "parse_status",
+  STATUS: "status",
+  MODE: "mode",
+  SELECTED_AGE: "selected_age",
+  GOALS: "goals",
+  BUDGET: "budget",
+  PREFERENCES: "preferences",
+  PAYLOAD: "payload",
+  VERSION: "version",
+  TRIGGER_REASON: "trigger_reason",
+  SHARE_TOKEN: "share_token",
+  SHARE_TOKEN_EXPIRES_AT: "share_token_expires_at",
+  ERROR_MESSAGE: "error_message",
+  ITEM_ID: "item_id",
+  CATEGORY: "category",
+  PROTOCOL_ID: "protocol_id",
+  WEEK_NUMBER: "week_number",
+  RESPONSES: "responses",
+  SNAPSHOT_ID: "snapshot_id",
+  VALUE: "value",
+  UNIT: "unit",
+  REFERENCE_MIN: "reference_min",
+  REFERENCE_MAX: "reference_max",
+  SOURCE: "source",
+  DATE: "date",
+  RAW_DATA: "raw_data",
+  PARSED_DATA: "parsed_data",
+  // Ingestion pipeline (migration 001)
+  UPLOAD_ID: "upload_id",
+  WARNINGS: "warnings",
+  PRIORITY_SCORE: "priority_score",
+  MODEL: "model",
+  RAW_RESPONSE: "raw_response",
+  PARSED_OUTPUT: "parsed_output",
+  INPUT_TOKENS: "input_tokens",
+  OUTPUT_TOKENS: "output_tokens",
+  ENDPOINT: "endpoint",
+  WINDOW_START: "window_start",
+  REQUEST_COUNT: "request_count",
+  HRV: "hrv",
+  RESTING_HR: "resting_hr",
+  SLEEP_SCORE: "sleep_score",
+  DEEP_SLEEP_MIN: "deep_sleep_min",
+  REM_SLEEP_MIN: "rem_sleep_min",
+  RECOVERY_SCORE: "recovery_score",
+  STRAIN_SCORE: "strain_score",
+  READINESS_SCORE: "readiness_score",
+  STEPS: "steps",
+  ACTIVE_CALORIES: "active_calories",
+} as const;
+
+export const BUCKETS = {
+  HEALTH_FILES: "health-files",
+} as const;
+
+export type Plan = "free" | "pro" | "clinic";
+export type WearableSource = "whoop" | "oura" | "garmin" | "apple_health";
+export type UploadSource = WearableSource | "pdf";
