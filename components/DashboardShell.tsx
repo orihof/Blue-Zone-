@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import { BiomarkerCard } from "@/components/BiomarkerCard";
-import { RecommendationCard } from "@/components/RecommendationCard";
 import { ClinicCard } from "@/components/ClinicCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -277,7 +276,10 @@ export function DashboardShell({
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {productRecs.map((r) => (
-                  <RecommendationCard key={r.id} recommendation={r} />
+                  <div key={r.id} className="rounded-lg border border-slate-200 p-4 space-y-1">
+                    <p className="text-sm font-medium text-slate-900">{r.title}</p>
+                    {r.description && <p className="text-xs text-slate-500">{r.description}</p>}
+                  </div>
                 ))}
               </div>
             </section>

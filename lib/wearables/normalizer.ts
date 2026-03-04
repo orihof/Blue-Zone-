@@ -134,7 +134,6 @@ export function normalizeGarmin(data: unknown): NormalizedWearableData {
   const hrv       = safeNum(hrvData.lastNight ?? hrvData.weeklyAverage);
   const restingHR = safeNum(hrData.restingHeartRate);
 
-  const sleepSec    = safeNum(sleepData.sleepTimeSeconds);
   const deepSec     = safeNum(sleepData.deepSleepSeconds);
   const remSec      = safeNum(sleepData.remSleepSeconds);
   const sleepScore  = safeNum(overall.value ?? sleepScores.overall);

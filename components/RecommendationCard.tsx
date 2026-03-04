@@ -1,84 +1,192 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ExternalLink, ShoppingBag, Package } from "lucide-react";
-import type { Recommendation } from "@/types";
+/// components/RecommendationCard.tsx
+// Exact port of RecCard from bluezone-complete.jsx.
+// Uses CSS classes (.rec, .adopt-btn, etc.) defined in globals.css.
+"use client";
 
-const SOURCE_CONFIG = {
-  iherb: {
-    label: "iHerb",
-    icon: Package,
-    badgeClass: "bg-green-100 text-green-700 border-green-200",
-  },
-  amazon: {
-    label: "Amazon",
-    icon: ShoppingBag,
-    badgeClass: "bg-amber-100 text-amber-700 border-amber-200",
-  },
-  google_places: {
-    label: "Clinic",
-    icon: ExternalLink,
-    badgeClass: "bg-blue-100 text-blue-700 border-blue-200",
-  },
+import { useState } from "react";
+import type { RecItem } from "@/lib/db/payload";
+
+export type CardAdoptionState = "pending" | "adopted" | "rejected";
+export type Priority = "high" | "medium" | "low";
+
+const T = { text: "#F1F5F9", muted: "#64748B" };
+
+const PRIORITY_LABEL_COLOR: Record<Priority, string> = {
+  high:   "#FCA5A5",
+  medium: "#FCD34D",
+  low:    "#93C5FD",
 };
 
-interface RecommendationCardProps {
-  recommendation: Recommendation;
+function StatusBadge({ status }: { status: CardAdoptionState }) {
+  if (status === "pending") return null;
+  const adopted = status === "adopted";
+  return (
+    <span style={{
+      padding: "2px 9px", borderRadius: 100, fontSize: 11, fontWeight: 400,
+      background: adopted ? "rgba(16,185,129,.1)" : "rgba(100,116,139,.08)",
+      color:      adopted ? "#34D399" : "#64748B",
+      border:     `1px solid ${adopted ? "rgba(16,185,129,.28)" : "rgba(100,116,139,.2)"}`,
+      fontFamily: "var(--font-ui,'Inter',sans-serif)",
+    }}>
+      {adopted ? "Adopted ✓" : "Dismissed"}
+    </span>
+  );
 }
 
-export function RecommendationCard({ recommendation }: RecommendationCardProps) {
-  const config = SOURCE_CONFIG[recommendation.source];
-  const Icon = config.icon;
+export interface RecommendationCardProps {
+  item:          RecItem;
+  priority?:     Priority;
+  index?:        number;
+  adoptionState: CardAdoptionState;
+  onAdopt:       (id: string) => void;
+  onReject:      (id: string) => void;
+  onReset:       (id: string) => void;
+}
+
+export function RecommendationCard({
+  item, priority = "low", adoptionState, onAdopt, onReject, onReset,
+}: RecommendationCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const adopted  = adoptionState === "adopted";
+  const rejected = adoptionState === "rejected";
+
+  function handleAdopt() {
+    if (adopted) onReset(item.id);
+    else         onAdopt(item.id);
+    // Background API call — optimistic
+    fetch(`/api/recommendations/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: adopted ? "pending" : "adopted" }),
+    }).catch(() => {/* silent — optimistic */});
+  }
+
+  function handleReject() {
+    if (rejected) onReset(item.id);
+    else          onReject(item.id);
+    fetch(`/api/recommendations/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: rejected ? "pending" : "rejected" }),
+    }).catch(() => {/* silent — optimistic */});
+  }
+
+  const cardClass = `rec ${priority}${adopted ? " adopted" : ""}${rejected ? " rejected" : ""}`;
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4 flex gap-3">
-        <div className="shrink-0 mt-0.5">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon className="w-4 h-4 text-primary" />
+    <div className={cardClass} style={{ animation: "fadeUp .45s cubic-bezier(.16,1,.3,1) both" }}>
+
+      {/* Header row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 14 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 7, flexWrap: "wrap" as const }}>
+            <span style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".1em", fontFamily: "var(--font-ui,'Inter',sans-serif)", color: PRIORITY_LABEL_COLOR[priority] }}>
+              {priority.toUpperCase()} PRIORITY
+            </span>
+            <span className="chip chip-p">{item.category}</span>
+            <StatusBadge status={adoptionState} />
           </div>
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="font-medium text-sm text-gray-900 leading-snug">
-              {recommendation.title}
-            </p>
-            <Badge
-              variant="outline"
-              className={`shrink-0 text-xs ${config.badgeClass}`}
-            >
-              {config.label}
-            </Badge>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+            <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 18, color: T.text, textDecoration: rejected ? "line-through" : "none" }}>
+              {item.title}
+            </span>
           </div>
-
-          <p className="text-xs text-gray-600 leading-relaxed mb-3">
-            {recommendation.reason}
-          </p>
-
-          <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-100 rounded px-2 py-1 mb-2">
-            Not medical advice — discuss with your doctor before starting supplements.
-          </p>
-
-          {recommendation.url && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1.5"
-              asChild
-            >
-              <a
-                href={recommendation.url}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-              >
-                View on {config.label}
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </Button>
+          {item.howToUse && (
+            <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, fontWeight: 400, color: "#A5B4FC", background: "rgba(99,102,241,.1)", padding: "2px 9px", borderRadius: 6 }}>
+              {item.howToUse}
+            </span>
           )}
         </div>
-      </CardContent>
-    </Card>
+        <button onClick={() => setExpanded((e) => !e)}
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "7px 12px", color: T.muted, cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" as const, flexShrink: 0, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, transition: "all .15s" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = T.text)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = T.muted)}>
+          {expanded ? "Less ↑" : "Details ↓"}
+        </button>
+      </div>
+
+      {/* Detected signal */}
+      {item.rationaleBullets?.[0] && (
+        <div style={{ background: "rgba(0,0,0,0.18)", borderRadius: 9, padding: "10px 14px", marginBottom: 14, borderLeft: "2px solid rgba(99,102,241,.28)" }}>
+          <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 3, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const }}>DETECTED SIGNAL</div>
+          <div style={{ fontSize: 12, color: "#CBD5E1", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{item.rationaleBullets[0]}</div>
+        </div>
+      )}
+
+      {/* Biomarker chips from tags */}
+      {item.tags && item.tags.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 5, marginBottom: 14 }}>
+          {item.tags.map((tag, i) => (
+            <span key={i} className={`chip ${tag.includes("↑") ? "chip-r" : tag.includes("↓") ? "chip-a" : "chip-b"}`}>{tag}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div style={{ animation: "fadeUp .28s ease both", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 14, marginBottom: 14 }}>
+          {[
+            { l: "INTERPRETATION",  t: item.rationaleBullets?.slice(1).join(" ") || item.rationaleBullets?.[0] || "",  c: "#818CF8" },
+            { l: "HOW TO USE",      t: item.howToUse || "",    c: "#A78BFA" },
+            { l: "WHAT TO TRACK",   t: Array.isArray(item.whatToTrack) ? item.whatToTrack.join(", ") : (item.whatToTrack || ""), c: "#34D399" },
+          ].filter((s) => s.t).map(({ l, t, c }) => (
+            <div key={l} style={{ marginBottom: 13 }}>
+              <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: c, marginBottom: 5, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const }}>{l}</div>
+              <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.72, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{t}</div>
+            </div>
+          ))}
+
+          {/* When to avoid */}
+          {item.whenToAvoid && item.whenToAvoid.some((w) => w && w !== "None" && !w.toLowerCase().startsWith("none")) && (
+            <div style={{ marginBottom: 13 }}>
+              <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#F87171", marginBottom: 5, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const }}>WHEN TO AVOID</div>
+              {item.whenToAvoid.filter((w) => w && !w.toLowerCase().startsWith("none")).map((w, i) => (
+                <div key={i} style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.72, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{w}</div>
+              ))}
+            </div>
+          )}
+
+          {/* Purchase links */}
+          {(item.links?.iherb || item.links?.amazon) && (
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              {item.links.iherb && (
+                <a href={item.links.iherb} target="_blank" rel="noreferrer"
+                  style={{ fontSize: 11, color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
+                  View on iHerb →
+                </a>
+              )}
+              {item.links.amazon && (
+                <a href={item.links.amazon} target="_blank" rel="noreferrer"
+                  style={{ fontSize: 11, color: "#FCD34D", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
+                  View on Amazon →
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div style={{ display: "flex", gap: 7, flexWrap: "wrap" as const }}>
+        <button className={`adopt-btn ${adopted ? "adopt-on" : "adopt-off"}`} onClick={handleAdopt}>
+          {adopted && (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M1.5 6L5 9.5L10.5 2.5" stroke="#10B981" strokeWidth="2" strokeLinecap="round"
+                style={{ strokeDasharray: 20, animation: "drawCheck .35s ease both" }} />
+            </svg>
+          )}
+          {adopted ? "Adopted — undo" : "I'm doing this"}
+        </button>
+        <button className={`reject-btn adopt-btn${rejected ? " reject-on" : ""}`} onClick={handleReject}>
+          {rejected ? "↩ Re-enable" : "✕ Not for me"}
+        </button>
+      </div>
+
+      {rejected && (
+        <div style={{ marginTop: 10, fontSize: 11, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, fontStyle: "italic" }}>
+          Won&apos;t appear in next protocol update. Re-enable anytime.
+        </div>
+      )}
+    </div>
   );
 }

@@ -20,7 +20,7 @@ interface BiologicalAgeHeroProps {
   narrative: BiologicalAgeNarrative;
 }
 
-export function BiologicalAgeHero({ biologicalAgeEstimate, chronologicalAge, narrative }: BiologicalAgeHeroProps) {
+export function BiologicalAgeHero({ biologicalAgeEstimate, narrative }: BiologicalAgeHeroProps) {
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {

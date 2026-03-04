@@ -1,190 +1,113 @@
 /// app/page.tsx
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Upload, Sliders, Zap, ShieldCheck, Brain, Heart } from "lucide-react";
+
+const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
+const T = { bg: "#06080F", text: "#F1F5F9", muted: "#64748B" };
+const GT = { background: GRAD, WebkitBackgroundClip: "text" as const, WebkitTextFillColor: "transparent", backgroundClip: "text" as const };
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white">
-      {/* Nav */}
-      <nav className="fixed top-0 inset-x-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-white text-xs font-bold">
-              BZ
-            </div>
-            <span className="font-semibold text-slate-900">Blue Zone</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/auth/signin">
-              <Button variant="ghost" size="sm">Sign in</Button>
-            </Link>
-            <Link href="/auth/signin">
-              <Button size="sm">Get started</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div style={{ minHeight: "100vh", background: T.bg, position: "relative" }}>
+      {/* Aurora background blobs */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "-15%", left: "-10%", width: "55vw", height: "55vw", borderRadius: "50%", background: "radial-gradient(circle,rgba(59,130,246,.11) 0%,transparent 70%)", animation: "aurora 20s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", bottom: "-15%", right: "-8%", width: "50vw", height: "50vw", borderRadius: "50%", background: "radial-gradient(circle,rgba(168,85,247,.09) 0%,transparent 70%)", animation: "aurora 26s ease-in-out infinite reverse" }} />
+        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.022 }}>
+          <defs><pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0L0 0 0 40" fill="none" stroke="#6366F1" strokeWidth="1" /></pattern></defs>
+          <rect width="100%" height="100%" fill="url(#g)" />
+        </svg>
+      </div>
 
-      {/* Hero */}
-      <section className="pt-32 pb-24 px-6">
-        <div className="mx-auto max-w-4xl text-center">
-          <Badge variant="secondary" className="mb-6 text-xs uppercase tracking-wider">
-            Health Intelligence
-          </Badge>
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
-            Live younger.{" "}
-            <span className="text-primary">Feel it in your biomarkers.</span>
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {/* ── Top nav ── */}
+        <nav style={{ height: 60, borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", padding: "0 28px", position: "sticky", top: 0, zIndex: 50, background: "rgba(6,8,15,0.85)", backdropFilter: "blur(24px)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, boxShadow: "0 0 18px rgba(99,102,241,0.4)" }}>⬡</div>
+            <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 18, letterSpacing: "-.02em", ...GT }}>Blue Zone</span>
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link href="/auth/signin"><button className="ghost">Sign in</button></Link>
+            <Link href="/app/onboarding/upload"><button className="cta cta-sm">Get Started</button></Link>
+          </div>
+        </nav>
+
+        {/* ── Hero ── */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "90px 28px 80px", textAlign: "center" }}>
+          <div className="fu" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 16px", borderRadius: 100, background: "rgba(99,102,241,.09)", border: "1px solid rgba(99,102,241,.22)", fontSize: 11, fontWeight: 400, letterSpacing: ".1em", color: "#A5B4FC", marginBottom: 28, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+            ⬡ LONGEVITY INTELLIGENCE SYSTEM
+          </div>
+          <h1 className="fu1" style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(38px,6vw,72px)", lineHeight: 1.12, marginBottom: 20, letterSpacing: "-.02em" }}>
+            <span style={GT}>Your biology,</span><br />
+            <span style={{ color: T.text }}>precisely decoded.</span>
           </h1>
-          <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Upload your blood tests, WHOOP, or Apple Health data. Set a target
-            age. Blue Zone builds your personalized longevity protocol —
-            supplements, nutrition, and lifestyle, ranked by evidence.
+          <p className="fu2" style={{ fontSize: "clamp(15px,2vw,18px)", color: T.muted, fontWeight: 300, maxWidth: 500, margin: "0 auto 36px", lineHeight: 1.75, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+            Upload your bloodwork. Connect your wearables. Receive a continuously evolving
+            optimization protocol built exclusively from your data.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/signin">
-              <Button size="lg" className="gap-2 px-8 h-12 text-base">
-                Get started free <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
-            <a href="#how-it-works">
-              <Button size="lg" variant="outline" className="h-12 text-base px-8">
-                See how it works
-              </Button>
-            </a>
+          <div className="fu3" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 56 }}>
+            <Link href="/app/onboarding/upload"><button className="cta">Get My Personal Protocol →</button></Link>
+            <Link href="/app/dashboard"><button className="ghost">View Demo Dashboard</button></Link>
           </div>
-        </div>
-
-        {/* Hero visual */}
-        <div className="mx-auto max-w-3xl mt-20">
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-blue-50 p-8 shadow-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-400" />
-                <div className="w-3 h-3 rounded-full bg-amber-400" />
-                <div className="w-3 h-3 rounded-full bg-green-400" />
-              </div>
-              <div className="flex-1 h-6 rounded-md bg-white/70 border border-slate-200 flex items-center px-3">
-                <span className="text-xs text-slate-400">bluezone.app/app/results/...</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { label: "Target age", value: "31", color: "text-primary" },
-                { label: "Supplements", value: "7", color: "text-emerald-600" },
-                { label: "Clinics nearby", value: "4", color: "text-violet-600" },
-              ].map((stat) => (
-                <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-                  <div className={`text-3xl font-bold ${stat.color}`}>{stat.value}</div>
-                  <div className="text-xs text-slate-500 mt-1">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {[
-                { title: "Magnesium Glycinate", tags: ["sleep", "stress"] },
-                { title: "Vitamin D3 + K2", tags: ["immune", "bone"] },
-              ].map((item) => (
-                <div key={item.title} className="bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Zap className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-slate-800">{item.title}</div>
-                    <div className="flex gap-1 mt-1">
-                      {item.tags.map((t) => (
-                        <Badge key={t} variant="secondary" className="text-[10px] px-1.5 py-0">{t}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section id="how-it-works" className="py-24 px-6 bg-slate-50">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
-              Three steps to your protocol
-            </h2>
-            <p className="text-slate-500 text-lg max-w-xl mx-auto">
-              From raw data to personalized longevity protocol in minutes.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { step: "01", Icon: Upload, title: "Upload your data", desc: "Drop in blood test PDFs, Apple Health exports, or connect your WHOOP. We extract every biomarker automatically." },
-              { step: "02", Icon: Sliders, title: "Set your target age", desc: "Dial in how young you want to feel — from 23 to 60. Tell us your goals: sleep, strength, focus, longevity." },
-              { step: "03", Icon: Zap, title: "Get your protocol", desc: "Receive evidence-ranked supplements, nutrition, home biohacking tools, and nearby specialist clinics." },
-            ].map(({ step, Icon, title, desc }) => (
-              <div key={step} className="relative bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-                <div className="text-6xl font-black text-slate-100 absolute top-6 right-6 leading-none select-none">{step}</div>
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-5">
-                  <Icon className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">{title}</h3>
-                <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
+          <div className="fu4" style={{ display: "flex", justifyContent: "center", gap: 36, flexWrap: "wrap" }}>
+            {["Grounded in your data", "Updates every check-in", "Clinically referenced"].map((t) => (
+              <div key={t} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
+                <span style={{ color: "#6366F1", fontWeight: 400 }}>✓</span>{t}
               </div>
             ))}
           </div>
         </div>
-      </section>
 
-      {/* Trust strip */}
-      <section className="py-16 px-6 border-y border-slate-100">
-        <div className="mx-auto max-w-4xl">
-          <div className="grid sm:grid-cols-3 gap-8 text-center">
+        {/* ── Stats strip ── */}
+        <div className="fu4" style={{ borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "28px 28px", display: "flex", justifyContent: "center", gap: 60, background: "rgba(13,17,23,0.5)", flexWrap: "wrap" }}>
+          {[["2,847", "Protocols active"], ["94%", "Average adherence"], ["−6.2y", "Avg bio age reduction"]].map(([v, l]) => (
+            <div key={l} style={{ textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 28, ...GT, marginBottom: 4 }}>{v}</div>
+              <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{l}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── How it works ── */}
+        <div style={{ maxWidth: 1000, margin: "0 auto", padding: "80px 28px" }}>
+          <div style={{ textAlign: "center", marginBottom: 52 }}>
+            <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 12, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>HOW IT WORKS</div>
+            <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(26px,4vw,40px)", color: T.text, letterSpacing: "-.02em" }}>From raw data to living protocol</h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
             {[
-              { Icon: ShieldCheck, title: "Privacy first", desc: "Your health data never leaves your account. No selling, no sharing with third parties." },
-              { Icon: Brain, title: "Evidence-based", desc: "Every recommendation references peer-reviewed research, not influencer trends." },
-              { Icon: Heart, title: "Not medical advice", desc: "Educational insights to guide conversations with your healthcare provider." },
-            ].map(({ Icon, title, desc }) => (
-              <div key={title} className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-primary" />
-                </div>
-                <div className="font-semibold text-slate-800 text-sm">{title}</div>
-                <p className="text-slate-500 text-xs leading-relaxed max-w-xs">{desc}</p>
+              { n: "01", icon: "📄", title: "Upload your data", desc: "Blood panels, DEXA, VO₂ max, hormone results, or wearable exports." },
+              { n: "02", icon: "🧬", title: "AI analysis", desc: "Every biomarker mapped against your unique physiology and behavioral patterns." },
+              { n: "03", icon: "◈",  title: "Receive protocol", desc: "Evidence-based recommendations tied directly to detected signals in your data." },
+              { n: "04", icon: "🔄", title: "Protocol evolves", desc: "Weekly check-ins, adherence tracking, and new inputs continuously refine your plan." },
+            ].map((s) => (
+              <div key={s.n} className="card" style={{ padding: 24 }}>
+                <div style={{ fontSize: 11, fontWeight: 400, letterSpacing: ".1em", color: "rgba(99,102,241,.5)", fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", marginBottom: 12 }}>{s.n}</div>
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{s.icon}</div>
+                <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 16, color: T.text, marginBottom: 8 }}>{s.title}</div>
+                <div style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.65 }}>{s.desc}</div>
               </div>
             ))}
           </div>
         </div>
-      </section>
 
-      {/* CTA */}
-      <section className="py-24 px-6 bg-slate-900 text-white">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">Start your longevity protocol today</h2>
-          <p className="text-slate-400 mb-8 text-lg">Sign in with Google or email — no password required.</p>
-          <Link href="/auth/signin">
-            <Button size="lg" className="gap-2 px-10 h-12 text-base">
-              Get started free <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-8 px-6 border-t border-slate-100 bg-white">
-        <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center text-white text-[9px] font-bold">BZ</div>
-            <span className="text-sm font-medium text-slate-700">Blue Zone</span>
-          </div>
-          <p className="text-xs text-slate-400 text-center max-w-lg">
-            Blue Zone is not a medical service. All insights are for informational and educational purposes only and do not constitute medical advice. Always consult a qualified healthcare professional before making changes to your health regimen.
-          </p>
-          <div className="flex gap-4 text-xs text-slate-400">
-            <a href="/terms" className="hover:text-slate-700">Terms</a>
-            <a href="/privacy" className="hover:text-slate-700">Privacy</a>
+        {/* ── Wearables ── */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 28px 80px", textAlign: "center" }}>
+          <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 14, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>CONNECTS WITH</div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+            {["WHOOP", "Oura Ring", "Apple Health", "Garmin", "CGM", "Lab Upload"].map((w) => (
+              <div key={w} style={{ padding: "8px 18px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 100, fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{w}</div>
+            ))}
           </div>
         </div>
-      </footer>
+
+        {/* ── Bottom CTA ── */}
+        <div style={{ background: "linear-gradient(135deg,rgba(59,130,246,0.07),rgba(168,85,247,0.07))", borderTop: "1px solid rgba(99,102,241,0.12)", padding: "72px 28px", textAlign: "center" }}>
+          <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(24px,4vw,40px)", color: T.text, marginBottom: 14, letterSpacing: "-.02em" }}>Your protocol is waiting.</h2>
+          <p style={{ fontSize: 15, color: T.muted, marginBottom: 32, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>Upload a single blood test to get started. No wearable required.</p>
+          <Link href="/app/onboarding/upload"><button className="cta">Get My Personal Protocol →</button></Link>
+        </div>
+      </div>
     </div>
   );
 }

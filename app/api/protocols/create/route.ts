@@ -44,13 +44,17 @@ export async function POST(req: Request) {
       [COLS.PREFERENCES]: preferences ?? {},
       [COLS.PAYLOAD]: payload,
       [COLS.MODE]: isDemo ? "demo" : "personal",
+      [COLS.STATUS]: "ready",
     })
     .select(COLS.ID)
     .maybeSingle();
 
   if (error) {
-    console.error("[protocols/create]", error.message);
-    return NextResponse.json({ error: "Database error" }, { status: 500 });
+    console.error("[protocols/create]", error.message, error.code, error.details);
+    return NextResponse.json(
+      { error: `Database error: ${error.message} (code ${error.code})` },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ protocolId: data!.id });

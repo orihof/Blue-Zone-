@@ -9,9 +9,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session) redirect("/auth/signin");
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen" style={{ background: "var(--bz-midnight)" }}>
       <AppNav user={session.user} />
-      <main className="pt-16">{children}</main>
+      {/* Desktop: offset for 240px sidebar. Mobile: top-14 header + bottom-14 tab bar padding */}
+      <main className="lg:pl-60 pt-14 pb-16 lg:pt-0 lg:pb-0 min-h-screen">
+        {children}
+      </main>
     </div>
   );
 }

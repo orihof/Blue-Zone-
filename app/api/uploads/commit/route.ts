@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     [COLS.FILE_SIZE]: f.fileSize,
     [COLS.MIME_TYPE]: f.mimeType,
     [COLS.STORAGE_PATH]: f.storagePath,
-    [COLS.STATUS]: "done",
+    [COLS.PARSE_STATUS]: "done",
   }));
 
   const { data, error } = await supabase.from(TABLES.UPLOADS).insert(rows).select(COLS.ID);

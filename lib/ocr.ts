@@ -20,9 +20,10 @@ const textractClient = new TextractClient({
  */
 export async function extractBiomarkersFromFile(
   fileBuffer: Buffer,
-  mimeType: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _mimeType: string
 ): Promise<ExtractedBiomarker[]> {
-  const isImage = mimeType.startsWith("image/");
+
 
   // Textract expects a Uint8Array
   const command = new AnalyzeDocumentCommand({
@@ -38,7 +39,7 @@ export async function extractBiomarkersFromFile(
     .filter((b) => b.BlockType === "LINE" && b.Text)
     .map((b) => b.Text!);
 
-  return parseBiomarkersFromLines(lines, isImage);
+  return parseBiomarkersFromLines(lines);
 }
 
 /**
@@ -49,8 +50,7 @@ export async function extractBiomarkersFromFile(
  *   "TSH 2.13 mIU/L (0.4–4.0)"
  */
 function parseBiomarkersFromLines(
-  lines: string[],
-  _isImage: boolean
+  lines: string[]
 ): ExtractedBiomarker[] {
   const results: ExtractedBiomarker[] = [];
 

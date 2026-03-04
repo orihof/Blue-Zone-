@@ -172,7 +172,6 @@ export async function generateProtocol(
   }
 
   let raw = firstBlock.text.trim();
-  let parsed: unknown;
   let validated = ProtocolOutputSchema.safeParse(
     (() => { try { return extractJSON(raw); } catch { return null; } })()
   );
@@ -209,7 +208,7 @@ export async function generateProtocol(
   if (retryBlock.type !== "text") throw new Error("Unexpected non-text response on retry");
 
   raw    = retryBlock.text.trim();
-  parsed = (() => { try { return extractJSON(raw); } catch { return null; } })();
+  const parsed = (() => { try { return extractJSON(raw); } catch { return null; } })();
   validated = ProtocolOutputSchema.safeParse(parsed);
 
   if (!validated.success) {

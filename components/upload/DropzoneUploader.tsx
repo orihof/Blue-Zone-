@@ -4,6 +4,7 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -97,23 +98,17 @@ export function DropzoneUploader() {
     setIsSubmitting(true);
 
     try {
-      // 1. Sign
       pending.forEach((f) => updateFile(f.id, { status: "signing" }));
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          files: pending.map((f) => ({
-            name: f.file.name,
-            size: f.file.size,
-            type: f.file.type,
-          })),
+          files: pending.map((f) => ({ name: f.file.name, size: f.file.size, type: f.file.type })),
         }),
       });
       if (!signRes.ok) throw new Error("Failed to get upload URLs");
       const { files: signed } = await signRes.json();
 
-      // 2. Upload directly to Supabase Storage
       await Promise.all(
         pending.map(async (f, i) => {
           updateFile(f.id, { status: "uploading", progress: 0 });
@@ -128,8 +123,7 @@ export function DropzoneUploader() {
         })
       );
 
-      // 3. Commit metadata
-      await fetch("/api/uploads/commit", {
+      const commitRes = await fetch("/api/uploads/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,6 +135,10 @@ export function DropzoneUploader() {
           })),
         }),
       });
+      if (!commitRes.ok) {
+        const err = await commitRes.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to save upload metadata");
+      }
 
       const errCount = files.filter((f) => f.status === "error").length;
       if (errCount > 0) {
@@ -179,79 +177,137 @@ export function DropzoneUploader() {
     }
   }
 
-  const canContinue = files.length > 0;
   const hasPending = files.some((f) => f.status === "pending");
   const allDone = files.length > 0 && files.every((f) => f.status === "done");
+  const canContinue = files.length > 0;
 
   return (
     <div className="space-y-4">
       {/* Dropzone */}
       <div
         {...getRootProps()}
-        className={`rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-all ${
-          isDragActive
-            ? "border-primary bg-primary/5"
-            : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-        }`}
+        className="rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-all"
+        style={{
+          borderColor: isDragActive ? "var(--bz-blue)" : "rgba(0,138,255,0.25)",
+          background: isDragActive ? "rgba(0,138,255,0.06)" : "var(--bz-navy)",
+        }}
       >
         <input {...getInputProps()} />
-        <div className="flex flex-col items-center gap-3">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDragActive ? "bg-primary/10" : "bg-slate-100"}`}>
-            <Upload className={`w-6 h-6 ${isDragActive ? "text-primary" : "text-slate-400"}`} />
+        <div className="flex flex-col items-center gap-4">
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
+            style={{
+              background: isDragActive ? "rgba(0,138,255,0.18)" : "rgba(0,138,255,0.08)",
+            }}
+          >
+            <Upload
+              className="w-6 h-6"
+              style={{ color: isDragActive ? "var(--bz-blue)" : "var(--bz-muted)" }}
+            />
           </div>
           <div>
-            <p className="font-medium text-slate-700">
+            <p className="font-medium text-sm" style={{ color: "var(--bz-white)" }}>
               {isDragActive ? "Drop your files here" : "Drag & drop health files here"}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs mt-1" style={{ color: "var(--bz-muted)" }}>
               PDF, JPG, PNG, CSV, XML · up to 15 MB each · max 10 files
             </p>
           </div>
-          <Button variant="outline" size="sm" type="button" disabled={files.length >= 10}>
+          <button
+            type="button"
+            disabled={files.length >= 10}
+            className="px-4 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-40"
+            style={{
+              borderColor: "var(--bz-border)",
+              color: "var(--bz-muted)",
+              background: "transparent",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--bz-blue)";
+              e.currentTarget.style.color = "var(--bz-blue)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--bz-border)";
+              e.currentTarget.style.color = "var(--bz-muted)";
+            }}
+          >
             Browse files
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* File list */}
-      {files.length > 0 && (
-        <div className="space-y-2">
-          {files.map((f) => (
-            <div
-              key={f.id}
-              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3"
-            >
-              <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-slate-800 truncate">{f.file.name}</span>
-                  <span className="text-xs text-muted-foreground flex-shrink-0">{formatBytes(f.file.size)}</span>
+      <AnimatePresence initial={false}>
+        {files.map((f) => (
+          <motion.div
+            key={f.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-3 rounded-xl px-4 py-3"
+            style={{
+              background: "var(--bz-navy)",
+              border: "1px solid var(--bz-border)",
+            }}
+          >
+            <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "var(--bz-muted)" }} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium truncate" style={{ color: "var(--bz-white)" }}>
+                  {f.file.name}
+                </span>
+                <span className="text-xs flex-shrink-0" style={{ color: "var(--bz-muted)" }}>
+                  {formatBytes(f.file.size)}
+                </span>
+              </div>
+              {f.status === "uploading" && (
+                <div
+                  className="mt-1.5 h-1 rounded-full overflow-hidden"
+                  style={{ background: "var(--bz-navy-light)" }}
+                >
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: "var(--bz-blue)" }}
+                    animate={{ width: `${f.progress}%` }}
+                    transition={{ duration: 0.2 }}
+                  />
                 </div>
-                {f.status === "uploading" && (
-                  <div className="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-200"
-                      style={{ width: `${f.progress}%` }}
-                    />
-                  </div>
-                )}
-                {f.error && <p className="text-xs text-red-500 mt-1">{f.error}</p>}
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {f.status === "signing" && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-                {f.status === "uploading" && <Loader2 className="w-4 h-4 text-primary animate-spin" />}
-                {f.status === "done" && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                {f.status === "error" && <AlertCircle className="w-4 h-4 text-red-500" />}
-                {f.status === "pending" && (
-                  <button onClick={() => removeFile(f.id)} className="p-0.5 rounded hover:bg-slate-100">
-                    <X className="w-4 h-4 text-slate-400" />
-                  </button>
-                )}
-              </div>
+              )}
+              {f.error && (
+                <p className="text-xs mt-1" style={{ color: "var(--bz-critical)" }}>
+                  {f.error}
+                </p>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {(f.status === "signing" || f.status === "uploading") && (
+                <Loader2
+                  className="w-4 h-4 animate-spin"
+                  style={{ color: f.status === "uploading" ? "var(--bz-blue)" : "var(--bz-muted)" }}
+                />
+              )}
+              {f.status === "done" && (
+                <CheckCircle2 className="w-4 h-4" style={{ color: "var(--bz-optimal)" }} />
+              )}
+              {f.status === "error" && (
+                <AlertCircle className="w-4 h-4" style={{ color: "var(--bz-critical)" }} />
+              )}
+              {f.status === "pending" && (
+                <button
+                  onClick={() => removeFile(f.id)}
+                  className="p-0.5 rounded transition-colors"
+                  style={{ color: "var(--bz-muted)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--bz-critical)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bz-muted)")}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -288,7 +344,10 @@ export function DropzoneUploader() {
         <button
           onClick={handleDemoData}
           disabled={isSubmitting}
-          className="w-full text-xs text-center text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          className="w-full text-xs text-center underline underline-offset-2 transition-colors"
+          style={{ color: "var(--bz-muted)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--bz-white)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bz-muted)")}
         >
           Or skip upload and use demo data
         </button>

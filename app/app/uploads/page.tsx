@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Upload, FileText, AlertCircle, CheckCircle2, Clock, Trash2 } from "lucide-react";
+import { Upload, FileText, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
