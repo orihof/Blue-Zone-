@@ -28,7 +28,7 @@ export default function LandingPage() {
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/auth/signin"><button className="ghost">Sign in</button></Link>
-            <Link href="/app/onboarding/upload"><button className="cta cta-sm">Get Started</button></Link>
+            <Link href="/auth/signin"><button className="cta cta-sm">Get Started</button></Link>
           </div>
         </nav>
 
@@ -46,8 +46,8 @@ export default function LandingPage() {
             optimization protocol built exclusively from your data.
           </p>
           <div className="fu3" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 56 }}>
-            <Link href="/app/onboarding/upload"><button className="cta">Get My Personal Protocol →</button></Link>
-            <Link href="/app/dashboard"><button className="ghost">View Demo Dashboard</button></Link>
+            <Link href="/auth/signin"><button className="cta">Get My Personal Protocol →</button></Link>
+            <Link href="/demo"><button className="ghost">View Demo Dashboard</button></Link>
           </div>
           <div className="fu4" style={{ display: "flex", justifyContent: "center", gap: 36, flexWrap: "wrap" }}>
             {["Grounded in your data", "Updates every check-in", "Clinically referenced"].map((t) => (
@@ -105,7 +105,7 @@ export default function LandingPage() {
         <div style={{ background: "linear-gradient(135deg,rgba(59,130,246,0.07),rgba(168,85,247,0.07))", borderTop: "1px solid rgba(99,102,241,0.12)", padding: "72px 28px", textAlign: "center" }}>
           <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(24px,4vw,40px)", color: T.text, marginBottom: 14, letterSpacing: "-.02em" }}>Your protocol is waiting.</h2>
           <p style={{ fontSize: 15, color: T.muted, marginBottom: 32, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>Upload a single blood test to get started. No wearable required.</p>
-          <Link href="/app/onboarding/upload"><button className="cta">Get My Personal Protocol →</button></Link>
+          <Link href="/auth/signin"><button className="cta">Get My Personal Protocol →</button></Link>
         </div>
       </div>
     </div>

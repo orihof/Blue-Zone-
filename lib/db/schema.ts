@@ -1,6 +1,6 @@
 /// lib/db/schema.ts
 export const TABLES = {
-  USERS: "nextauth_users",
+  USERS:                  "nextauth_users",
   ACCOUNTS: "nextauth_accounts",
   SESSIONS: "nextauth_sessions",
   VERIFICATION_TOKENS: "nextauth_verification_tokens",
@@ -15,6 +15,8 @@ export const TABLES = {
   WEARABLE_SNAPSHOTS: "wearable_snapshots",
   PROTOCOL_OUTPUTS: "protocol_outputs",
   RATE_LIMIT_BUCKETS: "rate_limit_buckets",
+  // Wearable OAuth (migration 003)
+  WEARABLE_CONNECTIONS: "wearable_connections",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -72,6 +74,14 @@ export const COLS = {
   ENDPOINT: "endpoint",
   WINDOW_START: "window_start",
   REQUEST_COUNT: "request_count",
+  // wearable_connections (migration 003)
+  PROVIDER: "provider",
+  PROVIDER_USER_ID: "provider_user_id",
+  EXPIRES_AT: "expires_at",
+  SCOPE: "scope",
+  ACCESS_TOKEN: "access_token",
+  REFRESH_TOKEN: "refresh_token",
+  CONNECTED_AT: "connected_at",
   HRV: "hrv",
   RESTING_HR: "resting_hr",
   SLEEP_SCORE: "sleep_score",
@@ -82,6 +92,9 @@ export const COLS = {
   READINESS_SCORE: "readiness_score",
   STEPS: "steps",
   ACTIVE_CALORIES: "active_calories",
+  // onboarding (migration 004)
+  ONBOARDING_GOALS:         "onboarding_goals",
+  ONBOARDING_WEARABLE_DONE: "onboarding_wearable_done",
 } as const;
 
 export const BUCKETS = {

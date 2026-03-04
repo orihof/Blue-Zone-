@@ -43,21 +43,40 @@ export interface RecommendationCardProps {
   onReset:       (id: string) => void;
 }
 
+const TIMING_OPTIONS = ["Morning", "Afternoon", "Evening", "With meals"] as const;
+
 export function RecommendationCard({
   item, priority = "low", adoptionState, onAdopt, onReject, onReset,
 }: RecommendationCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded]       = useState(false);
+  const [showTiming, setShowTiming]   = useState(false);
+  const [timing, setTiming]           = useState<string | null>(null);
   const adopted  = adoptionState === "adopted";
   const rejected = adoptionState === "rejected";
 
   function handleAdopt() {
-    if (adopted) onReset(item.id);
-    else         onAdopt(item.id);
-    // Background API call — optimistic
+    if (adopted) {
+      onReset(item.id);
+      setShowTiming(false);
+      setTiming(null);
+    } else {
+      onAdopt(item.id);
+      setShowTiming(true);
+    }
     fetch(`/api/recommendations/${item.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: adopted ? "pending" : "adopted" }),
+    }).catch(() => {/* silent — optimistic */});
+  }
+
+  function handleTiming(t: string) {
+    setTiming(t);
+    setShowTiming(false);
+    fetch(`/api/recommendations/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timing: t }),
     }).catch(() => {/* silent — optimistic */});
   }
 
@@ -181,6 +200,28 @@ export function RecommendationCard({
           {rejected ? "↩ Re-enable" : "✕ Not for me"}
         </button>
       </div>
+
+      {/* Timing micro-prompt — appears after adopting */}
+      {adopted && showTiming && (
+        <div style={{ marginTop: 10, animation: "fadeUp .25s ease both" }}>
+          <div style={{ fontSize: 11, color: "#A5B4FC", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 6 }}>When do you take this?</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+            {TIMING_OPTIONS.map((t) => (
+              <button key={t} onClick={() => handleTiming(t)}
+                style={{ fontSize: 11, padding: "4px 12px", borderRadius: 100, border: "1px solid rgba(99,102,241,.3)", background: "rgba(99,102,241,.08)", color: "#A5B4FC", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, transition: "all .15s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(99,102,241,.2)"; e.currentTarget.style.borderColor = "rgba(99,102,241,.6)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(99,102,241,.08)"; e.currentTarget.style.borderColor = "rgba(99,102,241,.3)"; }}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {adopted && timing && !showTiming && (
+        <div style={{ marginTop: 8, fontSize: 11, color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
+          ⏰ {timing}
+        </div>
+      )}
 
       {rejected && (
         <div style={{ marginTop: 10, fontSize: 11, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, fontStyle: "italic" }}>

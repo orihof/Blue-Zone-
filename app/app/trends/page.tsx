@@ -78,7 +78,7 @@ interface WearableRow {
   date: string;
 }
 
-function weekLabel(dateStr: string, idx: number): string {
+function weekLabel(_dateStr: string, idx: number): string {
   return `W${idx + 1}`;
 }
 
@@ -129,9 +129,9 @@ export default async function TrendsPage() {
   ];
 
   return (
-    <div style={{ paddingBottom: 60 }}>
+    <div className="px-4 lg:px-6 py-6 lg:py-8">
       {/* Header */}
-      <div className="fu">
+      <div className="fu" style={{ marginBottom: 20 }}>
         <div style={{
           fontSize: 11, fontWeight: 400, letterSpacing: ".1em",
           color: "#6366F1", fontFamily: "'Inter',sans-serif",
@@ -139,13 +139,13 @@ export default async function TrendsPage() {
         }}>
           Wearable Trends
         </div>
-        <h2 style={{
+        <h1 style={{
           fontFamily: "'Syne',sans-serif", fontWeight: 400,
           fontSize: "clamp(22px,3vw,32px)", color: "#F1F5F9",
-          marginBottom: 20, letterSpacing: "-.02em",
+          letterSpacing: "-.02em",
         }}>
           8-Week Overview
-        </h2>
+        </h1>
       </div>
 
       {/* Trend cards */}

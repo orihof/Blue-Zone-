@@ -35,10 +35,15 @@ export default function UploadPage() {
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: f.name, mimeType: f.type, fileSize: f.size }),
+        body: JSON.stringify({ files: [{ name: f.name, size: f.size, type: f.type }] }),
       });
-      if (!signRes.ok) throw new Error("Failed to get upload URL");
-      const { signedUrl, storagePath } = await signRes.json();
+      if (!signRes.ok) {
+        const errBody = await signRes.json().catch(() => ({}));
+        throw new Error(errBody.error ?? "Failed to get upload URL");
+      }
+      const { files: signedFiles } = await signRes.json();
+      if (!signedFiles?.[0]) throw new Error("No signed URL returned");
+      const { signedUrl, storagePath } = signedFiles[0] as { signedUrl: string; storagePath: string };
 
       // 2. Upload via XHR for progress
       await new Promise<void>((resolve, reject) => {
@@ -59,7 +64,7 @@ export default function UploadPage() {
       const commitRes = await fetch("/api/uploads/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storagePath, fileName: f.name, fileSize: f.size, mimeType: f.type }),
+        body: JSON.stringify({ files: [{ storagePath, fileName: f.name, fileSize: f.size, mimeType: f.type }] }),
       });
       if (!commitRes.ok) throw new Error("Failed to commit upload");
 

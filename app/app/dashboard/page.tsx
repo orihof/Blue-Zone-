@@ -126,20 +126,20 @@ export default async function DashboardPage() {
     ];
 
   return (
-    <div style={{ paddingBottom: 60 }}>
+    <div className="px-4 lg:px-6 py-6 lg:py-8">
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>LIVING DASHBOARD</div>
-        <h2 className="fu" style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(24px,3.5vw,36px)", color: T.text, marginBottom: 5, letterSpacing: "-.02em" }}>
+        <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>Living Dashboard</div>
+        <h1 className="fu" style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: "clamp(24px,3.5vw,36px)", color: T.text, marginBottom: 5, letterSpacing: "-.02em" }}>
           Good morning, {firstName}.
-        </h2>
+        </h1>
         <p className="fu1" style={{ color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 300 }}>
           {latestId ? `Your protocol is active. Upload new data to refine it.` : "Upload health data to generate your personal protocol."}
         </p>
       </div>
 
       {/* Metric cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 14, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 14, marginBottom: 24 }}>
         {metrics.map((m, i) => {
           const c = STATUS_C[m.status] ?? "#3B82F6";
           return (
@@ -219,11 +219,15 @@ export default async function DashboardPage() {
       </div>
 
       {/* CTA */}
-      <div style={{ display: "flex", justifyContent: "center" }}>
+      <div className="flex flex-col sm:flex-row sm:justify-center mt-2">
         {latestId ? (
-          <Link href={`/app/results/${latestId}`}><button className="cta">View Full Protocol →</button></Link>
+          <Link href={`/app/results/${latestId}`} className="w-full sm:w-auto">
+            <button className="cta" style={{ width: "100%" }}>View Full Protocol →</button>
+          </Link>
         ) : (
-          <Link href="/app/onboarding/upload"><button className="cta">Upload Data to Start →</button></Link>
+          <Link href="/app/onboarding/upload" className="w-full sm:w-auto">
+            <button className="cta" style={{ width: "100%" }}>Upload Data to Start →</button>
+          </Link>
         )}
       </div>
     </div>

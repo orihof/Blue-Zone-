@@ -10,7 +10,17 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/app/onboarding/upload");
+      // If user has already set goals, land on their protocol; otherwise start setup
+      fetch("/api/user/onboarding")
+        .then((r) => r.json())
+        .then(({ goals }: { goals: string[] }) => {
+          if (goals && goals.length > 0) {
+            router.replace("/app/results");   // redirects to latest protocol
+          } else {
+            router.replace("/app/biomarkers"); // first-time setup flow
+          }
+        })
+        .catch(() => router.replace("/app/biomarkers"));
     } else if (status === "unauthenticated") {
       router.replace("/auth/signin");
     }

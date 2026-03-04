@@ -6,7 +6,6 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import type { RecItem, ProtocolPayload } from "@/lib/db/payload";
 
-const GRAD_GOLD = "linear-gradient(135deg,#C9943A,#E8C97A)";
 
 function chipClass(tag: string): string {
   if (tag.includes("↑")) return "chip chip-r";
@@ -64,7 +63,7 @@ export default async function ProductsPage() {
   };
 
   return (
-    <div style={{ paddingBottom: 60 }}>
+    <div className="px-4 lg:px-6 py-6 lg:py-8">
       {/* Header */}
       <div className="fu" style={{ marginBottom: 24 }}>
         <div style={{
@@ -74,12 +73,12 @@ export default async function ProductsPage() {
         }}>
           Product Stack
         </div>
-        <h2 style={{
+        <h1 style={{
           fontFamily: "'Syne',sans-serif", fontWeight: 400,
           fontSize: "clamp(22px,3vw,32px)", color: "#F1F5F9", letterSpacing: "-.02em",
         }}>
           Recommended Supplements
-        </h2>
+        </h1>
         <p style={{
           fontSize: 13, color: "#64748B", fontFamily: "'Inter',sans-serif",
           fontWeight: 300, marginTop: 6,

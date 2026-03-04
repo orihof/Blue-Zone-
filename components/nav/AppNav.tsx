@@ -17,9 +17,10 @@ interface AppNavProps {
 }
 
 const NAV_ITEMS = [
-  { href: "/app/dashboard",  icon: "⬡",  label: "Dashboard" },
+  { href: "/app/biomarkers", icon: "◉",  label: "My Data" },
   { href: "/app/results",    icon: "◈",  label: "My Protocol" },
-  { href: "/app/biomarkers", icon: "◉",  label: "Biomarkers" },
+  { href: "/app/dashboard",  icon: "⬡",  label: "Dashboard" },
+  { href: "/app/wearables",  icon: "📡", label: "Wearables" },
   { href: "/app/trends",     icon: "◫",  label: "Trends" },
   { href: "/app/checkin",    icon: "◷",  label: "Check-in", badge: "Due" },
   { href: "/app/products",   icon: "◻",  label: "Products" },
@@ -80,8 +81,8 @@ function UserAvatar({ user, size = 32 }: { user: AppNavProps["user"]; size?: num
 function Sidebar({ user, adherencePercent }: AppNavProps) {
   const pathname = usePathname();
   return (
-    <aside style={{ width: 210, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.05)", padding: "20px 12px", position: "sticky", top: 60, height: "calc(100vh - 60px)", display: "flex", flexDirection: "column", background: "rgba(6,8,15,0.5)", backdropFilter: "blur(10px)", zIndex: 40 }}
-      className="hidden lg:flex">
+    <aside style={{ width: 210, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.05)", padding: "20px 12px", position: "fixed", left: 0, top: 60, height: "calc(100vh - 60px)", overflowY: "auto", flexDirection: "column", background: "rgba(6,8,15,0.5)", backdropFilter: "blur(10px)", zIndex: 40 }}
+      className="hidden md:flex">
       <div style={{ flex: 1 }}>
         {NAV_ITEMS.map((it) => {
           const active = pathname === it.href || pathname.startsWith(it.href + "/");
@@ -127,7 +128,7 @@ function MobileNav({ user }: AppNavProps) {
   return (
     <>
       {/* Top header */}
-      <header className="lg:hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "rgba(6,8,15,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+      <header className="md:hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "rgba(6,8,15,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>⬡</div>
           <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 16, background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
@@ -192,7 +193,7 @@ function MobileNav({ user }: AppNavProps) {
       </AnimatePresence>
 
       {/* Bottom tab bar */}
-      <nav className="lg:hidden" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, display: "flex", alignItems: "stretch", height: 56, background: "rgba(6,8,15,0.9)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <nav className="md:hidden" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, display: "flex", alignItems: "stretch", height: 56, background: "rgba(6,8,15,0.9)", backdropFilter: "blur(12px)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
         {MOBILE_TABS.map((it) => {
           const active = pathname === it.href || pathname.startsWith(it.href + "/");
           return (
@@ -210,7 +211,7 @@ function MobileNav({ user }: AppNavProps) {
 // ── Top nav bar (shown on all pages at 60px) ───────────────────────────────────
 function TopNav({ user }: AppNavProps) {
   return (
-    <header className="hidden lg:flex" style={{ position: "sticky", top: 0, zIndex: 50, height: 60, borderBottom: "1px solid rgba(255,255,255,0.05)", alignItems: "center", padding: "0 28px", background: "rgba(6,8,15,0.85)", backdropFilter: "blur(24px)" }}>
+    <header className="hidden md:flex" style={{ position: "sticky", top: 0, zIndex: 50, height: 60, borderBottom: "1px solid rgba(255,255,255,0.05)", alignItems: "center", padding: "0 28px", background: "rgba(6,8,15,0.85)", backdropFilter: "blur(24px)" }}>
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
         <div style={{ width: 32, height: 32, borderRadius: 9, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, boxShadow: "0 0 18px rgba(99,102,241,0.4)" }}>⬡</div>
         <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 18, letterSpacing: "-.02em", background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>

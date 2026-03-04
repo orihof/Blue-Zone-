@@ -39,8 +39,8 @@ export default function CheckInPage() {
 
   if (done) {
     return (
-      <div style={{
-        textAlign: "center", padding: "80px 24px",
+      <div className="px-4 lg:px-6 py-16 lg:py-20" style={{
+        textAlign: "center",
         animation: "fadeIn .5s ease both",
       }}>
         <div style={{
@@ -69,7 +69,7 @@ export default function CheckInPage() {
   }
 
   return (
-    <div style={{ maxWidth: 540, margin: "0 auto", padding: "52px 24px" }}>
+    <div className="px-4 lg:px-0 py-6 lg:py-8" style={{ maxWidth: 540, margin: "0 auto" }}>
       {/* Progress bar */}
       <div style={{
         height: 2, background: "rgba(255,255,255,.06)",
