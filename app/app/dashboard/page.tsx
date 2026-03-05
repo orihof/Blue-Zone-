@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { Sparkline } from "@/components/ui/Sparkline";
+import { GroceryListBanner } from "@/components/dashboard/GroceryListBanner";
 import Link from "next/link";
 import type { ProtocolPayload } from "@/lib/db/payload";
 
@@ -137,6 +138,9 @@ export default async function DashboardPage() {
           {latestId ? `Your protocol is active. Upload new data to refine it.` : "Upload health data to generate your personal protocol."}
         </p>
       </div>
+
+      {/* Grocery list banner (item 25) */}
+      <GroceryListBanner />
 
       {/* Metric cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 14, marginBottom: 24 }}>

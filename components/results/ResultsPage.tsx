@@ -1,9 +1,8 @@
 /// components/results/ResultsPage.tsx
-// Port of reference Results component.
-// Uses CSS class-based styling (.card, .tab, .rec) from globals.css.
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import type { CardAdoptionState } from "@/components/RecommendationCard";
 import type { RecItem, ClinicItem } from "@/lib/db/payload";
@@ -13,7 +12,7 @@ import type { Goal, BudgetTier, Preferences } from "@/lib/recommendations/genera
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const T = { text: "#F1F5F9", muted: "#64748B" };
 
-// ── Today's Check-in Banner ────────────────────────────────────────────────
+// ── Check-in banner ────────────────────────────────────────────────────────
 const MOODS = [
   { emoji: "😴", key: "low",       label: "Low" },
   { emoji: "😐", key: "okay",      label: "Okay" },
@@ -21,14 +20,13 @@ const MOODS = [
 ] as const;
 
 function CheckInBanner() {
-  const [done, setDone]   = useState(false);
-  const [mood, setMood]   = useState<string | null>(null);
-  const [busy, setBusy]   = useState(false);
+  const [done, setDone] = useState(false);
+  const [mood, setMood] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const today = new Date().toDateString();
-    const stored = localStorage.getItem("bz_checkin_date");
-    if (stored === today) {
+    if (localStorage.getItem("bz_checkin_date") === today) {
       setDone(true);
       setMood(localStorage.getItem("bz_checkin_mood"));
     }
@@ -42,19 +40,20 @@ function CheckInBanner() {
     localStorage.setItem("bz_checkin_mood", emoji);
     setMood(emoji);
     setDone(true);
+    window.dispatchEvent(new CustomEvent("bz-checkin-done"));
     try {
       await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ energy: key }),
       });
-    } catch { /* silent — optimistic */ }
+    } catch { /* silent */ }
     setBusy(false);
   }
 
   if (done) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(16,185,129,.07)", border: "1px solid rgba(16,185,129,.18)", borderRadius: 12, padding: "12px 18px", marginBottom: 20, animation: "fadeUp .3s ease both" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(16,185,129,.07)", border: "1px solid rgba(16,185,129,.18)", borderRadius: 12, padding: "12px 18px", marginBottom: 20 }}>
         <span style={{ fontSize: 18 }}>{mood ?? "✓"}</span>
         <div>
           <div style={{ fontSize: 13, color: "#34D399", fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300 }}>Today&apos;s check-in complete</div>
@@ -65,7 +64,7 @@ function CheckInBanner() {
   }
 
   return (
-    <div style={{ background: "rgba(245,158,11,.06)", border: "1px solid rgba(245,158,11,.28)", borderRadius: 12, padding: "14px 18px", marginBottom: 20, animation: "fadeUp .3s ease both" }}>
+    <div style={{ background: "rgba(245,158,11,.06)", border: "1px solid rgba(245,158,11,.28)", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div>
           <div style={{ fontSize: 12, color: "#FCD34D", fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, marginBottom: 2 }}>Today&apos;s Check-in</div>
@@ -87,6 +86,36 @@ function CheckInBanner() {
   );
 }
 
+// ── Health domain mapping (item 17) ───────────────────────────────────────
+const DOMAIN_MAP: Record<string, string> = {
+  immune: "immune function", bone: "bone density", foundational: "foundational health",
+  sleep: "sleep quality", recovery: "physical recovery", stress: "stress resilience",
+  heart: "cardiovascular health", inflammation: "systemic inflammation",
+  energy: "cellular energy", mitochondria: "cellular energy", longevity: "longevity",
+  aging: "healthy aging", strength: "muscle performance", muscle: "muscle performance",
+  cognition: "cognitive performance", focus: "cognitive performance", calm: "cognitive performance",
+  hormones: "hormonal balance", metabolic: "metabolic health", collagen: "tissue health",
+  "anti-inflammatory": "systemic inflammation", mediterranean: "longevity nutrition",
+  "air quality": "sleep environment", respiratory: "respiratory health", hrv: "recovery optimization",
+};
+
+function getTopDomains(recs: RecItem[]): string[] {
+  const counts: Record<string, number> = {};
+  recs.forEach((r) => r.tags.forEach((tag) => {
+    const domain = DOMAIN_MAP[tag.toLowerCase().replace(/[↑↓]/g, "").trim()];
+    if (domain) counts[domain] = (counts[domain] ?? 0) + 1;
+  }));
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([d]) => d);
+}
+
+// ── Priority insight generation (item 14) ─────────────────────────────────
+function buildPriorityInsight(supplements: RecItem[]): string | null {
+  if (supplements.length === 0) return null;
+  const top = supplements[0];
+  return `Based on your profile, ${top.title} is your highest-leverage starting point. ${top.rationaleBullets[0]}`;
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────
 interface Protocol {
   id:           string;
   selected_age: number;
@@ -97,16 +126,28 @@ interface Protocol {
   created_at:   string;
 }
 
-type TabFilter = "all" | "pending" | "adopted" | "rejected";
+type TabFilter  = "all" | "pending" | "adopted" | "rejected";
+type PrimaryTab = "daily" | "setup";
 
 interface ResultsPageProps {
   protocol: Protocol;
   payload:  ProtocolPayload;
 }
 
-export function ResultsPage({ protocol, payload }: ResultsPageProps) {
-  const [statuses, setStatuses] = useState<Record<string, CardAdoptionState>>({});
-  const [tab, setTab] = useState<TabFilter>("all");
+// ── Inner component (uses useSearchParams — needs Suspense) ────────────────
+function ResultsPageInner({ protocol, payload }: ResultsPageProps) {
+  const searchParams = useSearchParams();
+  const router       = useRouter();
+
+  const primaryTab = (searchParams.get("tab") as PrimaryTab) ?? "daily";
+
+  const [statuses, setStatuses]   = useState<Record<string, CardAdoptionState>>({});
+  const [filterTab, setFilterTab] = useState<TabFilter>("all");
+  const [showAll, setShowAll]     = useState(false);
+
+  useEffect(() => {
+    setShowAll(localStorage.getItem("bz_has_adopted") === "true");
+  }, []);
 
   const allRecs: RecItem[] = [
     ...payload.recommendations.supplements,
@@ -119,40 +160,99 @@ export function ResultsPage({ protocol, payload }: ResultsPageProps) {
   const pending  = allRecs.length - adopted - rejected;
   const pct      = allRecs.length > 0 ? Math.round((adopted / allRecs.length) * 100) : 0;
 
+  // Persist first adoption (item 15)
+  useEffect(() => {
+    if (adopted > 0 && localStorage.getItem("bz_has_adopted") !== "true") {
+      localStorage.setItem("bz_has_adopted", "true");
+      setShowAll(true);
+    }
+  }, [adopted]);
+
   function getStatus(id: string): CardAdoptionState { return statuses[id] ?? "pending"; }
   function handleAdopt(id: string)  { setStatuses((p) => ({ ...p, [id]: "adopted" })); }
   function handleReject(id: string) { setStatuses((p) => ({ ...p, [id]: "rejected" })); }
   function handleReset(id: string)  { setStatuses((p) => { const n = { ...p }; delete n[id]; return n; }); }
 
   function filterRecs(items: RecItem[]) {
-    if (tab === "all")      return items;
-    if (tab === "adopted")  return items.filter((r) => statuses[r.id] === "adopted");
-    if (tab === "rejected") return items.filter((r) => statuses[r.id] === "rejected");
-    return items.filter((r) => !statuses[r.id] || statuses[r.id] === "pending");
+    if (filterTab === "adopted")  return items.filter((r) => statuses[r.id] === "adopted");
+    if (filterTab === "rejected") return items.filter((r) => statuses[r.id] === "rejected");
+    if (filterTab === "pending")  return items.filter((r) => !statuses[r.id] || statuses[r.id] === "pending");
+    return items;
+  }
+
+  function setPrimaryTab(tab: PrimaryTab) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`?${params.toString()}`, { scroll: false });
+    setFilterTab("all");
   }
 
   const createdDate = new Date(protocol.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
+  // Content splits
+  const dailySupplements  = filterRecs(payload.recommendations.supplements);
+  const dailyNutrition    = filterRecs(payload.recommendations.nutrition);
+  const setupItems        = filterRecs(payload.recommendations.home);
+  const realClinics       = payload.recommendations.clinics.filter(
+    (c: ClinicItem) => c.city && !c.city.toLowerCase().includes("your")
+  );
+
+  // Chain adoption momentum (item 24) — "core" = first 3 supplements
+  const supplements    = payload.recommendations.supplements;
+  const coreCount      = Math.min(3, supplements.length);
+  const coreAdopted    = supplements.slice(0, coreCount).filter((s) => statuses[s.id] === "adopted").length;
+  const corePct        = coreCount > 0 ? Math.round((coreAdopted / coreCount) * 100) : 0;
+
+  // Collapsed view for supplements (item 15)
+  const visibleSupplements = showAll ? dailySupplements : dailySupplements.slice(0, 2);
+  const hiddenCount        = !showAll ? Math.max(0, dailySupplements.length - 2) : 0;
+
+  // Filter tab counts for current primary tab
+  const tabBase     = primaryTab === "daily"
+    ? [...payload.recommendations.supplements, ...payload.recommendations.nutrition]
+    : payload.recommendations.home;
+  const tabAdopted  = tabBase.filter((r) => statuses[r.id] === "adopted").length;
+  const tabRejected = tabBase.filter((r) => statuses[r.id] === "rejected").length;
+  const tabPending  = tabBase.length - tabAdopted - tabRejected;
+
+  // Generated content
+  const topDomains      = getTopDomains([...payload.recommendations.supplements, ...payload.recommendations.nutrition]);
+  const priorityInsight = buildPriorityInsight(payload.recommendations.supplements);
+  const hasSleepTracker = payload.recommendations.home.some((h) => h.id === "sleep-tracker");
+
   return (
     <div style={{ paddingBottom: 60 }}>
 
-      {/* Today's check-in banner */}
+      {/* Check-in banner */}
       <CheckInBanner />
 
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const }}>MY PROTOCOL</div>
         <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(22px,3vw,32px)", color: T.text, marginBottom: 5, letterSpacing: "-.02em" }}>
           Your Optimization Protocol
         </h2>
-        <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
+        <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 4 }}>
           Generated {createdDate} · Age {protocol.selected_age} · {protocol.budget} budget
           {protocol.mode === "demo" && " · Demo"}
         </p>
+        {/* Social proof (item 22) */}
+        <p style={{ fontSize: 12, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 8 }}>
+          👥 Users with a similar biomarker profile report improvements in energy and sleep within 3–4 weeks.
+        </p>
+        {/* Health narrative (item 17) */}
+        {topDomains.length > 0 && (
+          <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.65, borderLeft: "2px solid rgba(99,102,241,.2)", paddingLeft: 10 }}>
+            Your protocol is designed to address{" "}
+            <span style={{ color: "#A5B4FC" }}>{topDomains[0]}</span>
+            {topDomains[1] && <> and optimize <span style={{ color: "#A5B4FC" }}>{topDomains[1]}</span></>}.{" "}
+            These {allRecs.length} interventions are ranked by projected impact on your biomarker profile.
+          </p>
+        )}
       </div>
 
       {/* Analysis complete banner */}
-      <div className="fu" style={{ background: "linear-gradient(135deg,rgba(16,185,129,.07),rgba(59,130,246,.07))", border: "1px solid rgba(16,185,129,.18)", borderRadius: 14, padding: "18px 22px", marginBottom: 24, display: "flex", alignItems: "center", gap: 14 }}>
+      <div className="fu" style={{ background: "linear-gradient(135deg,rgba(16,185,129,.07),rgba(59,130,246,.07))", border: "1px solid rgba(16,185,129,.18)", borderRadius: 14, padding: "18px 22px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(16,185,129,.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>✓</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 15, color: "#34D399", marginBottom: 2 }}>
@@ -164,8 +264,10 @@ export function ResultsPage({ protocol, payload }: ResultsPageProps) {
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           {adopted === 0 ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 100, background: "rgba(16,185,129,.12)", border: "1px solid rgba(16,185,129,.3)", cursor: "default" }}>
-              <span style={{ fontSize: 13, color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, whiteSpace: "nowrap" as const }}>{allRecs.length} recommendations ready — start with 1 today →</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 100, background: "rgba(16,185,129,.12)", border: "1px solid rgba(16,185,129,.3)" }}>
+              <span style={{ fontSize: 13, color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, whiteSpace: "nowrap" as const }}>
+                {allRecs.length} recommendations ready — start with 1 today →
+              </span>
             </div>
           ) : (
             <>
@@ -176,9 +278,166 @@ export function ResultsPage({ protocol, payload }: ResultsPageProps) {
         </div>
       </div>
 
-      {/* Progress card — hidden until at least 1 adopted */}
+      {/* Priority insight (item 14) */}
+      {priorityInsight && (
+        <div className="fu1" style={{ background: "rgba(99,102,241,.07)", border: "1px solid rgba(99,102,241,.22)", borderRadius: 14, padding: "16px 20px", marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 400, color: "#818CF8", marginBottom: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".08em", textTransform: "uppercase" as const }}>🔬 Priority Insight</div>
+          <div style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.65 }}>{priorityInsight}</div>
+        </div>
+      )}
+
+      {/* ── Primary tabs (item 19) ── */}
+      <div style={{ display: "flex", gap: 3, marginBottom: 8, background: "rgba(255,255,255,0.03)", padding: 4, borderRadius: 13, width: "fit-content" }}>
+        {([["daily", "Daily Protocol"], ["setup", "Optimize Your Setup"]] as [PrimaryTab, string][]).map(([k, l]) => (
+          <button key={k}
+            onClick={() => setPrimaryTab(k)}
+            style={{
+              padding: "10px 18px", borderRadius: 10, fontSize: 13,
+              fontWeight: k === primaryTab ? 400 : 300,
+              cursor: "pointer", border: "none", transition: "all .18s",
+              fontFamily: "var(--font-ui,'Inter',sans-serif)",
+              background: k === primaryTab ? "rgba(99,102,241,0.16)" : "transparent",
+              color: k === primaryTab ? "#A5B4FC" : "#64748B",
+            }}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Secondary filter tabs ── */}
+      <div style={{ display: "flex", gap: 3, marginBottom: 18, background: "rgba(255,255,255,0.025)", padding: 3, borderRadius: 11, width: "fit-content" }}>
+        {([
+          ["all",      `All (${tabBase.length})`],
+          ["pending",  `Pending (${tabPending})`],
+          ["adopted",  `Adopted (${tabAdopted})`],
+          ["rejected", `Dismissed (${tabRejected})`],
+        ] as [TabFilter, string][]).map(([k, l]) => (
+          <button key={k} className={`tab ${filterTab === k ? "on" : "off"}`} onClick={() => setFilterTab(k)}>{l}</button>
+        ))}
+      </div>
+
+      {/* ── Chain adoption momentum bar (item 24) ── */}
+      {adopted > 0 && coreCount > 0 && (
+        <div style={{ marginBottom: 18, padding: "14px 18px", borderRadius: 12, background: "rgba(16,185,129,.05)", border: "1px solid rgba(16,185,129,.15)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 400, letterSpacing: ".08em", color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const }}>
+              {coreAdopted === coreCount ? "✓ Foundation complete" : "Foundation building"}
+            </span>
+            <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 12, fontWeight: 400, color: "#34D399" }}>
+              {coreAdopted} / {coreCount} core
+            </span>
+          </div>
+          <div style={{ height: 4, background: "rgba(255,255,255,0.05)", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: 2, width: `${corePct}%`, background: "linear-gradient(90deg,#10B981,#34D399)", animation: "barFill .8s cubic-bezier(.16,1,.3,1) both" }} />
+          </div>
+          <div style={{ marginTop: 7, fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
+            {coreAdopted === coreCount
+              ? "Protocol adapting to your commitments — keep going."
+              : `${coreCount - coreAdopted} more core supplement${coreCount - coreAdopted > 1 ? "s" : ""} to build your foundation`}
+          </div>
+        </div>
+      )}
+
+      {/* ══ DAILY PROTOCOL TAB ══════════════════════════════════════ */}
+      {primaryTab === "daily" && (
+        <>
+          {/* Supplements with collapsed state (item 15) */}
+          {payload.recommendations.supplements.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 18, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>
+                Supplement Protocol
+              </h3>
+              {visibleSupplements.map((item, i) => (
+                <RecommendationCard key={item.id} item={item}
+                  priority={i === 0 ? "high" : i <= 1 ? "medium" : "low"}
+                  adoptionState={getStatus(item.id)}
+                  onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
+              ))}
+              {/* "See all" toggle */}
+              {hiddenCount > 0 && (
+                <button className="ghost"
+                  onClick={() => setShowAll(true)}
+                  style={{ width: "100%", marginTop: 6, textAlign: "center" as const, padding: "11px", fontSize: 13 }}>
+                  See all {payload.recommendations.supplements.length} recommendations ↓
+                </button>
+              )}
+              {dailySupplements.length === 0 && (
+                <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, padding: "12px 0" }}>No supplements match this filter.</p>
+              )}
+            </div>
+          )}
+
+          {/* Nutrition */}
+          {payload.recommendations.nutrition.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 18, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>Nutrition Interventions</h3>
+              {dailyNutrition.map((item) => (
+                <RecommendationCard key={item.id} item={item} priority="medium"
+                  adoptionState={getStatus(item.id)}
+                  onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
+              ))}
+              {dailyNutrition.length === 0 && (
+                <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, padding: "12px 0" }}>No nutrition items match this filter.</p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ══ OPTIMIZE YOUR SETUP TAB ═════════════════════════════════ */}
+      {primaryTab === "setup" && (
+        <>
+          {/* Sleep tracker promotion (item 23) */}
+          {hasSleepTracker && (
+            <div style={{ marginBottom: 16, background: "rgba(99,102,241,.06)", border: "1px solid rgba(99,102,241,.22)", borderRadius: 14, padding: "12px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 22, flexShrink: 0 }}>📡</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: "#818CF8", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, letterSpacing: ".08em", textTransform: "uppercase" as const, marginBottom: 3 }}>Unlock Better Insights</div>
+                <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>Connect a wearable to unlock personalized sleep & HRV optimization across your protocol.</div>
+              </div>
+              <a href="/app/wearables" style={{ fontSize: 12, color: "#A5B4FC", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, whiteSpace: "nowrap" as const, textDecoration: "none" }}>
+                Connect →
+              </a>
+            </div>
+          )}
+
+          {/* Home/product items */}
+          {payload.recommendations.home.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 18, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>Environment & Tools</h3>
+              {setupItems.map((item) => (
+                <RecommendationCard key={item.id} item={item} priority="low"
+                  adoptionState={getStatus(item.id)}
+                  onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
+              ))}
+              {setupItems.length === 0 && (
+                <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, padding: "12px 0" }}>No items match this filter.</p>
+              )}
+            </div>
+          )}
+
+          {/* Clinics */}
+          {realClinics.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 18, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>Recommended Clinics</h3>
+              {realClinics.map((clinic: ClinicItem) => (
+                <div key={clinic.id} className="card" style={{ padding: "18px 22px", marginBottom: 12 }}>
+                  <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 15, color: T.text, marginBottom: 4 }}>{clinic.name}</div>
+                  <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 6 }}>{clinic.city} · {clinic.specialty.join(", ")}</div>
+                  <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{clinic.whyRelevant[0]}</div>
+                  {clinic.bookingUrl && (
+                    <div style={{ marginTop: 8, fontSize: 11, color: "#A5B4FC", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{clinic.bookingUrl}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Progress card (when adopted > 0) */}
       {adopted > 0 && (
-        <div className="card fu1" style={{ padding: 22, marginBottom: 20 }}>
+        <div className="card" style={{ padding: 22, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 14, color: T.text }}>Protocol Adherence</span>
             <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 12, color: "#A5B4FC", fontWeight: 300 }}>
@@ -198,80 +457,6 @@ export function ResultsPage({ protocol, payload }: ResultsPageProps) {
               💡 {rejected} dismissed recommendation{rejected > 1 ? "s" : ""} excluded from next protocol update. Re-enable anytime.
             </div>
           )}
-        </div>
-      )}
-
-      {/* Priority insights (replaces red flags) */}
-      {payload.safety?.redFlags && payload.safety.redFlags.length > 0 && (
-        <div style={{ background: "rgba(99,102,241,.07)", border: "1px solid rgba(99,102,241,.22)", borderRadius: 14, padding: "14px 18px", marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 400, color: "#818CF8", marginBottom: 6, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>🔬 Priority Insights — Based on your biomarker data</div>
-          {payload.safety.redFlags.map((f, i) => (
-            <div key={i} style={{ fontSize: 12, color: "#94A3B8", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 4, paddingLeft: 10, borderLeft: "2px solid rgba(99,102,241,.3)" }}>{f}</div>
-          ))}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 3, marginBottom: 18, background: "rgba(255,255,255,0.025)", padding: 3, borderRadius: 11, width: "fit-content" }}>
-        {([["all", `All (${allRecs.length})`], ["pending", `Pending (${pending})`], ["adopted", `Adopted (${adopted})`], ["rejected", `Dismissed (${rejected})`]] as [TabFilter, string][]).map(([k, l]) => (
-          <button key={k} className={`tab ${tab === k ? "on" : "off"}`} onClick={() => setTab(k)}>{l}</button>
-        ))}
-      </div>
-
-      {/* Supplements */}
-      {payload.recommendations.supplements.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 20, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>Supplement Protocol</h3>
-          {filterRecs(payload.recommendations.supplements).map((item, i) => (
-            <RecommendationCard key={item.id} item={item}
-              priority={i === 0 ? "high" : i <= 2 ? "medium" : "low"}
-              adoptionState={getStatus(item.id)}
-              onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
-          ))}
-          {filterRecs(payload.recommendations.supplements).length === 0 && (
-            <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, padding: "12px 0" }}>No supplements match this filter.</p>
-          )}
-        </div>
-      )}
-
-      {/* Nutrition */}
-      {payload.recommendations.nutrition.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 20, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>Nutrition Interventions</h3>
-          {filterRecs(payload.recommendations.nutrition).map((item, i) => (
-            <RecommendationCard key={item.id} item={item} priority={i === 0 ? "medium" : "low"}
-              adoptionState={getStatus(item.id)}
-              onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
-          ))}
-        </div>
-      )}
-
-      {/* Lifestyle */}
-      {payload.recommendations.home.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 20, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>Lifestyle Protocols</h3>
-          {filterRecs(payload.recommendations.home).map((item) => (
-            <RecommendationCard key={item.id} item={item} priority="low"
-              adoptionState={getStatus(item.id)}
-              onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
-          ))}
-        </div>
-      )}
-
-      {/* Clinics — only shown when real city data is present */}
-      {payload.recommendations.clinics.some((c: ClinicItem) => c.city && !c.city.toLowerCase().includes("your")) && (
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 20, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>Recommended Clinics</h3>
-          {payload.recommendations.clinics.filter((c: ClinicItem) => c.city && !c.city.toLowerCase().includes("your")).map((clinic: ClinicItem) => (
-            <div key={clinic.id} className="card" style={{ padding: "18px 22px", marginBottom: 12 }}>
-              <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 15, color: T.text, marginBottom: 4 }}>{clinic.name}</div>
-              <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 6 }}>{clinic.city} · {clinic.specialty.join(", ")}</div>
-              <div style={{ fontSize: 12, color: "#94A3B8", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{clinic.whyRelevant[0]}</div>
-              {clinic.bookingUrl && (
-                <div style={{ marginTop: 8, fontSize: 11, color: "#A5B4FC", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{clinic.bookingUrl}</div>
-              )}
-            </div>
-          ))}
         </div>
       )}
 
@@ -305,5 +490,14 @@ export function ResultsPage({ protocol, payload }: ResultsPageProps) {
         Blue Zone provides educational health information only. Nothing here constitutes medical advice, diagnosis, or treatment. Always consult a qualified clinician before beginning any supplement, dietary, or lifestyle protocol.
       </div>
     </div>
+  );
+}
+
+// ── Exported wrapper with Suspense (required for useSearchParams) ──────────
+export function ResultsPage(props: ResultsPageProps) {
+  return (
+    <Suspense fallback={<div style={{ paddingBottom: 60 }} />}>
+      <ResultsPageInner {...props} />
+    </Suspense>
   );
 }
