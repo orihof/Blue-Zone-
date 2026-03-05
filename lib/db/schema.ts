@@ -17,6 +17,8 @@ export const TABLES = {
   RATE_LIMIT_BUCKETS: "rate_limit_buckets",
   // Wearable OAuth (migration 003)
   WEARABLE_CONNECTIONS: "wearable_connections",
+  // Sports event prep (migration 005)
+  SPORTS_PROTOCOLS: "sports_protocols",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -95,6 +97,22 @@ export const COLS = {
   // onboarding (migration 004)
   ONBOARDING_GOALS:         "onboarding_goals",
   ONBOARDING_WEARABLE_DONE: "onboarding_wearable_done",
+  // sports_protocols (migration 005)
+  COMPETITION_TYPE:         "competition_type",
+  EVENT_DATE:               "event_date",
+  WEEKS_TO_EVENT:           "weeks_to_event",
+  PRIORITY_OUTCOME:         "priority_outcome",
+  EXPERIENCE_LEVEL:         "experience_level",
+  GENDER:                   "gender",
+  AGE:                      "age",
+  CURRENT_INJURIES:         "current_injuries",
+  KNOWN_CONDITIONS:         "known_conditions",
+  MEDICATIONS:              "medications",
+  STIMULANT_TOLERANCE:      "stimulant_tolerance",
+  BUDGET_VALUE:             "budget_value",
+  BUDGET_TIER:              "budget_tier",
+  RACE_DISTANCE:            "race_distance",
+  PROTOCOL_GENERATED_AT:    "protocol_generated_at",
 } as const;
 
 export const BUCKETS = {
