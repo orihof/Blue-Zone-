@@ -1,9 +1,10 @@
 /// app/app/wearables/_client.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
+import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const GT   = { background: GRAD, WebkitBackgroundClip: "text" as const, WebkitTextFillColor: "transparent" as const, backgroundClip: "text" as const };
@@ -52,6 +53,8 @@ const WEARABLES = [
 
 export function WearablesClient({ connected }: { connected: WearableConn[] }) {
   const [uploading, setUploading] = useState(false);
+  const [ahModalOpen, setAhModalOpen] = useState(false);
+  const appleFileRef = useRef<HTMLInputElement>(null);
 
   const connectedIds = new Set(connected.map((c) => c.provider));
 
@@ -170,18 +173,30 @@ export function WearablesClient({ connected }: { connected: WearableConn[] }) {
 
                   {w.type === "upload" && (
                     <div>
-                      <label style={{ cursor: uploading ? "wait" : "pointer" }}>
-                        <input
-                          type="file" accept=".json,.xml,.csv" style={{ display: "none" }}
-                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAppleUpload(f); }}
+                      <input
+                        ref={appleFileRef}
+                        type="file" accept=".zip" style={{ display: "none" }}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAppleUpload(f); }}
+                        disabled={uploading}
+                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <button
+                          className="cta cta-sm"
+                          style={{ fontSize: 12, opacity: uploading ? 0.6 : 1, cursor: uploading ? "wait" : "pointer" }}
                           disabled={uploading}
-                        />
-                        <span className="cta cta-sm" style={{ fontSize: 12, display: "inline-block", cursor: uploading ? "wait" : "pointer", opacity: uploading ? 0.6 : 1 }}>
+                          onClick={() => appleFileRef.current?.click()}
+                        >
                           {uploading ? "Uploading…" : "Upload Health Export"}
-                        </span>
-                      </label>
+                        </button>
+                        <button
+                          onClick={() => setAhModalOpen(true)}
+                          style={{ background: "none", border: "none", fontSize: 12, color: "#6366F1", cursor: "pointer", padding: 0, fontFamily: "var(--font-ui,'Inter',sans-serif)", textDecoration: "underline", textUnderlineOffset: 3 }}
+                        >
+                          Need Help?
+                        </button>
+                      </div>
                       <p style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-                        On iPhone: Health → Profile → Export All Health Data → share the .zip
+                        On iPhone: Health → Profile → Export All Health Data → share export.zip
                       </p>
                     </div>
                   )}
@@ -197,6 +212,12 @@ export function WearablesClient({ connected }: { connected: WearableConn[] }) {
           );
         })}
       </div>
+
+      <AppleHealthHelpModal
+        open={ahModalOpen}
+        onClose={() => setAhModalOpen(false)}
+        onRequestUpload={() => appleFileRef.current?.click()}
+      />
     </>
   );
 }

@@ -12,16 +12,17 @@ const GT       = { background: GRAD, WebkitBackgroundClip: "text" as const, Webk
 const T        = { text: "#F1F5F9", muted: "#64748B" };
 
 const GOALS = [
-  { id: "weight_loss",   label: "Weight Loss",          icon: "🔥", desc: "Optimize body composition & fat metabolism" },
-  { id: "anti_aging",    label: "Looking Younger",       icon: "✨", desc: "Slow biological aging & improve skin health" },
-  { id: "performance",   label: "Physical Performance",  icon: "💪", desc: "Strength, endurance & peak athletic output" },
-  { id: "cognition",     label: "Sharper Thinking",      icon: "🧠", desc: "Focus, memory & cognitive performance" },
-  { id: "sleep",         label: "Sleep",                 icon: "🌙", desc: "Deep sleep quality & circadian rhythm" },
-  { id: "hair",          label: "Hair Loss",             icon: "💆", desc: "Support follicle health & reduce shedding" },
-  { id: "mood",          label: "Mood",                  icon: "☀️", desc: "Emotional wellbeing & stress resilience" },
-  { id: "sexual_health", label: "Sexual Health",         icon: "❤️", desc: "Hormonal balance & vitality" },
-  { id: "gut",           label: "Gut Health",            icon: "🫁", desc: "Microbiome diversity & digestive function" },
-  { id: "stress",        label: "Reducing Stress",       icon: "🧘", desc: "Cortisol regulation & calm focus" },
+  { id: "weight_loss",   label: "Weight Loss",          icon: "🔥", desc: "Optimize body composition & fat metabolism",  badge: "🔥 Most popular" },
+  { id: "anti_aging",    label: "Looking Younger",       icon: "✨", desc: "Slow biological aging & improve skin health", badge: null },
+  { id: "performance",   label: "Physical Performance",  icon: "💪", desc: "Strength, endurance & peak athletic output",  badge: null },
+  { id: "cognition",     label: "Sharper Thinking",      icon: "🧠", desc: "Focus, memory & cognitive performance",       badge: null },
+  { id: "sleep",         label: "Sleep",                 icon: "🌙", desc: "Deep sleep quality & circadian rhythm",       badge: "🔥 Most popular" },
+  { id: "hair",          label: "Hair Loss",             icon: "💆", desc: "Support follicle health & reduce shedding",   badge: null },
+  { id: "mood",          label: "Mood",                  icon: "☀️", desc: "Emotional wellbeing & stress resilience",     badge: null },
+  { id: "sexual_health", label: "Sexual Health",         icon: "❤️", desc: "Hormonal balance & vitality",                badge: null },
+  { id: "gut",           label: "Gut Health",            icon: "🫁", desc: "Microbiome diversity & digestive function",   badge: null },
+  { id: "stress",        label: "Reducing Stress",       icon: "🧘", desc: "Cortisol regulation & calm focus",           badge: null },
+  { id: "longevity",     label: "Longevity",             icon: "🧬", desc: "Extend healthspan & slow biological aging",   badge: null },
 ] as const;
 
 const GOAL_MAP: Record<string, Goal> = {
@@ -35,6 +36,7 @@ const GOAL_MAP: Record<string, Goal> = {
   sexual_health: "hormones",
   gut:           "recovery",
   stress:        "recovery",
+  longevity:     "longevity",
 };
 
 const MAX_GOALS = 3;
@@ -146,6 +148,7 @@ function GenerationScreen({ onComplete }: { onComplete: (id: string) => void }) 
 function SportsTile({ unlocked }: { unlocked: boolean }) {
   const router = useRouter();
   const [showTooltip, setShowTooltip] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   function handleClick() {
     if (!unlocked) { setShowTooltip(true); setTimeout(() => setShowTooltip(false), 3000); return; }
@@ -157,20 +160,25 @@ function SportsTile({ unlocked }: { unlocked: boolean }) {
     <div style={{ position: "relative" }}>
       <button
         onClick={handleClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
           width: "100%",
+          minHeight: 160,
           padding: "22px 20px",
           borderRadius: 16,
           textAlign: "left",
           cursor: "pointer",
           transition: "all .2s",
           opacity: unlocked ? 1 : 0.5,
-          background: "rgba(124,58,237,.08)",
+          background: hovered && unlocked ? "rgba(124,58,237,.13)" : "rgba(124,58,237,.08)",
           border: "1.5px solid transparent",
           backgroundClip: "padding-box",
-          boxShadow: unlocked ? "0 0 24px rgba(124,58,237,0.2)" : "none",
+          boxShadow: unlocked ? `0 0 ${hovered ? "32px" : "24px"} rgba(124,58,237,${hovered ? "0.28" : "0.2"})` : "none",
+          transform: hovered && unlocked ? "translateY(-1px)" : "none",
           position: "relative",
           overflow: "hidden",
+          outline: "none",
         }}
       >
         {/* Gradient border via pseudo-element simulation */}
@@ -195,6 +203,11 @@ function SportsTile({ unlocked }: { unlocked: boolean }) {
             ? "Competition prep protocol with periodized training, race-day strategy & tier-based supplement pack"
             : "Upload blood test + connect wearable to unlock"}
         </div>
+        {unlocked && (
+          <div style={{ fontSize: 10, color: "#2DD4BF", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500, marginTop: 8 }}>
+            Periodized timeline · Tier-based stack · Race-week protocol
+          </div>
+        )}
       </button>
 
       {/* Inline tooltip when locked */}
@@ -207,7 +220,62 @@ function SportsTile({ unlocked }: { unlocked: boolean }) {
   );
 }
 
-// ── Main client component ─────────────────────────────────────────────────────
+// ── Goal Card ─────────────────────────────────────────────────────────────────
+function GoalCard({
+  g, isSelected, maxed, onToggle,
+}: {
+  g: typeof GOALS[number];
+  isSelected: boolean;
+  maxed: boolean;
+  onToggle: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  const bg     = isSelected ? "rgba(99,102,241,.14)" : hovered && !maxed ? "rgba(255,255,255,.055)" : "rgba(255,255,255,.03)";
+  const border = isSelected ? "1.5px solid rgba(99,102,241,.5)" : hovered && !maxed ? "1px solid rgba(99,102,241,.3)" : "1px solid rgba(255,255,255,.08)";
+  const shadow = isSelected
+    ? "0 0 18px rgba(99,102,241,.15), inset 0 0 0 1px rgba(99,102,241,.1)"
+    : hovered && !maxed ? "0 4px 16px rgba(99,102,241,.1)" : "none";
+
+  return (
+    <button
+      onClick={onToggle}
+      disabled={maxed}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: "100%", minHeight: 160, padding: "22px 20px", borderRadius: 16, textAlign: "left",
+        cursor: maxed ? "not-allowed" : "pointer",
+        opacity: maxed ? 0.4 : 1,
+        transition: "all .2s",
+        background: bg,
+        border,
+        boxShadow: shadow,
+        transform: hovered && !maxed && !isSelected ? "translateY(-1px)" : "none",
+        position: "relative", overflow: "hidden",
+        outline: "none",
+      }}
+    >
+      {/* Social proof badge — top left */}
+      {g.badge && (
+        <div style={{ position: "absolute", top: 10, left: 10, fontSize: 9, fontWeight: 500, letterSpacing: ".04em", color: "#FCD34D", background: "rgba(245,158,11,.13)", border: "1px solid rgba(245,158,11,.3)", borderRadius: 100, padding: "2px 8px", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+          {g.badge}
+        </div>
+      )}
+
+      {/* Selected checkmark — top right */}
+      {isSelected && (
+        <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700 }}>✓</div>
+      )}
+
+      <div style={{ fontSize: 28, marginBottom: 10, marginTop: g.badge ? 18 : 0 }}>{g.icon}</div>
+      <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 15, color: isSelected ? "#C4B5FD" : T.text, marginBottom: 5, letterSpacing: "-.01em" }}>{g.label}</div>
+      <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", lineHeight: 1.55 }}>{g.desc}</div>
+    </button>
+  );
+}
+
+// ── Main client component ──────────────────────────────────────────────���──────
 export function GoalsClient({ hasUploads }: { hasUploads: boolean; hasWearables?: boolean }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
@@ -217,7 +285,7 @@ export function GoalsClient({ hasUploads }: { hasUploads: boolean; hasWearables?
   function toggleGoal(id: string) {
     setSelected((prev) => {
       if (prev.includes(id)) return prev.filter((g) => g !== id);
-      if (prev.length >= MAX_GOALS) { toast.error(`Select up to ${MAX_GOALS} goals`); return prev; }
+      if (prev.length >= MAX_GOALS) { toast.error(`Maximum ${MAX_GOALS} goals`); return prev; }
       return [...prev, id];
     });
   }
@@ -242,7 +310,15 @@ export function GoalsClient({ hasUploads }: { hasUploads: boolean; hasWearables?
     router.push(`/app/results/${protocolId}`);
   }
 
-  const remaining = MAX_GOALS - selected.length;
+  const ctaSubtext = selected.length > 0
+    ? selected.map((id) => GOALS.find((g) => g.id === id)?.label).join(", ")
+    : null;
+
+  const counterLabel =
+    selected.length === 0 ? "Choose up to 3 goals" :
+    selected.length === 1 ? "You can add 2 more" :
+    selected.length === 2 ? "You can add 1 more" :
+    "Maximum selected — ready to build";
 
   return (
     <>
@@ -253,28 +329,34 @@ export function GoalsClient({ hasUploads }: { hasUploads: boolean; hasWearables?
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 12 }}>⬡ Step 3 — Goals</div>
           <h1 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: "clamp(24px,4vw,42px)", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 10 }}>
-            What do you want to<br /><span style={GT}>optimise?</span>
+            What do you want to<br /><span style={GT}>optimise</span>
           </h1>
           <p style={{ fontSize: 14, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", lineHeight: 1.7 }}>
             Choose up to 3 goals. Your protocol will be built around these priorities.
           </p>
         </div>
 
-        {/* Selection counter */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 100, background: selected.length > 0 ? "rgba(99,102,241,.12)" : "rgba(255,255,255,.04)", border: `1px solid ${selected.length > 0 ? "rgba(99,102,241,.35)" : "rgba(255,255,255,.08)"}`, transition: "all .2s" }}>
+        {/* Selection counter — filled dot tracker */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 8 }}>
             {[0, 1, 2].map((i) => (
-              <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i < selected.length ? GRAD : "rgba(255,255,255,.1)", transition: "background .2s" }} />
+              <div key={i} style={{
+                width: 12, height: 12, borderRadius: "50%",
+                background: i < selected.length ? GRAD : "rgba(255,255,255,.12)",
+                transition: "all .3s",
+                transform: i < selected.length ? "scale(1.15)" : "scale(1)",
+                boxShadow: i < selected.length ? "0 0 8px rgba(99,102,241,.5)" : "none",
+              }} />
             ))}
-            <span style={{ fontSize: 11, color: selected.length === MAX_GOALS ? "#A5B4FC" : T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginLeft: 4 }}>
-              {selected.length === 0 ? "No goals selected" : selected.length === MAX_GOALS ? "Maximum selected" : `${remaining} more available`}
-            </span>
           </div>
+          <span style={{ fontSize: 11, color: selected.length === MAX_GOALS ? "#A5B4FC" : T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", transition: "color .2s" }}>
+            {counterLabel}
+          </span>
         </div>
 
-        {/* Goal cards grid — sports tile first, then standard goals */}
+        {/* Goal cards grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12, marginBottom: 40 }}>
-          {/* Sports prep tile — index 0 */}
+          {/* Sports prep tile */}
           <SportsTile unlocked={sportsUnlocked} />
 
           {/* Standard goal tiles */}
@@ -282,42 +364,31 @@ export function GoalsClient({ hasUploads }: { hasUploads: boolean; hasWearables?
             const isSelected = selected.includes(g.id);
             const maxed      = !isSelected && selected.length >= MAX_GOALS;
             return (
-              <button
+              <GoalCard
                 key={g.id}
-                onClick={() => toggleGoal(g.id)}
-                disabled={maxed}
-                style={{
-                  padding: "22px 20px", borderRadius: 16, textAlign: "left",
-                  cursor: maxed ? "not-allowed" : "pointer",
-                  opacity: maxed ? 0.4 : 1, transition: "all .2s",
-                  background: isSelected ? "rgba(99,102,241,.14)" : "rgba(255,255,255,.03)",
-                  border: isSelected ? "1.5px solid rgba(99,102,241,.5)" : "1px solid rgba(255,255,255,.08)",
-                  boxShadow: isSelected ? "0 0 18px rgba(99,102,241,.15), inset 0 0 0 1px rgba(99,102,241,.1)" : "none",
-                  position: "relative", overflow: "hidden",
-                }}>
-                {isSelected && (
-                  <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700 }}>✓</div>
-                )}
-                <div style={{ fontSize: 28, marginBottom: 10 }}>{g.icon}</div>
-                <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 15, color: isSelected ? "#C4B5FD" : T.text, marginBottom: 5, letterSpacing: "-.01em" }}>{g.label}</div>
-                <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", lineHeight: 1.55 }}>{g.desc}</div>
-              </button>
+                g={g}
+                isSelected={isSelected}
+                maxed={maxed}
+                onToggle={() => toggleGoal(g.id)}
+              />
             );
           })}
         </div>
 
         {/* CTA */}
-        <div style={{ position: "sticky", bottom: 0, padding: "16px 0", background: "linear-gradient(0deg,#06080F 70%,transparent)", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <div style={{ position: "sticky", bottom: 0, padding: "16px 0", background: "linear-gradient(0deg,#06080F 70%,transparent)", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, paddingBottom: "max(16px,env(safe-area-inset-bottom))" }}>
+          {ctaSubtext && (
+            <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+              Based on: {ctaSubtext}
+            </div>
+          )}
           <button
             className="cta"
-            style={{ width: "100%", maxWidth: 400, opacity: selected.length > 0 ? 1 : 0.4, cursor: selected.length > 0 ? "pointer" : "default" }}
+            style={{ width: "100%", maxWidth: 400, opacity: selected.length > 0 ? 1 : 0.4, cursor: selected.length > 0 ? "pointer" : "default", outline: "none", border: "none" }}
             disabled={selected.length === 0}
             onClick={handleContinue}>
             {selected.length === 0 ? "Select at least 1 goal" : "Build my protocol →"}
           </button>
-          <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-            {selected.length > 0 && selected.map((id) => GOALS.find((g) => g.id === id)?.label).join(", ")}
-          </div>
         </div>
       </div>
     </>

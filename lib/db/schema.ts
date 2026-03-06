@@ -19,6 +19,8 @@ export const TABLES = {
   WEARABLE_CONNECTIONS: "wearable_connections",
   // Sports event prep (migration 005)
   SPORTS_PROTOCOLS: "sports_protocols",
+  // Health goal prep packs (migration 007)
+  GOAL_PROTOCOLS: "goal_protocols",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -113,6 +115,8 @@ export const COLS = {
   BUDGET_TIER:              "budget_tier",
   RACE_DISTANCE:            "race_distance",
   PROTOCOL_GENERATED_AT:    "protocol_generated_at",
+  // goal_protocols (migration 007)
+  CATEGORY_DATA:            "category_data",
 } as const;
 
 export const BUCKETS = {

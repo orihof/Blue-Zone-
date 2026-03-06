@@ -1,13 +1,13 @@
-/// app/app/results/sports/[id]/page.tsx
+/// app/app/results/goal/[id]/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
-import type { SportsProtocolPayload } from "@/lib/db/sports-payload";
-import { SportsResultsPage } from "@/components/sports/SportsResultsPage";
+import type { GoalProtocolPayload } from "@/lib/db/goal-payload";
+import { GoalResultsPage } from "@/components/goals/GoalResultsPage";
 
-export default async function SportsResultsRoute({
+export default async function GoalResultsRoute({
   params,
 }: {
   params: { id: string };
@@ -16,20 +16,12 @@ export default async function SportsResultsRoute({
   if (!session) redirect("/auth/signin");
 
   const supabase = getAdminClient();
-  const [{ data: row }, { data: wearable }] = await Promise.all([
-    supabase
-      .from(TABLES.SPORTS_PROTOCOLS)
-      .select("*")
-      .eq(COLS.ID, params.id)
-      .eq(COLS.USER_ID, session.user.id)
-      .maybeSingle(),
-    supabase
-      .from(TABLES.WEARABLE_SNAPSHOTS)
-      .select(COLS.ID)
-      .eq(COLS.USER_ID, session.user.id)
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  const { data: row } = await supabase
+    .from(TABLES.GOAL_PROTOCOLS)
+    .select("*")
+    .eq(COLS.ID, params.id)
+    .eq(COLS.USER_ID, session.user.id)
+    .maybeSingle();
 
   if (!row) {
     redirect("/app/goals");
@@ -43,7 +35,7 @@ export default async function SportsResultsRoute({
       <div style={{ minHeight: "70vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18 }}>
         <div style={{ width: 48, height: 48, borderRadius: "50%", border: "3px solid rgba(124,58,237,.2)", borderTopColor: "#7C3AED", animation: "spin 1s linear infinite" }} />
         <p style={{ color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 14 }}>
-          Building your competition protocol…
+          Building your goal protocol…
         </p>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
@@ -53,6 +45,7 @@ export default async function SportsResultsRoute({
   // Failed
   if (status === "failed") {
     const errMsg = row[COLS.ERROR_MESSAGE] as string | null;
+    const category = row[COLS.CATEGORY] as string;
     return (
       <div style={{ minHeight: "70vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, padding: 24 }}>
         <div style={{ fontSize: 40 }}>⚠️</div>
@@ -64,7 +57,7 @@ export default async function SportsResultsRoute({
             {errMsg}
           </p>
         )}
-        <a href="/app/onboarding/sports-prep" style={{ marginTop: 8, padding: "12px 24px", borderRadius: 10, background: "linear-gradient(135deg,#7C3AED,#06B6D4)", color: "#fff", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 14, fontWeight: 500, textDecoration: "none" }}>
+        <a href={`/app/onboarding/goal-prep?category=${category}`} style={{ marginTop: 8, padding: "12px 24px", borderRadius: 10, background: "linear-gradient(135deg,#7C3AED,#06B6D4)", color: "#fff", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 14, fontWeight: 500, textDecoration: "none" }}>
           Try Again
         </a>
       </div>
@@ -72,16 +65,15 @@ export default async function SportsResultsRoute({
   }
 
   // Ready
-  const payload   = row[COLS.PAYLOAD] as SportsProtocolPayload;
-  const eventMeta = {
-    competitionType:  row[COLS.COMPETITION_TYPE]  as string,
-    eventDate:        row[COLS.EVENT_DATE]         as string,
-    weeksToEvent:     row[COLS.WEEKS_TO_EVENT]     as number,
-    priorityOutcome:  row[COLS.PRIORITY_OUTCOME]   as string,
-    experienceLevel:  row[COLS.EXPERIENCE_LEVEL]   as string,
-    budgetTier:       row[COLS.BUDGET_TIER]         as number,
-    budgetValue:      row[COLS.BUDGET_VALUE]        as number,
+  const payload  = row[COLS.PAYLOAD] as GoalProtocolPayload;
+  const goalMeta = {
+    category:     row[COLS.CATEGORY]     as string,
+    age:          row[COLS.AGE]          as number,
+    gender:       row[COLS.GENDER]       as string,
+    budgetTier:   row[COLS.BUDGET_TIER]  as number,
+    budgetValue:  row[COLS.BUDGET_VALUE] as number,
+    categoryData: row[COLS.CATEGORY_DATA] as Record<string, unknown>,
   };
 
-  return <SportsResultsPage payload={payload} eventMeta={eventMeta} hasWearable={!!wearable} />;
+  return <GoalResultsPage payload={payload} goalMeta={goalMeta} />;
 }

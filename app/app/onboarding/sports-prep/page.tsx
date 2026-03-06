@@ -386,111 +386,154 @@ function Step4({ form, update }: { form: SportsPrepFormData; update: (p: Partial
 }
 
 // ── Step 5 — Loading ───────────────────────────────────────────────────────────
-const SPORTS_STEPS = [
-  "Analyzing your biomarker data",
-  "Evaluating wearable performance metrics",
-  "Building periodized training timeline",
-  "Calibrating competition supplement stack",
-  "Generating your Competition Prep Pack",
-];
+const LOADING_MESSAGE = "Analyzing your biomarker data, wearable metrics, and performance goals";
 
-function LoadingScreen({ form, onComplete, onError }: { form: SportsPrepFormData; onComplete: (id: string) => void; onError: (e: string) => void }) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [pct, setPct]                 = useState(0);
-  const [visibleSteps, setVisible]    = useState<number[]>([0]);
-  const startedRef  = useRef(false);
-  const pollRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+const LOADING_STEPS = [
+  { id: "parse",      label: "Parsing your uploaded files" },
+  { id: "biomarkers", label: "Extracting biomarkers and ranges" },
+  { id: "wearables",  label: "Aggregating wearable trends (sleep, HRV, load)" },
+  { id: "matching",   label: "Matching to event demands" },
+  { id: "building",   label: "Building your prep pack" },
+] as const;
 
-  // Advance animation step every 8 s (keeps cycling at last step while Claude works)
+function useTypewriter(text: string, speed = 30) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone]           = useState(false);
   useEffect(() => {
-    const id = setInterval(() => {
-      setCurrentStep((prev) => {
-        const next = Math.min(prev + 1, SPORTS_STEPS.length - 1);
-        setVisible((v) => (v.includes(next) ? v : [...v, next]));
-        // Cap at 88% — polling sets 100% on completion
-        setPct(Math.round(((next + 1) / SPORTS_STEPS.length) * 88));
-        return next;
-      });
-    }, 8000);
-    return () => clearInterval(id);
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < text.length) { setDisplayed(text.slice(0, i + 1)); i++; }
+      else { setDone(true); clearInterval(interval); }
+    }, speed);
+    return () => clearInterval(interval);
+  }, [text, speed]);
+  return { displayed, done };
+}
+
+function LoopingEllipsis() {
+  const [dots, setDots] = useState(".");
+  useEffect(() => {
+    const interval = setInterval(() => setDots((d) => (d.length >= 3 ? "." : d + ".")), 500);
+    return () => clearInterval(interval);
+  }, []);
+  return <span style={{ color: "#A78BFA" }}>{dots}</span>;
+}
+
+function LoadingScreen({ form, onComplete, onError, preWarmedId }: {
+  form: SportsPrepFormData;
+  onComplete: (id: string) => void;
+  onError: (e: string) => void;
+  preWarmedId?: string;
+}) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const startedRef = useRef(false);
+  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { displayed, done } = useTypewriter(LOADING_MESSAGE);
+
+  // Time-based step advancement — step 0 is active on mount; steps 1–4 advance via timers
+  useEffect(() => {
+    const timings = [1500, 4000, 7000, 10000];
+    const timers = timings.map((delay, i) =>
+      setTimeout(() => setCurrentStep((prev) => Math.max(prev, i + 1)), delay)
+    );
+    return () => timers.forEach(clearTimeout);
   }, []);
 
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    // 1. POST — returns sportsPrepId immediately; Claude runs in background
-    fetch("/api/sports-prep/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    })
-      .then(async (r) => {
-        if (!r.ok) {
-          const body = await r.json().catch(() => ({}));
-          throw new Error((body as { error?: string }).error ?? `Server error ${r.status}`);
-        }
-        return r.json() as Promise<{ sportsPrepId: string }>;
-      })
-      .then(({ sportsPrepId }) => {
-        // 2. Poll every 3 s until ready or failed
-        pollRef.current = setInterval(async () => {
-          try {
-            const res = await fetch(`/api/sports-prep/status/${sportsPrepId}`);
-            if (!res.ok) return; // transient error — keep polling
-            const { status, error: errMsg } = await res.json() as { status: string; error: string | null };
+    function startPolling(id: string) {
+      const POLL_INTERVAL_MS = 1500;
+      const TIMEOUT_MS       = 120_000;
+      const timeoutId = setTimeout(() => {
+        clearInterval(pollRef.current!);
+        onError("Generation is taking longer than expected. Please try again.");
+      }, TIMEOUT_MS);
 
-            if (status === "ready") {
-              clearInterval(pollRef.current!);
-              setCurrentStep(SPORTS_STEPS.length - 1);
-              setVisible(SPORTS_STEPS.map((_, i) => i));
-              setPct(100);
-              console.log("[analytics] sports_prep_protocol_generated", { competitionType: form.competitionType, budgetTier: form.budgetTier, weeksToEvent: form.weeksToEvent });
-              setTimeout(() => onComplete(sportsPrepId), 600);
-            } else if (status === "failed") {
-              clearInterval(pollRef.current!);
-              onError(errMsg ?? "Protocol generation failed. Please try again.");
-            }
-          } catch {
-            // network hiccup — keep polling
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/sports-prep/status/${id}`);
+          if (!res.ok) return; // transient error — keep polling
+          const { status, error: errMsg } = await res.json() as { status: string; error: string | null };
+
+          if (status === "ready") {
+            clearTimeout(timeoutId);
+            clearInterval(pollRef.current!);
+            setCurrentStep(LOADING_STEPS.length); // mark all complete
+            console.log("[analytics] sports_prep_protocol_generated", { competitionType: form.competitionType, budgetTier: form.budgetTier, weeksToEvent: form.weeksToEvent });
+            setTimeout(() => onComplete(id), 600);
+          } else if (status === "failed") {
+            clearTimeout(timeoutId);
+            clearInterval(pollRef.current!);
+            onError(errMsg ?? "Protocol generation failed. Please try again.");
           }
-        }, 3000);
+        } catch { /* network hiccup — keep polling */ }
+      }, POLL_INTERVAL_MS);
+    }
+
+    if (preWarmedId) {
+      // Pre-warm hit — Claude is already running, skip the POST entirely
+      console.log("[sports-prep] pre-warm hit, skipping POST for id:", preWarmedId);
+      startPolling(preWarmedId);
+    } else {
+      // Normal flow — POST first, then poll
+      fetch("/api/sports-prep/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
       })
-      .catch((err) => onError(err instanceof Error ? err.message : "Something went wrong"));
+        .then(async (r) => {
+          if (!r.ok) {
+            const body = await r.json().catch(() => ({}));
+            throw new Error((body as { error?: string }).error ?? `Server error ${r.status}`);
+          }
+          return r.json() as Promise<{ sportsPrepId: string }>;
+        })
+        .then(({ sportsPrepId }) => startPolling(sportsPrepId))
+        .catch((err) => onError(err instanceof Error ? err.message : "Something went wrong"));
+    }
 
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [form, onComplete, onError]);
+  }, [form, onComplete, onError, preWarmedId]);
 
   return (
     <div style={{ minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 60% 50% at 50% 40%,rgba(124,58,237,.09) 0%,transparent 70%)" }} />
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 28, width: "100%", maxWidth: 420 }}>
+
+        {/* Icon */}
         <div style={{ width: 60, height: 60, borderRadius: 18, background: PERF_GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 0 40px rgba(124,58,237,.45)", animation: "glowPulse 2.2s ease-in-out infinite" }}>🏆</div>
+
+        {/* Heading + typewriter subtext */}
         <div style={{ textAlign: "center" }}>
-          <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(20px,3vw,28px)", color: T.text, marginBottom: 8, letterSpacing: "-.02em" }}>
+          <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(20px,3vw,28px)", color: T.text, marginBottom: 10, letterSpacing: "-.02em" }}>
             Preparing your Competition Prep Pack
           </h2>
-          <p style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", lineHeight: 1.6 }}>
-            Analyzing your biomarker data, wearable metrics, and performance goals — typically takes 20–40 seconds.
+          <p style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", lineHeight: 1.6, minHeight: 20 }}>
+            {displayed}
+            {done ? <LoopingEllipsis /> : <span className="animate-pulse" style={{ color: T.muted }}>|</span>}
           </p>
         </div>
-        <div style={{ width: "100%", height: 3, background: "rgba(255,255,255,.06)", borderRadius: 99, overflow: "hidden" }}>
-          <div style={{ height: "100%", background: PERF_GRAD, borderRadius: 99, width: `${pct}%`, transition: "width 1.5s cubic-bezier(.16,1,.3,1)", animation: pct >= 90 ? "shimmer 1.8s linear infinite" : "none", backgroundSize: "200% 100%" }} />
-        </div>
+
+        {/* Step list — replaces horizontal progress bar */}
         <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
-          {SPORTS_STEPS.map((step, i) => {
-            if (!visibleSteps.includes(i)) return null;
-            const isDone = i < currentStep, isActive = i === currentStep;
+          {LOADING_STEPS.map((step, i) => {
+            const isDone   = i < currentStep;
+            const isActive = i === currentStep && currentStep < LOADING_STEPS.length;
             return (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, opacity: isDone ? 0.5 : 1, transition: "opacity .3s", animation: "fadeUp .35s cubic-bezier(.16,1,.3,1) both" }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: isDone ? "#10B981" : isActive ? "#A78BFA" : "rgba(255,255,255,.15)", boxShadow: isActive ? "0 0 8px rgba(167,139,250,.7)" : "none", animation: isActive ? "glowPulse 1.2s ease-in-out infinite" : "none" }} />
-                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: isDone ? "#10B981" : isActive ? T.text : T.muted }}>
-                  {isDone ? "✓ " : isActive ? "→ " : "  "}{step}
+              <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ width: 16, fontSize: 13, flexShrink: 0, color: isDone ? "#10B981" : isActive ? "#fff" : T.muted, animation: isActive ? "glowPulse 1.2s ease-in-out infinite" : "none" }}>
+                  {isDone ? "✓" : isActive ? "→" : "●"}
+                </span>
+                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 12, color: isDone ? "#10B981" : isActive ? T.text : T.muted }}>
+                  {step.label}
                 </span>
               </div>
             );
           })}
         </div>
+
       </div>
     </div>
   );
@@ -506,6 +549,10 @@ export default function SportsPrepPage() {
   const [form, setForm]   = useState<SportsPrepFormData>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Pre-warm refs — store the result of the early generate call
+  const preWarmRef         = useRef<{ sportsPrepId: string; budgetTier: number } | null>(null);
+  const lastPreWarmTierRef = useRef<number | null>(null);
 
   // Restore from sessionStorage
   useEffect(() => {
@@ -523,6 +570,36 @@ export default function SportsPrepPage() {
   useEffect(() => {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, form })); } catch { /* silent */ }
   }, [step, form]);
+
+  // Pre-warm: fire the generate call as soon as the user reaches the budget step (step 3).
+  // By the time they click "Generate", Claude may already be running or done.
+  // Re-fires only when the budget tier changes — not on every slider tick.
+  useEffect(() => {
+    if (step !== 3) return;
+    if (lastPreWarmTierRef.current === form.budgetTier) return;
+
+    lastPreWarmTierRef.current = form.budgetTier;
+    preWarmRef.current = null; // invalidate any result from a previous tier
+
+    const snapshot      = { ...form };
+    const capturedTier  = form.budgetTier;
+
+    fetch("/api/sports-prep/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(snapshot),
+    })
+      .then(async (r) => {
+        if (!r.ok) return; // silent — LoadingScreen will fire its own POST if needed
+        const data = await r.json() as { sportsPrepId?: string };
+        if (data.sportsPrepId && lastPreWarmTierRef.current === capturedTier) {
+          preWarmRef.current = { sportsPrepId: data.sportsPrepId, budgetTier: capturedTier };
+          console.log("[sports-prep] pre-warm ready, id:", data.sportsPrepId);
+        }
+      })
+      .catch(() => {}); // silent
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, form.budgetTier]);
 
   function update(partial: Partial<SportsPrepFormData>) {
     setForm((prev) => ({ ...prev, ...partial }));
@@ -561,9 +638,12 @@ export default function SportsPrepPage() {
   }, []);
 
   if (loading) {
+    const preWarmedId = preWarmRef.current?.budgetTier === form.budgetTier
+      ? preWarmRef.current?.sportsPrepId
+      : undefined;
     return (
       <div style={{ minHeight: "100vh", background: "#06080F", position: "relative" }}>
-        <LoadingScreen form={form} onComplete={handleComplete} onError={handleError} />
+        <LoadingScreen form={form} onComplete={handleComplete} onError={handleError} preWarmedId={preWarmedId} />
         {error && (
           <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 12, padding: "14px 20px", display: "flex", gap: 12, alignItems: "center", zIndex: 200 }}>
             <span style={{ fontSize: 13, color: "#FCA5A5", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{error}</span>
