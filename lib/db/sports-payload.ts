@@ -19,10 +19,21 @@ export const SportsRedFlagsSchema = z.object({
 });
 
 export const SportsTierSupplementSchema = z.object({
-  name:    z.string(),
-  dose:    z.string(),
-  timing:  z.string(),
-  notes:   z.string(),
+  name:          z.string(),
+  dose:          z.string(),
+  timing:        z.string(),
+  notes:         z.string(),
+  purchaseUrl:   z.string().optional(),
+  priceEstimate: z.string().optional(),
+  priority:      z.enum(["essential", "high", "moderate"]).optional(),
+});
+
+export const SportsServiceSchema = z.object({
+  name:       z.string(),
+  rationale:  z.string().optional(),
+  urgency:    z.enum(["high", "medium", "low"]).optional(),
+  priceRange: z.string().optional(),
+  bookingUrl: z.string().optional(),
 });
 
 export const SportsTierPackSchema = z.object({
@@ -30,7 +41,8 @@ export const SportsTierPackSchema = z.object({
   supplements:        z.array(SportsTierSupplementSchema),
   testing:            z.array(z.string()),
   gear:               z.array(z.string()),
-  services:           z.array(z.string()),
+  // Accept both legacy strings and new rich objects (backward compat)
+  services:           z.array(z.union([z.string(), SportsServiceSchema])),
   biggestROI:         z.array(z.string()).min(1).max(5),
   whatYouAreMissing:  z.array(z.string()),
 });
@@ -50,23 +62,49 @@ export const SportsWearableMetricSchema = z.object({
   trainingGuidance: z.string(),
 });
 
+// ── New schemas for enriched output fields ───────────────────────────────────
+
+export const SportsIntelligenceItemSchema = z.object({
+  input:    z.string(),
+  decision: z.string(),
+  icon:     z.string(),
+});
+
+export const SportsBiomarkerDecisionSchema = z.object({
+  biomarker:        z.string(),
+  value:            z.string(),
+  unit:             z.string().optional(),
+  status:           z.enum(["normal", "flagged", "optimal"]).optional(),
+  range:            z.string().optional(),
+  protocolResponse: z.string(),
+});
+
 export const SportsProtocolPayloadSchema = z.object({
   periodizedTimeline:  z.array(SportsTimelinePhaseSchema).min(1),
   redFlags:            SportsRedFlagsSchema,
   tierPack:            SportsTierPackSchema,
   supplementSchedule:  z.array(SportsSupplementScheduleItemSchema),
   wearableMetrics:     z.array(SportsWearableMetricSchema).min(1).max(5),
+  // Optional enriched fields (present on new protocols only)
+  intelligenceItems:        z.array(SportsIntelligenceItemSchema).optional(),
+  biomarkerDecisions:       z.array(SportsBiomarkerDecisionSchema).optional(),
+  phaseTransitionSummary:   z.string().optional(),
+  todayTrainingDirective:   z.string().optional(),
+  tonightRecoveryDirective: z.string().optional(),
 });
 
 // ── TypeScript types ─────────────────────────────────────────────────────────
 
-export type SportsTimelinePhase    = z.infer<typeof SportsTimelinePhaseSchema>;
-export type SportsRedFlags         = z.infer<typeof SportsRedFlagsSchema>;
-export type SportsTierSupplement   = z.infer<typeof SportsTierSupplementSchema>;
-export type SportsTierPack         = z.infer<typeof SportsTierPackSchema>;
-export type SportsSupplementItem   = z.infer<typeof SportsSupplementScheduleItemSchema>;
-export type SportsWearableMetric   = z.infer<typeof SportsWearableMetricSchema>;
-export type SportsProtocolPayload  = z.infer<typeof SportsProtocolPayloadSchema>;
+export type SportsTimelinePhase       = z.infer<typeof SportsTimelinePhaseSchema>;
+export type SportsRedFlags            = z.infer<typeof SportsRedFlagsSchema>;
+export type SportsTierSupplement      = z.infer<typeof SportsTierSupplementSchema>;
+export type SportsService             = z.infer<typeof SportsServiceSchema>;
+export type SportsTierPack            = z.infer<typeof SportsTierPackSchema>;
+export type SportsSupplementItem      = z.infer<typeof SportsSupplementScheduleItemSchema>;
+export type SportsWearableMetric      = z.infer<typeof SportsWearableMetricSchema>;
+export type SportsIntelligenceItem    = z.infer<typeof SportsIntelligenceItemSchema>;
+export type SportsBiomarkerDecision   = z.infer<typeof SportsBiomarkerDecisionSchema>;
+export type SportsProtocolPayload     = z.infer<typeof SportsProtocolPayloadSchema>;
 
 // ── Form data (collected across 4 steps) ────────────────────────────────────
 

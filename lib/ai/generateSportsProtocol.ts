@@ -1,5 +1,5 @@
 /// lib/ai/generateSportsProtocol.ts
-// Two parallel Claude calls: A = timeline+redFlags, B = tierPack+schedule+wearables.
+// Two parallel Claude calls: A = timeline+redFlags+intelligence, B = tierPack+schedule+wearables.
 // Total time = max(A, B) instead of A+B — ~30–40% faster than a single call.
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -11,6 +11,8 @@ import {
   SportsTierPackSchema,
   SportsSupplementScheduleItemSchema,
   SportsWearableMetricSchema,
+  SportsIntelligenceItemSchema,
+  SportsBiomarkerDecisionSchema,
   type SportsProtocolPayload,
   type SportsPrepFormData,
 } from "@/lib/db/sports-payload";
@@ -26,8 +28,13 @@ function getClient(): Anthropic {
 // ── Sub-schemas ───────────────────────────────────────────────────────────────
 
 const PartASchema = z.object({
-  periodizedTimeline: z.array(SportsTimelinePhaseSchema).min(1),
-  redFlags:           SportsRedFlagsSchema,
+  periodizedTimeline:       z.array(SportsTimelinePhaseSchema).min(1),
+  redFlags:                 SportsRedFlagsSchema,
+  intelligenceItems:        z.array(SportsIntelligenceItemSchema).optional(),
+  biomarkerDecisions:       z.array(SportsBiomarkerDecisionSchema).optional(),
+  phaseTransitionSummary:   z.string().optional(),
+  todayTrainingDirective:   z.string().optional(),
+  tonightRecoveryDirective: z.string().optional(),
 });
 
 const PartBSchema = z.object({
@@ -42,15 +49,21 @@ const SHARED_INTRO = `You are a precision sports medicine and performance optimi
 
 const SYSTEM_PROMPT_A = `${SHARED_INTRO}
 
-Generate ONLY the following 2 sections as JSON:
+Generate ONLY the following sections as JSON:
 1. periodizedTimeline — phase-appropriate to the weeks-to-event
 2. redFlags — specific to this user's injuries, conditions, and medications
+3. intelligenceItems — 4-6 items mapping specific user inputs to specific protocol decisions
+4. biomarkerDecisions — one entry per notable biomarker from the blood test (omit array if no blood test)
+5. phaseTransitionSummary — what changes when the current phase ends (1-2 sentences)
+6. todayTrainingDirective — the single most important training action for today
+7. tonightRecoveryDirective — evening recovery recommendation for tonight
 
 CRITICAL RULES:
 1. Be specific and actionable. No filler or generic disclaimers.
 2. Red flags must reference the user's actual data — not generic warnings.
 3. If < 4 weeks to event, skip Base/Build phases.
-4. Return ONLY valid JSON — no preamble, no markdown fences, no trailing text.
+4. intelligenceItems must map ACTUAL user inputs (injuries, biomarkers, conditions, constraints) to ACTUAL protocol decisions — not generic points.
+5. Return ONLY valid JSON — no preamble, no markdown fences, no trailing text.
 
 OUTPUT SCHEMA:
 {
@@ -66,7 +79,27 @@ OUTPUT SCHEMA:
     "contraindications": ["specific thing to avoid given this user's conditions"],
     "doctorDiscussion": ["specific question to ask doctor given their meds/conditions"],
     "weeklyMonitoring": ["specific metric to track, e.g. resting HR trend, HRV baseline"]
-  }
+  },
+  "intelligenceItems": [
+    {
+      "input": "the specific user data point that drove this decision (e.g. 'Knee + ankle injuries', 'High LDL', '5-week window')",
+      "decision": "the specific protocol choice it triggered, in plain language",
+      "icon": "a single relevant emoji"
+    }
+  ],
+  "biomarkerDecisions": [
+    {
+      "biomarker": "LDL Cholesterol",
+      "value": "148",
+      "unit": "mg/dL",
+      "status": "flagged",
+      "range": "optimal <100 mg/dL",
+      "protocolResponse": "CoQ10 (Ubiquinol) added; Vitamin D3+K2 elevated for cardiovascular protection"
+    }
+  ],
+  "phaseTransitionSummary": "Your stack shifts next phase — Collagen Peptides reduce; Tart Cherry timing adjusts for race-week inflammation management.",
+  "todayTrainingDirective": "Zone 2 aerobic work at 65-75% max HR for 60 min — builds mitochondrial density without accumulating fatigue.",
+  "tonightRecoveryDirective": "Magnesium Glycinate 400mg post-dinner; target 9 hours in bed; no screens after 22:00 to protect HRV recovery."
 }`;
 
 const SYSTEM_PROMPT_B = `${SHARED_INTRO}
@@ -81,18 +114,34 @@ CRITICAL RULES:
 2. Every supplement must have a specific dose, timing, and brand-agnostic product name.
 3. Tier pack must match the exact budget tier.
 4. The wearable metrics section must match the device source provided.
-5. Return ONLY valid JSON — no preamble, no markdown fences, no trailing text.
+5. For each supplement in tierPack, include priority ("essential"|"high"|"moderate") and priceEstimate (e.g. "~$22/mo").
+6. For services (tiers 3-4 only): use object format with name, rationale, urgency ("high"|"medium"|"low"), priceRange.
+7. Return ONLY valid JSON — no preamble, no markdown fences, no trailing text.
 
 OUTPUT SCHEMA:
 {
   "tierPack": {
     "tier": number (1|2|3|4),
     "supplements": [
-      { "name": "string", "dose": "string", "timing": "string", "notes": "string" }
+      {
+        "name": "string",
+        "dose": "string",
+        "timing": "string",
+        "notes": "string",
+        "priority": "essential|high|moderate",
+        "priceEstimate": "~$X/mo"
+      }
     ],
     "testing": ["string (lab tests — empty array for tier 1)"],
     "gear": ["string (sport-specific gear — empty array for tiers 1-2)"],
-    "services": ["string (coaching/PT/massage — empty array for tiers 1-2)"],
+    "services": [
+      {
+        "name": "string (e.g. Sports Massage, VO2 Max Test, IV Therapy)",
+        "rationale": "why this service matters for this athlete specifically",
+        "urgency": "high|medium|low",
+        "priceRange": "$X-$Y per session"
+      }
+    ],
     "biggestROI": ["ranked 1st", "ranked 2nd", "ranked 3rd", "ranked 4th", "ranked 5th"],
     "whatYouAreMissing": ["bullet 1", "bullet 2", "bullet 3"]
   },
@@ -157,15 +206,20 @@ function buildUserMessage(input: GenerateSportsInput, part: "A" | "B"): string {
   const instructionsA =
     `=== INSTRUCTIONS ===\n` +
     `1. Build the periodized timeline for exactly ${weeksToEvent} weeks. Use all 6 phases if time allows; compress if < 8 weeks.\n` +
-    `2. Red flags must be specific to THIS user's injuries (${injuriesStr}), conditions (${conditionsStr}), and medications (${medsStr}).\n\n` +
-    `Return ONLY the JSON with "periodizedTimeline" and "redFlags". No other text.`;
+    `2. Red flags must be specific to THIS user's injuries (${injuriesStr}), conditions (${conditionsStr}), and medications (${medsStr}).\n` +
+    `3. intelligenceItems: generate 4-6 items mapping REAL user data points to REAL protocol decisions.\n` +
+    `4. biomarkerDecisions: include only if blood test data is provided above. One entry per notable biomarker.\n` +
+    `5. todayTrainingDirective and tonightRecoveryDirective: write for the current phase of training.\n\n` +
+    `Return ONLY the JSON with all 7 fields. No other text.`;
 
   const instructionsB =
     `=== INSTRUCTIONS ===\n` +
     `1. Tier ${budgetTier} pack: include ALL supplements, testing, gear, services appropriate for this tier.\n` +
     `2. Supplement schedule: include every supplement from the tier pack.\n` +
     `3. Wearable metrics: provide exactly 3 metrics most critical for ${competitionType} prep.\n` +
-    `4. The "whatYouAreMissing" field in tierPack should be empty array [] if tier is 4.${distanceGuidance}\n\n` +
+    `4. Each supplement: include priority (essential/high/moderate) and priceEstimate.\n` +
+    `5. Services (tiers 3-4 only): use object format with name, rationale, urgency, priceRange. For tiers 1-2, use empty array [].\n` +
+    `6. The "whatYouAreMissing" field in tierPack should be empty array [] if tier is 4.${distanceGuidance}\n\n` +
     `Return ONLY the JSON with "tierPack", "supplementSchedule", and "wearableMetrics". No other text.`;
 
   return `Generate a Competition Prep Protocol for this athlete.
@@ -280,9 +334,11 @@ export async function generateSportsProtocol(
   const client = getClient();
 
   // Fire both calls in parallel — total time = max(A, B) instead of A+B
+  // Part A: 3000 tokens (expanded for intelligence items + biomarker decisions)
+  // Part B: 6000 tokens (enriched supplements + services)
   const [partA, partB] = await Promise.all([
-    callWithRetry(client, SYSTEM_PROMPT_A, buildUserMessage(input, "A"), PartASchema, 2000, "part-A"),
-    callWithRetry(client, SYSTEM_PROMPT_B, buildUserMessage(input, "B"), PartBSchema, 5000, "part-B"),
+    callWithRetry(client, SYSTEM_PROMPT_A, buildUserMessage(input, "A"), PartASchema, 3000, "part-A"),
+    callWithRetry(client, SYSTEM_PROMPT_B, buildUserMessage(input, "B"), PartBSchema, 6000, "part-B"),
   ]);
 
   const merged    = { ...partA, ...partB };

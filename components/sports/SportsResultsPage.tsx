@@ -1,21 +1,115 @@
 /// components/sports/SportsResultsPage.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, format } from "date-fns";
+import {
+  Sun, Brain, Calendar, FlaskConical, ShieldAlert, Watch,
+  Share2, Check, ChevronDown, type LucideIcon,
+} from "lucide-react";
+import { toast } from "sonner";
 import type {
   SportsProtocolPayload,
   SportsTimelinePhase,
-  SportsSupplementItem,
   SportsWearableMetric,
+  SportsIntelligenceItem,
+  SportsBiomarkerDecision,
 } from "@/lib/db/sports-payload";
 
+// ── Constants ──────────────────────────────────────────────────────────────────
+const COMPETITION_LABELS: Record<string, string> = {
+  triathlon:       "Triathlon",
+  running_race:    "Running Race",
+  cycling_event:   "Cycling Event",
+  obstacle_course: "Obstacle Course Race",
+  swimming:        "Swimming Event",
+  team_sports:     "Team Sports",
+};
+
+const PHASE_COLORS: Record<string, string> = {
+  "Base":                "#3B82F6",
+  "Build":               "#6366F1",
+  "Peak":                "#8B5CF6",
+  "Taper":               "#A78BFA",
+  "Race Week":           "#EC4899",
+  "Post-Event Recovery": "#10B981",
+};
+
+const PRIORITY_RANK: Record<string, number> = { essential: 0, high: 1, moderate: 2 };
+
+const PRIORITY_COLORS = {
+  essential: { bg: "rgba(16,185,129,.1)",  border: "rgba(16,185,129,.3)",  text: "#34D399" },
+  high:      { bg: "rgba(99,102,241,.1)",  border: "rgba(99,102,241,.3)",  text: "#818CF8" },
+  moderate:  { bg: "rgba(100,116,139,.1)", border: "rgba(100,116,139,.3)", text: "#94A3B8" },
+} as const;
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+type SectionId = "today" | "why" | "timeline" | "supplements" | "safety" | "metrics";
+
+interface EventMeta {
+  competitionType: string;
+  eventDate:       string;
+  weeksToEvent:    number;
+  priorityOutcome: string;
+  experienceLevel: string;
+  budgetTier:      number;
+  budgetValue:     number;
+}
+
+interface SportsResultsPageProps {
+  payload:            SportsProtocolPayload;
+  eventMeta:          EventMeta;
+  hasWearable?:       boolean;
+  hasBloodTest?:      boolean;
+  communityCount?:    number;
+  protocolId:         string;
+  initialAdoptedIds?: string[];
+}
+
+interface PhaseInfo {
+  index:                number;
+  phase:                SportsTimelinePhase;
+  dayInPhase:           number;
+  phaseDuration:        number;
+  daysRemainingInPhase: number;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function computeCurrentPhase(
+  phases: SportsTimelinePhase[],
+  eventDate: string,
+): PhaseInfo | null {
+  const today      = new Date();
+  const event      = new Date(eventDate);
+  const totalWeeks = phases.reduce((s, p) => s + p.durationWeeks, 0);
+  let elapsed      = 0;
+
+  for (let i = 0; i < phases.length; i++) {
+    const phaseStart = elapsed;
+    elapsed += phases[i].durationWeeks;
+    const endDate   = new Date(event.getTime() - (totalWeeks - elapsed)    * 7 * 86_400_000);
+    const startDate = new Date(event.getTime() - (totalWeeks - phaseStart) * 7 * 86_400_000);
+    if (today >= startDate && today < endDate) {
+      return {
+        index: i,
+        phase: phases[i],
+        dayInPhase:           differenceInDays(today, startDate) + 1,
+        phaseDuration:        phases[i].durationWeeks * 7,
+        daysRemainingInPhase: differenceInDays(endDate, today),
+      };
+    }
+  }
+  return null;
+}
+
 // ── Canvas share card ─────────────────────────────────────────────────────────
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+) {
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
   ctx.quadraticCurveTo(x + w, y, x + w, y + r);
   ctx.lineTo(x + w, y + h - r);
   ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
@@ -29,870 +123,1202 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 async function generateProtocolShareCard(meta: EventMeta) {
   const W = 600, H = 340;
   const canvas = document.createElement("canvas");
-  canvas.width = W * 2; canvas.height = H * 2;   // 2x for retina
+  canvas.width = W * 2; canvas.height = H * 2;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.scale(2, 2);
 
-  // Background
   const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#07090F");
-  bg.addColorStop(1, "#0D0B18");
-  ctx.fillStyle = bg;
-  roundRect(ctx, 0, 0, W, H, 0);
-  ctx.fill();
+  bg.addColorStop(0, "#07090F"); bg.addColorStop(1, "#0D0B18");
+  ctx.fillStyle = bg; roundRect(ctx, 0, 0, W, H, 0); ctx.fill();
 
-  // Indigo glow top-left
   const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 300);
-  glow.addColorStop(0, "rgba(99,102,241,0.18)");
-  glow.addColorStop(1, "rgba(99,102,241,0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
+  glow.addColorStop(0, "rgba(99,102,241,0.18)"); glow.addColorStop(1, "transparent");
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
 
-  // Top accent strip
-  const strip = ctx.createLinearGradient(0, 0, W, 0);
-  strip.addColorStop(0, "#3B82F6");
-  strip.addColorStop(0.55, "#7C3AED");
-  strip.addColorStop(1, "#A855F7");
-  ctx.fillStyle = strip;
-  roundRect(ctx, 0, 0, W, 4, 0);
-  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.04)";
+  roundRect(ctx, 24, 24, W - 48, H - 48, 12); ctx.fill();
 
-  // BZ mark (top-right)
-  const markX = W - 52, markY = 20;
-  const markGrad = ctx.createLinearGradient(markX, markY, markX + 32, markY + 32);
-  markGrad.addColorStop(0, "#3B82F6");
-  markGrad.addColorStop(1, "#A855F7");
-  ctx.fillStyle = markGrad;
-  roundRect(ctx, markX, markY, 32, 32, 9);
-  ctx.fill();
-  ctx.fillStyle = "#fff";
-  ctx.font = "bold 14px 'Syne', sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("BZ", markX + 16, markY + 22);
-  ctx.textAlign = "left";
+  ctx.fillStyle = "#6366F1"; ctx.font = "500 11px Inter,sans-serif";
+  ctx.fillText("BLUE ZONE × COMPETITION PROTOCOL", 44, 58);
+  ctx.fillStyle = "#F1F5F9"; ctx.font = "300 28px Syne,serif";
+  ctx.fillText(COMPETITION_LABELS[meta.competitionType] ?? meta.competitionType, 44, 100);
+  ctx.fillStyle = "#64748B"; ctx.font = "300 13px Inter,sans-serif";
+  ctx.fillText(`${meta.weeksToEvent}w out · ${meta.experienceLevel} · Tier ${meta.budgetTier}`, 44, 126);
 
-  // Overline
-  ctx.fillStyle = "#A78BFA";
-  ctx.font = "400 10px 'Inter', sans-serif";
-  ctx.fillText("⚡  COMPETITION PROTOCOL", 32, 44);
-
-  // Event label
-  const labelMap: Record<string, string> = {
-    triathlon: "Triathlon", running_race: "Running Race", cycling: "Cycling Event",
-    mma: "MMA Competition", ski_racing: "Alpine Ski Racing", swimming: "Swimming",
-    golf: "Golf Tournament",
-  };
-  const eventLabel = labelMap[meta.competitionType] ??
-    meta.competitionType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  ctx.fillStyle = "#F1F5F9";
-  ctx.font = "300 28px 'Syne', sans-serif";
-  ctx.fillText(eventLabel, 32, 84);
-
-  // Event date
-  let dateStr = meta.eventDate;
-  try { dateStr = new Date(meta.eventDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }); }
-  catch { /* keep original */ }
-  ctx.fillStyle = "#64748B";
-  ctx.font = "300 13px 'Inter', sans-serif";
-  ctx.fillText(dateStr, 32, 108);
-
-  // Divider
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(32, 126); ctx.lineTo(W - 32, 126); ctx.stroke();
-
-  // Big countdown
-  const days = Math.max(0, differenceInDays(new Date(meta.eventDate), new Date()));
-  const numGrad = ctx.createLinearGradient(32, 140, 32, 210);
-  numGrad.addColorStop(0, "#C4B5FD");
-  numGrad.addColorStop(1, "#7C3AED");
-  ctx.fillStyle = numGrad;
-  ctx.font = "300 72px 'JetBrains Mono', monospace";
-  ctx.fillText(String(days), 32, 205);
-
-  ctx.fillStyle = "#64748B";
-  ctx.font = "300 12px 'Inter', sans-serif";
-  ctx.fillText(days === 0 ? "RACE DAY" : "DAYS TO RACE", 32, 225);
-
-  // Budget + tier badge
-  const badgeX = W - 180, badgeY = 148;
-  ctx.fillStyle = "rgba(6,182,212,0.1)";
-  roundRect(ctx, badgeX, badgeY, 148, 28, 14);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(6,182,212,0.3)";
-  ctx.lineWidth = 1;
-  roundRect(ctx, badgeX, badgeY, 148, 28, 14);
-  ctx.stroke();
-  ctx.fillStyle = "#06B6D4";
-  ctx.font = "300 11px 'Inter', sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(`Tier ${meta.budgetTier}  ·  $${meta.budgetValue.toLocaleString()}`, badgeX + 74, badgeY + 18);
-  ctx.textAlign = "left";
-
-  // Outcome label
-  const outcomeMap: Record<string, string> = {
-    injury_free: "Injury-Free Comeback", pr_podium: "PR / Podium Push", finish_strong: "Finish Strong",
-  };
-  const outcome = outcomeMap[meta.priorityOutcome] ??
-    meta.priorityOutcome.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  ctx.fillStyle = "#94A3B8";
-  ctx.font = "300 12px 'Inter', sans-serif";
-  ctx.fillText(outcome, W - 180, 210);
-
-  // Footer divider
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(32, H - 44); ctx.lineTo(W - 32, H - 44); ctx.stroke();
-
-  // Footer
-  ctx.fillStyle = "#334155";
-  ctx.font = "300 10px 'Inter', sans-serif";
-  ctx.fillText("Tracked with Blue Zone  ·  blue-zone.health", 32, H - 24);
-
-  // Export + share
-  const dataUrl = canvas.toDataURL("image/png");
-  try {
-    const blob = await (await fetch(dataUrl)).blob();
-    const file = new File([blob], "blue-zone-protocol.png", { type: "image/png" });
-    if (navigator.share && (navigator as { canShare?: (d: unknown) => boolean }).canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: `My ${eventLabel} Protocol — Blue Zone` });
-      return;
-    }
-  } catch { /* fall through to download */ }
-
-  // Desktop fallback: download
-  const a = document.createElement("a");
-  a.href     = dataUrl;
-  a.download = "blue-zone-protocol.png";
-  a.click();
+  const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement("a");
+  a.href = url; a.download = "bluezone-protocol.png"; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
-const PERF_GRAD = "linear-gradient(135deg,#7C3AED,#06B6D4)";
-const T         = { text: "#F1F5F9", muted: "#64748B" };
-
-// ── Phase color map ───────────────────────────────────────────────────────────
-const PHASE_COLORS: Record<string, { bg: string; border: string; label: string; barBg: string }> = {
-  "Base":                { bg: "rgba(59,130,246,.12)",  border: "rgba(59,130,246,.4)",  label: "#60A5FA", barBg: "rgba(59,130,246,.4)"  },
-  "Build":               { bg: "rgba(99,102,241,.12)",  border: "rgba(99,102,241,.4)",  label: "#818CF8", barBg: "rgba(99,102,241,.4)"  },
-  "Peak":                { bg: "rgba(124,58,237,.14)",  border: "rgba(124,58,237,.5)",  label: "#A78BFA", barBg: "rgba(124,58,237,.45)" },
-  "Taper":               { bg: "rgba(168,85,247,.12)",  border: "rgba(168,85,247,.4)",  label: "#C084FC", barBg: "rgba(168,85,247,.4)"  },
-  "Race Week":           { bg: "rgba(239,68,68,.12)",   border: "rgba(239,68,68,.5)",   label: "#F87171", barBg: "rgba(239,68,68,.5)"   },
-  "Post-Event Recovery": { bg: "rgba(16,185,129,.1)",   border: "rgba(16,185,129,.35)", label: "#34D399", barBg: "rgba(16,185,129,.35)" },
-};
-
-function phaseStyle(phase: string) {
-  return PHASE_COLORS[phase] ?? { bg: "rgba(99,102,241,.1)", border: "rgba(99,102,241,.3)", label: "#A5B4FC", barBg: "rgba(99,102,241,.3)" };
-}
-
-// ── Label maps ────────────────────────────────────────────────────────────────
-const OUTCOME_LABELS: Record<string, string> = {
-  injury_free:   "Injury-Free Comeback",
-  pr_podium:     "PR / Podium Push",
-  finish_strong: "Finish Strong",
-};
-
-const COMPETITION_LABELS: Record<string, string> = {
-  triathlon:    "Triathlon",
-  running_race: "Running Race",
-  cycling:      "Cycling Event",
-  mma:          "MMA Competition",
-  ski_racing:   "Alpine Ski Racing",
-  swimming:     "Swimming Competition",
-  golf:         "Golf Tournament",
-};
-
-function toLabel(s: string) {
-  return s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-// ── Timing bucket order ───────────────────────────────────────────────────────
-const TIMING_ORDER = ["Morning", "Pre-workout", "During", "Post-workout", "With meals", "Evening"];
-
-function groupByTiming(items: SportsSupplementItem[]): Record<string, SportsSupplementItem[]> {
-  const groups: Record<string, SportsSupplementItem[]> = {};
-  for (const item of items) {
-    const key = item.timing ?? "Other";
-    (groups[key] = groups[key] ?? []).push(item);
-  }
-  return groups;
-}
-
-// ── Phase schedule helpers ────────────────────────────────────────────────────
-interface PhaseWithDates { phase: SportsTimelinePhase; startMs: number; endMs: number; }
-
-function buildPhaseSchedule(phases: SportsTimelinePhase[], eventDateStr: string): PhaseWithDates[] {
-  const eventMs  = new Date(eventDateStr).getTime();
-  const totalMs  = phases.reduce((s, p) => s + p.durationWeeks * 7 * 86400000, 0);
-  let cursor     = eventMs - totalMs;
-  return phases.map(p => {
-    const startMs = cursor;
-    const endMs   = cursor + p.durationWeeks * 7 * 86400000;
-    cursor = endMs;
-    return { phase: p, startMs, endMs };
-  });
-}
-
-function getCurrentPhaseIndex(schedule: PhaseWithDates[]): number {
-  const now = Date.now();
-  for (let i = 0; i < schedule.length; i++) {
-    if (now >= schedule[i].startMs && now < schedule[i].endMs) return i;
-  }
-  return now < schedule[0].startMs ? 0 : schedule.length - 1;
-}
-
-// ── Sticky Nav ────────────────────────────────────────────────────────────────
-const NAV_SECTIONS = [
-  { id: "timeline",  label: "Timeline"  },
-  { id: "red-flags", label: "Red Flags" },
-  { id: "pack",      label: "Pack"      },
-  { id: "schedule",  label: "Schedule"  },
-  { id: "metrics",   label: "Metrics"   },
-];
-
-function StickyNav() {
-  const [active, setActive] = useState("timeline");
-
-  useEffect(() => {
-    const observers = NAV_SECTIONS.map(({ id }) => {
-      const el = document.getElementById(id);
-      if (!el) return null;
-      const obs = new IntersectionObserver(
-        ([entry]) => { if (entry.isIntersecting) setActive(id); },
-        { rootMargin: "-40% 0px -50% 0px" },
-      );
-      obs.observe(el);
-      return obs;
-    });
-    return () => observers.forEach(o => o?.disconnect());
-  }, []);
+// ── CompletionRing ─────────────────────────────────────────────────────────────
+function CompletionRing({ pct, size = 60 }: { pct: number; size?: number }) {
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => { setTimeout(() => setAnimated(true), 120); }, []);
+  const r     = (size - 8) / 2;
+  const circ  = 2 * Math.PI * r;
+  const offset = circ * (1 - (animated ? pct / 100 : 0));
+  const color  = pct === 0 ? "#6366F1" : pct < 50 ? "#F59E0B" : pct < 100 ? "#3B82F6" : "#10B981";
+  const gradId = `ring-g-${size}`;
 
   return (
-    <nav style={{ position: "sticky", top: 0, zIndex: 30, background: "rgba(6,8,15,.92)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.06)", marginBottom: 16 }}>
-      <div style={{ display: "flex", gap: 4, overflowX: "auto", padding: "8px 16px", scrollbarWidth: "none" }}>
-        {NAV_SECTIONS.map(s => (
-          <button
-            key={s.id}
-            onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            style={{
-              flex: "0 0 auto", padding: "6px 16px", borderRadius: 100, fontSize: 12,
-              whiteSpace: "nowrap", cursor: "pointer", transition: "all .15s",
-              fontFamily: "var(--font-ui,'Inter',sans-serif)", outline: "none",
-              background: active === s.id ? PERF_GRAD : "transparent",
-              border: active === s.id ? "none" : "1px solid transparent",
-              color: active === s.id ? "#fff" : T.muted,
-            }}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-// ── Today's Focus card ────────────────────────────────────────────────────────
-function TodaysFocusCard({ schedule, currentPhaseIndex, hasWearable }: {
-  schedule: PhaseWithDates[];
-  currentPhaseIndex: number;
-  hasWearable: boolean;
-}) {
-  const router  = useRouter();
-  const current = schedule[currentPhaseIndex];
-  if (!current) return null;
-
-  const now                = Date.now();
-  const daysInto           = Math.max(0, Math.floor((now - current.startMs) / 86400000));
-  const totalPhaseDays     = current.phase.durationWeeks * 7;
-  const daysRemaining      = Math.max(0, totalPhaseDays - daysInto);
-  const todayAction        = current.phase.keyActions[0] ?? "";
-
-  return (
-    <div style={{ padding: "20px 20px", borderRadius: 16, marginBottom: 16, background: "linear-gradient(135deg,rgba(124,58,237,.18) 0%,rgba(6,182,212,.08) 100%)", border: "1px solid rgba(124,58,237,.3)" }}>
-      <div style={{ fontSize: 10, letterSpacing: ".12em", color: "#2DD4BF", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 12 }}>
-        ⚡ Today&apos;s Focus — {current.phase.phase} Phase
-      </div>
-      <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 12 }}>
-        Day {daysInto + 1} of {totalPhaseDays} · {daysRemaining} days remaining in this phase
-      </div>
-      <div style={{ borderRadius: 10, background: "rgba(0,0,0,.3)", padding: "12px 14px", marginBottom: 10 }}>
-        <div style={{ fontSize: 10, letterSpacing: ".08em", color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 4 }}>Key Action Today</div>
-        <div style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.55 }}>{todayAction}</div>
-      </div>
-      {hasWearable ? (
-        <div style={{ borderRadius: 10, background: "rgba(0,0,0,.3)", padding: "12px 14px" }}>
-          <div style={{ fontSize: 10, letterSpacing: ".08em", color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 4 }}>Readiness</div>
-          <div style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>Check your wearable app for today&apos;s readiness score before training.</div>
-        </div>
-      ) : (
-        <button
-          onClick={() => router.push("/app/wearables")}
-          style={{ fontSize: 12, color: "#2DD4BF", fontFamily: "var(--font-ui,'Inter',sans-serif)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-          Connect wearable to unlock daily readiness →
-        </button>
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <defs>
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#7C3AED" />
+            <stop offset="100%" stopColor="#06B6D4" />
+          </linearGradient>
+        </defs>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,.06)" strokeWidth={6} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={6} strokeLinecap="round"
+          stroke={pct > 0 ? `url(#${gradId})` : color}
+          strokeDasharray={circ} strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset 1s ease" }}
+        />
+      </svg>
+      {pct === 0 && (
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: "50%",
+          background: "rgba(99,102,241,.15)",
+          animation: "bzRingPulse 2s ease-in-out infinite",
+        }} />
       )}
+      <div style={{
+        position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 10, fontWeight: 500, color,
+      }}>
+        {pct}%
+      </div>
     </div>
   );
 }
 
-// ── Section 1: Visual Horizontal Timeline ─────────────────────────────────────
-function TimelineSection({ phases, eventDate }: { phases: SportsTimelinePhase[]; eventDate: string }) {
-  const schedule           = buildPhaseSchedule(phases, eventDate);
-  const currentPhaseIndex  = getCurrentPhaseIndex(schedule);
-  const totalWeeks         = phases.reduce((s, p) => s + p.durationWeeks, 0);
-  const [expanded, setExpanded] = useState<number>(currentPhaseIndex);
+// ── Section registry ──────────────────────────────────────────────────────────
+const SECTIONS: { id: SectionId; label: string; shortLabel: string; Icon: LucideIcon }[] = [
+  { id: "today",       label: "Today's Plan",     shortLabel: "Today",   Icon: Sun          },
+  { id: "why",         label: "Why This Protocol", shortLabel: "Why",     Icon: Brain        },
+  { id: "timeline",    label: "Training Plan",     shortLabel: "Plan",    Icon: Calendar     },
+  { id: "supplements", label: "My Pack",           shortLabel: "Pack",    Icon: FlaskConical },
+  { id: "safety",      label: "Safety & Flags",    shortLabel: "Safety",  Icon: ShieldAlert  },
+  { id: "metrics",     label: "Wearable Metrics",  shortLabel: "Metrics", Icon: Watch        },
+];
 
-  const youAreHerePct = phases
-    .slice(0, currentPhaseIndex)
-    .reduce((s, p) => s + (p.durationWeeks / totalWeeks) * 100, 0);
-
+// ── Left Command Panel ────────────────────────────────────────────────────────
+function LeftCommandPanel({
+  activeSection, setSection,
+  daysToRace, currentPhase, completionPct, adoptedCount, totalSupplements,
+  eventMeta, onShare, flagCount,
+}: {
+  activeSection:    SectionId;
+  setSection:       (id: SectionId) => void;
+  daysToRace:       number;
+  currentPhase:     PhaseInfo | null;
+  completionPct:    number;
+  adoptedCount:     number;
+  totalSupplements: number;
+  eventMeta:        EventMeta;
+  onShare:          () => void;
+  flagCount:        number;
+}) {
   return (
-    <section id="timeline" className="card" style={{ padding: 24, marginBottom: 16 }}>
-      <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 16, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
-        ⏱ Periodized Timeline
+    <aside
+      className="bz-left-panel"
+      style={{
+        display: "none", // overridden by media query
+        width: 300, flexShrink: 0,
+        position: "sticky", top: 0, height: "100svh",
+        overflowY: "auto", flexDirection: "column", gap: 12,
+        padding: "24px 20px 20px",
+        borderRight: "1px solid rgba(255,255,255,.06)",
+        background: "rgba(5,5,15,.65)",
+      }}
+    >
+      {/* 1 — Race countdown */}
+      <div style={{
+        padding: "16px 18px", borderRadius: 14,
+        background: "linear-gradient(135deg,rgba(124,58,237,.15),rgba(6,182,212,.06))",
+        border: "1px solid rgba(124,58,237,.2)",
+      }}>
+        <div style={{ fontSize: 9, color: "#7C3AED", fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>
+          {COMPETITION_LABELS[eventMeta.competitionType] ?? eventMeta.competitionType}
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 46, fontWeight: 300, color: "#F1F5F9", lineHeight: 1 }}>
+            {Math.max(0, daysToRace)}
+          </span>
+          <span style={{ fontSize: 12, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+            {daysToRace > 0 ? "days to race" : "race day!"}
+          </span>
+        </div>
+        {currentPhase && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 5 }}>
+              <span>{currentPhase.phase.phase}</span>
+              <span>Day {currentPhase.dayInPhase}/{currentPhase.phaseDuration}</span>
+            </div>
+            <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,.06)", overflow: "hidden" }}>
+              <div style={{
+                height: "100%", borderRadius: 2,
+                background: "linear-gradient(90deg,#7C3AED,#06B6D4)",
+                width: `${Math.min(100, (currentPhase.dayInPhase / currentPhase.phaseDuration) * 100)}%`,
+                transition: "width .8s ease",
+              }} />
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* YOU ARE HERE label */}
-      <div style={{ position: "relative", height: 18, marginBottom: 4 }}>
-        <div style={{ position: "absolute", left: `${youAreHerePct}%`, whiteSpace: "nowrap" }}>
-          <span style={{ fontSize: 9, color: "#2DD4BF", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500 }}>▼ You are here</span>
+      {/* 2 — Completion ring */}
+      <div style={{
+        padding: "14px 16px", borderRadius: 12,
+        background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.07)",
+        display: "flex", alignItems: "center", gap: 14,
+      }}>
+        <CompletionRing pct={completionPct} size={58} />
+        <div>
+          <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 500, color: "#F1F5F9", marginBottom: 3 }}>
+            {adoptedCount}/{totalSupplements} adopted
+          </div>
+          <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#64748B", lineHeight: 1.4 }}>
+            {completionPct === 0 ? "Tap a supplement to begin" :
+             completionPct < 50  ? "Building momentum" :
+             completionPct < 100 ? "Protocol active" : "Fully activated 🎉"}
+          </div>
         </div>
       </div>
 
-      {/* Proportional phase bar */}
-      <div style={{ display: "flex", height: 52, borderRadius: 10, overflow: "hidden", gap: 2, marginBottom: 16 }}>
-        {phases.map((ph, i) => {
-          const widthPct  = (ph.durationWeeks / totalWeeks) * 100;
-          const isCurrent = i === currentPhaseIndex;
-          const c         = phaseStyle(ph.phase);
+      {/* 3 — Section nav */}
+      <nav style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        {SECTIONS.map(s => {
+          const active = activeSection === s.id;
           return (
             <button
-              key={i}
-              onClick={() => setExpanded(expanded === i ? -1 : i)}
+              key={s.id}
+              onClick={() => setSection(s.id)}
               style={{
-                width: `${widthPct}%`, minWidth: 0, border: "none", outline: "none",
-                cursor: "pointer", transition: "all .15s",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                overflow: "hidden", padding: "0 4px",
-                background: isCurrent ? PERF_GRAD : c.barBg,
-                filter: expanded === i && !isCurrent ? "brightness(1.2)" : "none",
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "9px 12px", borderRadius: 10,
+                background: active ? "rgba(124,58,237,.13)" : "transparent",
+                border: active ? "1px solid rgba(124,58,237,.22)" : "1px solid transparent",
+                cursor: "pointer", textAlign: "left", transition: "all .15s",
               }}
             >
-              <div style={{ fontSize: 9, color: "#fff", fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontWeight: 500, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>
-                {ph.phase}
-              </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,.7)", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-                {ph.durationWeeks}w
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Expanded detail */}
-      {expanded >= 0 && phases[expanded] && (() => {
-        const ph = phases[expanded]!;
-        const c  = phaseStyle(ph.phase);
-        return (
-          <div style={{ borderRadius: 12, border: `1px solid ${c.border}`, background: c.bg, padding: 18, animation: "fadeUp .2s ease both" }}>
-            <div style={{ fontSize: 12, color: c.label, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, marginBottom: 6 }}>
-              {ph.trainingFocus}
-            </div>
-            <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
-              {ph.keyActions.map((a, j) => (
-                <li key={j} style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.6, marginBottom: 4 }}>{a}</li>
-              ))}
-            </ul>
-          </div>
-        );
-      })()}
-    </section>
-  );
-}
-
-// ── Section 2: Red Flags ──────────────────────────────────────────────────────
-function RedFlagsSection({ redFlags }: { redFlags: SportsProtocolPayload["redFlags"] }) {
-  const [open, setOpen] = useState(false);
-  const hasContent =
-    redFlags.contraindications.length > 0 ||
-    redFlags.doctorDiscussion.length > 0 ||
-    redFlags.weeklyMonitoring.length > 0;
-
-  if (!hasContent) return null;
-
-  return (
-    <section id="red-flags" style={{ marginBottom: 16 }}>
-      <button onClick={() => setOpen((v) => !v)}
-        style={{ width: "100%", padding: "16px 20px", borderRadius: 14, border: "1px solid rgba(245,158,11,.3)", background: "rgba(245,158,11,.07)", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "space-between", textAlign: "left" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 18 }}>⚠️</span>
-          <div>
-            <div style={{ fontSize: 13, color: "#FCD34D", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400 }}>Red Flags &amp; Safety</div>
-            <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
-              {redFlags.contraindications.length} contraindication{redFlags.contraindications.length !== 1 ? "s" : ""} · {redFlags.doctorDiscussion.length} items to discuss with your doctor
-            </div>
-          </div>
-        </div>
-        <span style={{ color: "#FCD34D", fontSize: 16 }}>{open ? "▲" : "▼"}</span>
-      </button>
-
-      {open && (
-        <div style={{ marginTop: 4, padding: 20, borderRadius: 14, border: "1px solid rgba(245,158,11,.2)", background: "rgba(245,158,11,.05)", animation: "fadeUp .2s ease both" }}>
-          {redFlags.contraindications.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, letterSpacing: ".1em", color: "#F59E0B", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 8 }}>Avoid</div>
-              {redFlags.contraindications.map((c, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" }}>
-                  <span style={{ color: "#EF4444", flexShrink: 0 }}>✕</span>
-                  <span style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{c}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {redFlags.doctorDiscussion.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, letterSpacing: ".1em", color: "#F59E0B", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 8 }}>Discuss With Doctor</div>
-              {redFlags.doctorDiscussion.map((d, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" }}>
-                  <span style={{ color: "#FCD34D", flexShrink: 0 }}>?</span>
-                  <span style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{d}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {redFlags.weeklyMonitoring.length > 0 && (
-            <div>
-              <div style={{ fontSize: 10, letterSpacing: ".1em", color: "#F59E0B", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 8 }}>Monitor Weekly</div>
-              {redFlags.weeklyMonitoring.map((m, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.04)" }}>
-                  <span style={{ color: "#60A5FA", flexShrink: 0 }}>📊</span>
-                  <span style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{m}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
-// ── Section 3: Competition Pack (tabbed) ──────────────────────────────────────
-type PackTab = "supplements" | "testing" | "gear" | "services" | "roi";
-
-function CompetitionPackSection({ tierPack, budgetTier }: { tierPack: SportsProtocolPayload["tierPack"]; budgetTier: number }) {
-  const [tab, setTab] = useState<PackTab>("supplements");
-
-  const allTabs: { id: PackTab; label: string; count: number }[] = [
-    { id: "supplements", label: "Supplements", count: tierPack.supplements.length },
-    { id: "testing",     label: "Testing",     count: tierPack.testing.length },
-    { id: "gear",        label: "Gear",        count: tierPack.gear.length },
-    { id: "services",    label: "Services",    count: tierPack.services.length },
-    { id: "roi",         label: "ROI Ranking", count: tierPack.biggestROI.length },
-  ];
-  const tabs = allTabs.filter((t) => t.count > 0);
-
-  return (
-    <section id="pack" className="card" style={{ padding: 24, marginBottom: 16 }}>
-      {/* Header row */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
-          🎯 Tier {tierPack.tier} Competition Pack
-        </div>
-        {tierPack.whatYouAreMissing.length > 0 && budgetTier < 4 && (
-          <button
-            onClick={() => document.getElementById("upsell")?.scrollIntoView({ behavior: "smooth", block: "center" })}
-            style={{
-              fontSize: 11, padding: "4px 12px", borderRadius: 100, cursor: "pointer",
-              background: "rgba(20,184,166,.12)", border: "1px solid rgba(20,184,166,.3)",
-              color: "#2DD4BF", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400,
-              transition: "all .15s", outline: "none",
-            }}
-          >
-            ⬆ {tierPack.whatYouAreMissing.length} upgrades at Tier {budgetTier + 1}
-          </button>
-        )}
-      </div>
-
-      {/* Tab row */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 20, overflowX: "auto", paddingBottom: 2 }}>
-        {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ flex: "0 0 auto", padding: "8px 16px", borderRadius: 8, border: `1px solid ${tab === t.id ? "rgba(99,102,241,.5)" : "rgba(255,255,255,.07)"}`,
-              background: tab === t.id ? "rgba(99,102,241,.14)" : "rgba(255,255,255,.025)",
-              cursor: "pointer", transition: "all .15s", outline: "none",
-              fontSize: 12, color: tab === t.id ? "#A5B4FC" : T.muted,
-              fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: tab === t.id ? 400 : 300 }}>
-            {t.label}
-            <span style={{ marginLeft: 6, fontSize: 10, color: tab === t.id ? "#818CF8" : T.muted }}>({t.count})</span>
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      <div style={{ animation: "fadeUp .2s ease both" }}>
-        {tab === "supplements" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {tierPack.supplements.map((s, i) => (
-              <div key={i} style={{ padding: "14px 16px", borderRadius: 10, border: "1px solid rgba(255,255,255,.06)", background: "rgba(255,255,255,.025)" }}>
-                <div style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, marginBottom: 3 }}>{s.name}</div>
-                <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontWeight: 300 }}>{s.dose} · {s.timing}</div>
-                {s.notes && <div style={{ marginTop: 8, fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.5 }}>{s.notes}</div>}
-              </div>
-            ))}
-          </div>
-        )}
-        {tab === "testing" && (
-          <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
-            {tierPack.testing.map((t, i) => <li key={i} style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.7 }}>{t}</li>)}
-          </ul>
-        )}
-        {tab === "gear" && (
-          <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
-            {tierPack.gear.map((g, i) => <li key={i} style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.7 }}>{g}</li>)}
-          </ul>
-        )}
-        {tab === "services" && (
-          <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
-            {tierPack.services.map((s, i) => <li key={i} style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.7 }}>{s}</li>)}
-          </ul>
-        )}
-        {tab === "roi" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {tierPack.biggestROI.map((item, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, alignItems: "center", padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,.06)", background: "rgba(255,255,255,.025)" }}>
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: i === 0 ? PERF_GRAD : "rgba(99,102,241,.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 12, color: i === 0 ? "#fff" : "#A5B4FC", fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontWeight: 600 }}>{i + 1}</div>
-                <div style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{item}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Upsell card */}
-      {tierPack.whatYouAreMissing.length > 0 && budgetTier < 4 && (
-        <div id="upsell" style={{ marginTop: 20, padding: "18px 20px", borderRadius: 14, border: "1px solid rgba(245,158,11,.3)", background: "linear-gradient(135deg,rgba(120,53,15,.18) 0%,rgba(17,24,39,1) 100%)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 16 }}>⬆</span>
-            <div style={{ fontSize: 12, color: "#FCD34D", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400 }}>
-              What Tier {budgetTier + 1} adds for your situation
-            </div>
-          </div>
-          {tierPack.whatYouAreMissing.map((m, i) => (
-            <div key={i} style={{ display: "flex", gap: 10, fontSize: 12, color: "#D1D5DB", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.6, marginBottom: 4 }}>
-              <span style={{ color: "#F59E0B", flexShrink: 0 }}>→</span>
-              <span>{m}</span>
-            </div>
-          ))}
-          <a
-            href="/app/onboarding/sports-prep"
-            style={{ display: "block", marginTop: 14, padding: "11px 0", borderRadius: 10, background: "linear-gradient(135deg,#D97706,#F59E0B)", color: "#fff", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 500, textDecoration: "none", textAlign: "center" }}
-          >
-            Upgrade to Tier {budgetTier + 1} — Regenerate Protocol →
-          </a>
-        </div>
-      )}
-    </section>
-  );
-}
-
-// ── Section 4: Supplement Schedule with adopt toggles ─────────────────────────
-function SupplementScheduleSection({
-  schedule, adopted, setAdopted,
-}: {
-  schedule: SportsSupplementItem[];
-  adopted: Set<string>;
-  setAdopted: React.Dispatch<React.SetStateAction<Set<string>>>;
-}) {
-  const groups = groupByTiming(schedule);
-  const orderedKeys = [
-    ...TIMING_ORDER.filter(k => k in groups),
-    ...Object.keys(groups).filter(k => !TIMING_ORDER.includes(k)),
-  ];
-
-  if (schedule.length === 0) return null;
-
-  function toggle(name: string) {
-    setAdopted(prev => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
-    // Persist to DB (fire-and-forget)
-    fetch("/api/supplement-adoptions/toggle", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ supplementName: name, protocolType: "sports" }),
-    }).catch(() => {});
-  }
-
-  return (
-    <section id="schedule" className="card" style={{ padding: 24, marginBottom: 16 }}>
-      <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 20, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
-        💊 Daily Supplement Schedule
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {orderedKeys.map(timing => (
-          <div key={timing}>
-            <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontWeight: 400, letterSpacing: ".06em", marginBottom: 10, textTransform: "uppercase" }}>
-              {timing}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              {groups[timing]!.map((item, i) => {
-                const isAdopted = adopted.has(item.name);
-                return (
-                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,.04)" }}>
-                    {/* Adopt toggle */}
-                    <button
-                      onClick={() => toggle(item.name)}
-                      style={{
-                        marginTop: 2, width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", outline: "none", transition: "all .2s",
-                        background: isAdopted ? PERF_GRAD : "transparent",
-                        border: isAdopted ? "none" : "1.5px solid rgba(255,255,255,.2)",
-                      }}
-                    >
-                      {isAdopted && <span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>✓</span>}
-                    </button>
-
-                    {/* Details */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, color: isAdopted ? "#A5B4FC" : T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400 }}>{item.name}</span>
-                        <span style={{ fontSize: 11, color: "#2DD4BF", fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontWeight: 300 }}>{item.dose}</span>
-                        {item.withFood && (
-                          <span style={{ fontSize: 10, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", padding: "1px 7px", borderRadius: 100, border: "1px solid rgba(255,255,255,.08)", background: "rgba(255,255,255,.03)" }}>with food</span>
-                        )}
-                      </div>
-                      {item.notes && <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginTop: 3, lineHeight: 1.5 }}>{item.notes}</div>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-// ── Section 5: Wearable Metrics (full expand/collapse) ────────────────────────
-function WearableMetricsSection({ metrics }: { metrics: SportsWearableMetric[] }) {
-  const [expanded, setExpanded] = useState<number | null>(null);
-  return (
-    <section id="metrics" className="card" style={{ padding: 24, marginBottom: 16 }}>
-      <div style={{ fontSize: 10, fontWeight: 400, letterSpacing: ".12em", color: "#6366F1", marginBottom: 18, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
-        📡 Wearable Metrics to Track
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
-        {metrics.map((m, i) => {
-          const isOpen = expanded === i;
-          return (
-            <button key={i} onClick={() => setExpanded(isOpen ? null : i)}
-              style={{ padding: 18, borderRadius: 12, border: `1px solid ${isOpen ? "rgba(6,182,212,.4)" : "rgba(255,255,255,.07)"}`,
-                background: isOpen ? "rgba(6,182,212,.07)" : "rgba(255,255,255,.025)",
-                cursor: "pointer", transition: "all .15s", textAlign: "left", outline: "none" }}>
-              <div style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, marginBottom: 8 }}>{m.metric}</div>
-              {isOpen ? (
-                <div style={{ animation: "fadeUp .15s ease both" }}>
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 3 }}>Good trend</div>
-                    <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.5 }}>{m.goodTrend}</div>
-                  </div>
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, color: "#F87171", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 3 }}>Concerning</div>
-                    <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.5 }}>{m.concerningTrend}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#FCD34D", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 3 }}>Training guidance</div>
-                    <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.5 }}>{m.trainingGuidance}</div>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#06B6D4", marginTop: 10, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>Show less ↑</div>
-                </div>
-              ) : (
-                <>
-                  <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                    {m.trainingGuidance}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#06B6D4", marginTop: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>Read more ↓</div>
-                </>
+              <s.Icon size={15} color={active ? "#A78BFA" : "#475569"} />
+              <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: active ? "#C4B5FD" : "#64748B", flex: 1 }}>
+                {s.label}
+              </span>
+              {s.id === "safety" && flagCount > 0 && (
+                <span style={{ fontSize: 9, background: "rgba(239,68,68,.15)", color: "#F87171", padding: "1px 6px", borderRadius: 100, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                  {flagCount}
+                </span>
+              )}
+              {s.id === "supplements" && totalSupplements > 0 && (
+                <span style={{ fontSize: 9, background: "rgba(255,255,255,.05)", color: "#64748B", padding: "1px 6px", borderRadius: 100, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                  {adoptedCount}/{totalSupplements}
+                </span>
               )}
             </button>
           );
         })}
-      </div>
-    </section>
+      </nav>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* 4 — Share */}
+      <button
+        onClick={onShare}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          padding: "10px 0", borderRadius: 10, cursor: "pointer",
+          background: "none", border: "1px solid rgba(255,255,255,.08)",
+          color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12,
+        }}
+      >
+        <Share2 size={13} />
+        Share my protocol
+      </button>
+    </aside>
   );
 }
 
-// ── Event meta banner ─────────────────────────────────────────────────────────
-interface EventMeta {
-  competitionType: string;
-  eventDate:       string;
-  weeksToEvent:    number;
-  priorityOutcome: string;
-  experienceLevel: string;
-  budgetTier:      number;
-  budgetValue:     number;
+// ── Mobile Tab Bar ─────────────────────────────────────────────────────────────
+const MOBILE_TABS = SECTIONS.filter(s => s.id !== "why");
+
+function MobileTabBar({ activeSection, setSection }: {
+  activeSection: SectionId;
+  setSection:    (id: SectionId) => void;
+}) {
+  return (
+    <div
+      className="bz-mobile-tabs"
+      style={{
+        display: "none", // overridden by media query
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
+        background: "rgba(5,5,15,.96)", backdropFilter: "blur(12px)",
+        borderTop: "1px solid rgba(255,255,255,.06)",
+        paddingBottom: "env(safe-area-inset-bottom,0px)",
+      }}
+    >
+      {MOBILE_TABS.map(s => {
+        const active = activeSection === s.id;
+        return (
+          <button
+            key={s.id}
+            onClick={() => setSection(s.id)}
+            style={{
+              flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
+              justifyContent: "center", padding: "10px 4px 8px", gap: 4,
+              background: "none", border: "none", cursor: "pointer",
+              color: active ? "#A78BFA" : "#475569",
+              position: "relative",
+            }}
+          >
+            {active && (
+              <div style={{
+                position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+                width: 24, height: 2, background: "#7C3AED", borderRadius: 1,
+              }} />
+            )}
+            <s.Icon size={20} color={active ? "#A78BFA" : "#475569"} />
+            <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 9 }}>{s.shortLabel}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
-function EventBanner({ meta, daysToRace }: { meta: EventMeta; daysToRace: number }) {
-  const date  = (() => {
-    try { return new Date(meta.eventDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }); }
-    catch { return meta.eventDate; }
-  })();
-  const label        = COMPETITION_LABELS[meta.competitionType] ?? toLabel(meta.competitionType);
-  const outcomeLabel = OUTCOME_LABELS[meta.priorityOutcome]     ?? toLabel(meta.priorityOutcome);
-
+// ── Protocol Leaderboard (first-view only) ─────────────────────────────────────
+function ProtocolLeaderboard({ protocolId, competitionType, weeksToEvent, experienceLevel, budgetTier }: {
+  protocolId: string; competitionType: string; weeksToEvent: number;
+  experienceLevel: string; budgetTier: number;
+}) {
+  const [show, setShow] = useState(false);
+  const key = `bz_lb_${protocolId}`;
+  useEffect(() => {
+    if (typeof localStorage !== "undefined" && !localStorage.getItem(key)) {
+      setShow(true);
+      localStorage.setItem(key, "1");
+    }
+  }, [key]);
+  if (!show) return null;
   return (
-    <div style={{ padding: "20px 24px", borderRadius: 16, border: "1px solid rgba(124,58,237,.3)", background: "rgba(124,58,237,.07)", marginBottom: 16, backgroundImage: "radial-gradient(ellipse 70% 80% at 0% 50%,rgba(124,58,237,.08) 0%,transparent 70%)" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 10, color: "#A78BFA", fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 6 }}>
-            ⚡ Competition Protocol
-          </div>
-          <h1 style={{ margin: "0 0 8px", fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: "clamp(20px,3vw,28px)", color: T.text }}>
-            {label}
-          </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{date}</span>
-            <span style={{ color: T.muted }}>·</span>
-            <span style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{meta.weeksToEvent} weeks away</span>
-            <span style={{ color: T.muted }}>·</span>
-            <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 100, background: "rgba(124,58,237,.18)", border: "1px solid rgba(124,58,237,.4)", color: "#C4B5FD", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-              {outcomeLabel}
-            </span>
-          </div>
+    <div style={{
+      padding: "16px 18px 14px", borderRadius: 12, marginBottom: 16,
+      background: "linear-gradient(135deg,rgba(99,102,241,.08),rgba(139,92,246,.05))",
+      border: "1px solid rgba(99,102,241,.2)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <span style={{ fontSize: 18 }}>🏆</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 14, color: "#F1F5F9" }}>Protocol Ready</div>
+          <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#64748B" }}>Your competition prep pack is live</div>
         </div>
-
-        {/* Right: tier badge + countdown */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <span style={{ padding: "6px 14px", borderRadius: 100, fontSize: 11, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, background: "rgba(6,182,212,.1)", border: "1px solid rgba(6,182,212,.3)", color: "#06B6D4" }}>
-              Tier {meta.budgetTier} · ${meta.budgetValue.toLocaleString()}
-            </span>
-            <span style={{ padding: "6px 14px", borderRadius: 100, fontSize: 11, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, background: "rgba(99,102,241,.1)", border: "1px solid rgba(99,102,241,.3)", color: "#A5B4FC" }}>
-              {meta.experienceLevel}
-            </span>
+        <button onClick={() => setShow(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#475569", fontSize: 18, lineHeight: 1, padding: "0 4px" }}>×</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        {[
+          { icon: "🏅", label: "Sport",      value: COMPETITION_LABELS[competitionType] ?? competitionType },
+          { icon: "📅", label: "Timeline",   value: `${weeksToEvent} weeks out` },
+          { icon: "🎯", label: "Experience", value: experienceLevel },
+          { icon: "💰", label: "Tier",       value: `Tier ${budgetTier}` },
+        ].map(r => (
+          <div key={r.label} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.06)" }}>
+            <div style={{ fontSize: 13, marginBottom: 2 }}>{r.icon}</div>
+            <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: "#F1F5F9" }}>{r.value}</div>
+            <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 9, color: "#475569", marginTop: 2 }}>{r.label}</div>
           </div>
-          {/* Race countdown */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,.06)", borderRadius: 100, padding: "8px 18px" }}>
-            <span style={{ fontSize: 28, fontWeight: 300, fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", color: "#A78BFA", lineHeight: 1 }}>
-              {daysToRace >= 0 ? daysToRace : 0}
-            </span>
-            <span style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", lineHeight: 1.3 }}>
-              {daysToRace >= 0 ? "days to\nrace day" : "race\ncomplete"}
-            </span>
-          </div>
-
-          {/* Share protocol card */}
-          <ShareProtocolButton meta={meta} />
-        </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function ShareProtocolButton({ meta }: { meta: EventMeta }) {
-  const [sharing, setSharing] = useState(false);
+// ── Accuracy Banner ────────────────────────────────────────────────────────────
+function AccuracyBanner({ hasWearable, hasBloodTest }: { hasWearable: boolean; hasBloodTest: boolean }) {
+  if (hasWearable && hasBloodTest) return null;
+  const pct  = hasBloodTest ? (hasWearable ? 100 : 85) : hasWearable ? 70 : 50;
+  const href = !hasBloodTest ? "/app/onboarding/upload" : "/app/settings";
   return (
-    <button
-      onClick={async () => {
-        if (sharing) return;
-        setSharing(true);
-        try { await generateProtocolShareCard(meta); }
-        finally { setSharing(false); }
-      }}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        padding: "7px 14px", borderRadius: 100,
-        background: "transparent",
-        border: "1px solid rgba(167,139,250,.35)",
-        color: "#A78BFA", cursor: sharing ? "default" : "pointer",
-        fontSize: 11, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400,
-        opacity: sharing ? 0.6 : 1, transition: "all .15s",
-      }}
-      onMouseEnter={e => { if (!sharing) e.currentTarget.style.background = "rgba(167,139,250,.1)"; }}
-      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-    >
-      {sharing ? "Generating…" : "↗ Share Protocol"}
-    </button>
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 10, marginBottom: 16,
+      background: "rgba(245,158,11,.05)", border: "1px solid rgba(245,158,11,.14)",
+    }}>
+      <span style={{
+        fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, fontWeight: 600, color: "#F59E0B",
+        background: "rgba(245,158,11,.12)", border: "1px solid rgba(245,158,11,.25)",
+        padding: "2px 8px", borderRadius: 6, flexShrink: 0,
+      }}>
+        {pct}%
+      </span>
+      <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#94A3B8", flex: 1 }}>
+        Protocol accuracy — {!hasBloodTest ? "upload lab results" : "connect a wearable"} to improve
+      </span>
+      <a href={href} style={{ flexShrink: 0, fontSize: 11, color: "#FCD34D", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500, textDecoration: "none" }}>
+        Unlock →
+      </a>
+    </div>
   );
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
+// ── Today Section ──────────────────────────────────────────────────────────────
+function TodaySection({
+  payload, adoptedIds, onToggle, eventMeta, currentPhase, hasWearable,
+}: {
+  payload:      SportsProtocolPayload;
+  adoptedIds:   string[];
+  onToggle:     (name: string) => void;
+  eventMeta:    EventMeta;
+  currentPhase: PhaseInfo | null;
+  hasWearable:  boolean;
+}) {
+  const morningStack = (payload.tierPack?.supplements ?? [])
+    .filter(s => s.priority === "essential" || s.priority === "high")
+    .slice(0, 4);
+
+  return (
+    <div className="bz-section-enter" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Date header */}
+      <div>
+        <h1 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 22, fontWeight: 400, color: "#F1F5F9", margin: 0, marginBottom: 4 }}>
+          {format(new Date(), "EEEE, MMMM d")}
+        </h1>
+        <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0 }}>
+          {currentPhase
+            ? `${currentPhase.phase.phase} phase · Day ${currentPhase.dayInPhase} of ${currentPhase.phaseDuration}`
+            : "Protocol active"}
+        </p>
+      </div>
+
+      {/* Wearable nudge */}
+      {!hasWearable && (
+        <a href="/app/settings" style={{
+          textDecoration: "none", display: "flex", alignItems: "center", gap: 14,
+          padding: "12px 16px", borderRadius: 10,
+          background: "rgba(245,158,11,.05)", border: "1px solid rgba(245,158,11,.15)",
+        }}>
+          <Watch size={18} color="#F59E0B" />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#F1F5F9", marginBottom: 1 }}>Connect a wearable</div>
+            <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#64748B" }}>Unlock HRV readiness and sleep coaching →</div>
+          </div>
+        </a>
+      )}
+
+      {/* Training directive */}
+      {payload.todayTrainingDirective && (
+        <div style={{
+          padding: "18px 20px", borderRadius: 12,
+          background: "linear-gradient(135deg,rgba(124,58,237,.12),rgba(6,182,212,.06))",
+          border: "1px solid rgba(124,58,237,.2)",
+        }}>
+          <div style={{ fontSize: 9, color: "#7C3AED", fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 10 }}>
+            ⚡ Training today
+          </div>
+          <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 14, color: "#F1F5F9", lineHeight: 1.65, margin: 0 }}>
+            {payload.todayTrainingDirective}
+          </p>
+          <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+            {currentPhase && (
+              <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 100, background: "rgba(124,58,237,.14)", border: "1px solid rgba(124,58,237,.25)", color: "#C4B5FD", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                {currentPhase.phase.phase}
+              </span>
+            )}
+            <span style={{ fontSize: 10, padding: "3px 9px", borderRadius: 100, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.1)", color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+              {eventMeta.priorityOutcome}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Morning stack */}
+      {morningStack.length > 0 && (
+        <div style={{ borderRadius: 12, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.07)", overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 18px", borderBottom: "1px solid rgba(255,255,255,.05)" }}>
+            <div style={{ fontSize: 9, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".1em", textTransform: "uppercase" }}>
+              Morning Stack
+            </div>
+            <div style={{ fontSize: 11, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+              {morningStack.filter(s => adoptedIds.includes(s.name)).length}/{morningStack.length} adopted
+            </div>
+          </div>
+          {morningStack.map(s => {
+            const adopted = adoptedIds.includes(s.name);
+            return (
+              <div
+                key={s.name}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "12px 18px",
+                  borderBottom: "1px solid rgba(255,255,255,.03)",
+                  background: adopted ? "rgba(16,185,129,.04)" : "transparent",
+                  transition: "background .2s",
+                }}
+              >
+                <button
+                  onClick={() => onToggle(s.name)}
+                  style={{
+                    width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                    background: adopted ? "#10B981" : "transparent",
+                    border: `2px solid ${adopted ? "#10B981" : "#374151"}`,
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all .2s",
+                  }}
+                >
+                  {adopted && <Check size={10} color="white" strokeWidth={3} />}
+                </button>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: adopted ? "#64748B" : "#F1F5F9", textDecoration: adopted ? "line-through" : "none" }}>
+                    {s.name}
+                  </span>
+                  <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: "#10B981", opacity: .7, marginLeft: 8 }}>
+                    {s.dose}
+                  </span>
+                </div>
+                {adopted && <span style={{ fontSize: 10, color: "#10B981", opacity: .55, fontFamily: "var(--font-ui,'Inter',sans-serif)", flexShrink: 0 }}>Adopted ✓</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Phase mini-timeline */}
+      {payload.periodizedTimeline.length > 0 && (
+        <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)" }}>
+          <div style={{ fontSize: 9, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 10 }}>
+            Race preparation timeline
+          </div>
+          <div style={{ display: "flex", gap: 3, height: 26, alignItems: "stretch" }}>
+            {payload.periodizedTimeline.map((phase, i) => {
+              const total    = payload.periodizedTimeline.reduce((s, p) => s + p.durationWeeks, 0);
+              const widthPct = (phase.durationWeeks / total) * 100;
+              const isCurrent = currentPhase?.index === i;
+              const isPast    = currentPhase ? i < currentPhase.index : false;
+              const color     = PHASE_COLORS[phase.phase] ?? "#6366F1";
+              return (
+                <div
+                  key={i}
+                  title={`${phase.phase} (${phase.durationWeeks}w)`}
+                  style={{
+                    width: `${widthPct}%`, borderRadius: 5, position: "relative",
+                    background: isCurrent ? color : isPast ? "rgba(255,255,255,.05)" : "rgba(255,255,255,.03)",
+                    border: `1px solid ${isCurrent ? color + "55" : "rgba(255,255,255,.04)"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 7, color: isCurrent ? "#fff" : "#475569",
+                    fontFamily: "var(--font-ui,'Inter',sans-serif)", overflow: "hidden",
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 3px" }}>
+                    {phase.phase.split(" ")[0]}
+                  </span>
+                  {isCurrent && (
+                    <div style={{ position: "absolute", top: -4, left: "50%", transform: "translateX(-50%)", width: 5, height: 5, borderRadius: "50%", background: "#fff" }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 9, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+            <span>Today</span>
+            <span>{differenceInDays(new Date(eventMeta.eventDate), new Date())}d to race</span>
+          </div>
+        </div>
+      )}
+
+      {/* Phase transition alert */}
+      {currentPhase && currentPhase.daysRemainingInPhase <= 7 && payload.phaseTransitionSummary && (
+        <div style={{
+          padding: "13px 16px", borderRadius: 10,
+          background: "rgba(139,92,246,.07)", border: "1px solid rgba(139,92,246,.22)",
+          display: "flex", gap: 12, alignItems: "flex-start",
+        }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>⚡</span>
+          <div>
+            <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, fontWeight: 500, color: "#A78BFA", marginBottom: 4 }}>
+              Phase transition in {currentPhase.daysRemainingInPhase} day{currentPhase.daysRemainingInPhase !== 1 ? "s" : ""}
+            </div>
+            <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#64748B", lineHeight: 1.5 }}>
+              {payload.phaseTransitionSummary}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tonight's recovery */}
+      {payload.tonightRecoveryDirective && (
+        <div style={{ padding: "16px 18px", borderRadius: 12, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)" }}>
+          <div style={{ fontSize: 9, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 8 }}>
+            🌙 Tonight&apos;s Recovery
+          </div>
+          <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: "#94A3B8", lineHeight: 1.65, margin: 0 }}>
+            {payload.tonightRecoveryDirective}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Why Section ────────────────────────────────────────────────────────────────
+function WhySection({ payload, hasBloodTest }: { payload: SportsProtocolPayload; hasBloodTest: boolean }) {
+  const items     = payload.intelligenceItems ?? [];
+  const decisions = payload.biomarkerDecisions ?? [];
+  const STATUS_COLORS: Record<string, string> = { normal: "#10B981", flagged: "#EF4444", optimal: "#3B82F6" };
+
+  return (
+    <div className="bz-section-enter" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 20, fontWeight: 400, color: "#F1F5F9", margin: "0 0 4px" }}>
+          Why we built it this way
+        </h2>
+        <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0 }}>
+          Every decision in this protocol was driven by your specific data.
+        </p>
+      </div>
+
+      {items.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ padding: "16px 18px", borderRadius: 12, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)" }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 20, flexShrink: 0 }}>{item.icon}</span>
+                <div>
+                  <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: "#A5B4FC", marginBottom: 6 }}>{item.input}</div>
+                  <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: "#E2E8F0", lineHeight: 1.55 }}>→ {item.decision}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {hasBloodTest && decisions.length > 0 && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span>🩸</span>
+            <h3 style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 500, color: "#94A3B8", margin: 0 }}>
+              How your blood test shaped this protocol
+            </h3>
+          </div>
+          <div style={{ borderRadius: 12, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)", overflow: "hidden" }}>
+            {decisions.map((d, i) => (
+              <div key={i} style={{ display: "flex", gap: 16, padding: "14px 18px", borderBottom: i < decisions.length - 1 ? "1px solid rgba(255,255,255,.04)" : "none", alignItems: "flex-start" }}>
+                <div style={{ flexShrink: 0, width: 110 }}>
+                  <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 14, color: "#F1F5F9", marginBottom: 2 }}>
+                    {d.value}{d.unit ? ` ${d.unit}` : ""}
+                  </div>
+                  <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 10, color: "#64748B", marginBottom: 4 }}>{d.biomarker}</div>
+                  {d.status && d.status !== "normal" && (
+                    <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 100, background: `${STATUS_COLORS[d.status] ?? "#64748B"}18`, color: STATUS_COLORS[d.status] ?? "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                      {d.status === "flagged" ? "Above range" : "Optimal"}
+                    </span>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 10, color: "#475569", marginBottom: 4 }}>Protocol response</div>
+                  <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#94A3B8", lineHeight: 1.55 }}>{d.protocolResponse}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {items.length === 0 && (
+        <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: "#475569" }}>
+          Intelligence items appear for newly generated protocols.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Timeline Section ───────────────────────────────────────────────────────────
+function TimelineSection({ phases, eventDate, currentPhaseIndex }: {
+  phases:             SportsTimelinePhase[];
+  eventDate:          string;
+  currentPhaseIndex:  number | null;
+}) {
+  const today    = new Date();
+  const event    = new Date(eventDate);
+  const totalWks = phases.reduce((s, p) => s + p.durationWeeks, 0);
+  let elapsed    = 0;
+
+  return (
+    <div className="bz-section-enter" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 20, fontWeight: 400, color: "#F1F5F9", margin: "0 0 4px" }}>Training plan</h2>
+        <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0 }}>
+          {phases.length} phases · {differenceInDays(event, today)} days total
+        </p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {phases.map((phase, i) => {
+          const phaseStart = elapsed;
+          elapsed += phase.durationWeeks;
+          const endDate   = new Date(event.getTime() - (totalWks - elapsed)    * 7 * 86_400_000);
+          const startDate = new Date(event.getTime() - (totalWks - phaseStart) * 7 * 86_400_000);
+          const isActive  = today >= startDate && today < endDate;
+          const isPast    = today >= endDate;
+          const color     = PHASE_COLORS[phase.phase] ?? "#6366F1";
+          const dayInPhase = isActive ? differenceInDays(today, startDate) + 1 : null;
+
+          return (
+            <div key={i} style={{
+              borderRadius: 14, overflow: "hidden", opacity: isPast ? 0.55 : 1,
+              border: `1px solid ${isActive ? color + "40" : "rgba(255,255,255,.06)"}`,
+              background: isActive ? `${color}0D` : isPast ? "rgba(255,255,255,.01)" : "rgba(255,255,255,.02)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px" }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0, boxShadow: isActive ? `0 0 8px ${color}55` : "none" }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                    <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 15, color: "#F1F5F9", fontWeight: 400 }}>{phase.phase}</span>
+                    <span style={{ fontSize: 10, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{phase.durationWeeks}w</span>
+                    {isActive && (
+                      <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 100, background: `${color}20`, color, border: `1px solid ${color}40`, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500 }}>
+                        You are here · Day {dayInPhase}
+                      </span>
+                    )}
+                    {isPast && <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 100, background: "rgba(255,255,255,.05)", color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>Complete</span>}
+                  </div>
+                  <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0, lineHeight: 1.4 }}>{phase.trainingFocus}</p>
+                </div>
+              </div>
+              {(isActive || i === (currentPhaseIndex ?? -1) + 1) && phase.keyActions && (
+                <div style={{ padding: "0 18px 14px 40px" }}>
+                  {phase.keyActions.map((a, j) => (
+                    <div key={j} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                      <span style={{ color, flexShrink: 0, fontSize: 12 }}>›</span>
+                      <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#94A3B8", lineHeight: 1.45 }}>{a}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Supplements Section ────────────────────────────────────────────────────────
+function SupplementsSection({
+  tierPack, supplementSchedule, adoptedIds, onToggle, onBulkAdoptEssentials,
+}: {
+  tierPack:              SportsProtocolPayload["tierPack"];
+  supplementSchedule:    SportsProtocolPayload["supplementSchedule"];
+  adoptedIds:            string[];
+  onToggle:              (name: string) => void;
+  onBulkAdoptEssentials: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"supplements" | "roi" | "testing" | "gear" | "services">("supplements");
+  if (!tierPack) return null;
+
+  const URGENCY_COLORS: Record<string, string> = { high: "#EF4444", medium: "#F59E0B", low: "#64748B" };
+  const supplements  = [...(tierPack.supplements ?? [])].sort((a, b) => (PRIORITY_RANK[a.priority ?? ""] ?? 3) - (PRIORITY_RANK[b.priority ?? ""] ?? 3));
+  const essentialCount = supplements.filter(s => s.priority === "essential").length;
+  const totalMonthly   = supplements.reduce((sum, s) => { const m = s.priceEstimate?.match(/\$(\d+)/); return sum + (m ? parseInt(m[1]) : 0); }, 0);
+
+  const TABS = [
+    { id: "supplements" as const, label: "All" },
+    { id: "roi"         as const, label: "Best Value" },
+    { id: "testing"     as const, label: "Testing" },
+    { id: "gear"        as const, label: "Gear" },
+    { id: "services"    as const, label: "Services" },
+  ];
+
+  return (
+    <div className="bz-section-enter" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 20, fontWeight: 400, color: "#F1F5F9", margin: "0 0 4px" }}>My pack</h2>
+          <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0 }}>
+            {adoptedIds.length}/{supplements.length} adopted · Tier {tierPack.tier}{totalMonthly > 0 ? ` · ~$${totalMonthly}/mo` : ""}
+          </p>
+        </div>
+        {adoptedIds.length === 0 && essentialCount > 0 && (
+          <button
+            onClick={onBulkAdoptEssentials}
+            style={{ flexShrink: 0, padding: "7px 14px", borderRadius: 8, fontSize: 11, cursor: "pointer", background: "rgba(16,185,129,.1)", border: "1px solid rgba(16,185,129,.25)", color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500 }}
+          >
+            Adopt essentials →
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 2 }}>
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            style={{
+              flexShrink: 0, padding: "6px 14px", borderRadius: 8, fontSize: 11, cursor: "pointer",
+              background: activeTab === t.id ? "rgba(99,102,241,.15)" : "rgba(255,255,255,.04)",
+              border: `1px solid ${activeTab === t.id ? "rgba(99,102,241,.35)" : "rgba(255,255,255,.08)"}`,
+              color: activeTab === t.id ? "#A5B4FC" : "#64748B",
+              fontFamily: "var(--font-ui,'Inter',sans-serif)",
+            }}
+          >{t.label}</button>
+        ))}
+      </div>
+
+      {activeTab === "supplements" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {(["essential", "high", "moderate"] as const).map(priority => {
+            const group = supplements.filter(s => s.priority === priority);
+            if (!group.length) return null;
+            const pc = PRIORITY_COLORS[priority];
+            return (
+              <div key={priority}>
+                <div style={{ fontSize: 9, color: pc.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 8, paddingLeft: 2 }}>
+                  {priority}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {group.map(s => {
+                    const adopted = adoptedIds.includes(s.name);
+                    return (
+                      <div key={s.name} style={{ borderRadius: 12, border: `1px solid ${adopted ? "rgba(16,185,129,.2)" : "rgba(255,255,255,.07)"}`, background: adopted ? "rgba(16,185,129,.04)" : "rgba(255,255,255,.02)", overflow: "hidden" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px" }}>
+                          <button
+                            onClick={() => onToggle(s.name)}
+                            style={{ width: 20, height: 20, marginTop: 2, borderRadius: "50%", flexShrink: 0, background: adopted ? "#10B981" : "transparent", border: `2px solid ${adopted ? "#10B981" : "#374151"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .2s" }}
+                          >
+                            {adopted && <Check size={10} color="white" strokeWidth={3} />}
+                          </button>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 14, fontWeight: 500, color: adopted ? "#475569" : "#F1F5F9", textDecoration: adopted ? "line-through" : "none" }}>{s.name}</span>
+                                <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 100, background: pc.bg, border: `1px solid ${pc.border}`, color: pc.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500, textTransform: "uppercase" }}>{priority}</span>
+                              </div>
+                              {s.priceEstimate && <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 10, color: "#64748B", flexShrink: 0 }}>{s.priceEstimate}</span>}
+                            </div>
+                            <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: "#10B981", opacity: .7, marginBottom: s.notes ? 4 : 0 }}>{s.dose} · {s.timing}</div>
+                            {s.notes && <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#64748B", lineHeight: 1.45 }}>{s.notes}</div>}
+                          </div>
+                        </div>
+                        {s.purchaseUrl && !adopted && (
+                          <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 16px 12px", borderTop: "1px solid rgba(255,255,255,.04)", background: "rgba(255,255,255,.01)" }}>
+                            <a href={s.purchaseUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, padding: "5px 14px", borderRadius: 7, background: "rgba(99,102,241,.1)", border: "1px solid rgba(99,102,241,.25)", color: "#A5B4FC", textDecoration: "none", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500 }}>
+                              Buy →
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {/* unprioritised items */}
+          {supplements.filter(s => !s.priority).map(s => {
+            const adopted = adoptedIds.includes(s.name);
+            return (
+              <div key={s.name} style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)", display: "flex", gap: 12, alignItems: "center" }}>
+                <button onClick={() => onToggle(s.name)} style={{ width: 18, height: 18, borderRadius: "50%", background: adopted ? "#10B981" : "transparent", border: `2px solid ${adopted ? "#10B981" : "#374151"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {adopted && <Check size={9} color="white" strokeWidth={3} />}
+                </button>
+                <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: adopted ? "#475569" : "#F1F5F9", textDecoration: adopted ? "line-through" : "none" }}>{s.name}</span>
+                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: "#10B981", opacity: .7 }}>{s.dose}</span>
+              </div>
+            );
+          })}
+
+          {/* Daily schedule collapsed */}
+          {supplementSchedule && supplementSchedule.length > 0 && (
+            <details style={{ borderRadius: 12, border: "1px solid rgba(255,255,255,.06)", overflow: "hidden" }}>
+              <summary style={{ padding: "12px 16px", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", listStyle: "none", display: "flex", alignItems: "center", gap: 8 }}>
+                <span>🕐 View daily schedule</span><span style={{ marginLeft: "auto", fontSize: 10 }}>▼</span>
+              </summary>
+              <div style={{ padding: "0 16px 16px" }}>
+                {(() => {
+                  const grouped: Record<string, typeof supplementSchedule> = {};
+                  for (const item of supplementSchedule) {
+                    if (!grouped[item.timing]) grouped[item.timing] = [];
+                    grouped[item.timing].push(item);
+                  }
+                  const ORDER = ["Morning", "Pre-workout", "During", "Post-workout", "With meals", "Evening"];
+                  const keys  = [...ORDER.filter(k => grouped[k]), ...Object.keys(grouped).filter(k => !ORDER.includes(k))];
+                  return keys.map(timing => (
+                    <div key={timing} style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 9, color: "#475569", letterSpacing: ".1em", textTransform: "uppercase", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 6 }}>{timing}</div>
+                      {grouped[timing].map((item, j) => (
+                        <div key={j} style={{ display: "flex", gap: 12, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,.025)" }}>
+                          <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: "#F1F5F9", minWidth: 130 }}>{item.name}</span>
+                          <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#64748B" }}>{item.dose}{item.withFood ? " · with food" : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ));
+                })()}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+
+      {activeTab === "roi" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {(tierPack.biggestROI ?? []).map((item, i) => (
+            <div key={i} style={{ display: "flex", gap: 12, padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)" }}>
+              <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 13, color: "#6366F1", fontWeight: 600, flexShrink: 0 }}>#{i + 1}</span>
+              <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>{item}</span>
+            </div>
+          ))}
+          {(tierPack.whatYouAreMissing ?? []).length > 0 && (
+            <div style={{ marginTop: 8, padding: "13px 16px", borderRadius: 10, background: "rgba(245,158,11,.04)", border: "1px solid rgba(245,158,11,.14)" }}>
+              <div style={{ fontSize: 9, color: "#F59E0B", letterSpacing: ".1em", textTransform: "uppercase", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 8 }}>What you&apos;re missing</div>
+              {(tierPack.whatYouAreMissing ?? []).map((item, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                  <span style={{ color: "#F59E0B" }}>›</span>
+                  <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#94A3B8" }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "testing" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {(tierPack.testing ?? []).length === 0
+            ? <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#475569" }}>No testing at Tier {tierPack.tier}.</p>
+            : (tierPack.testing ?? []).map((t, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)" }}>
+                <span style={{ color: "#06B6D4" }}>›</span>
+                <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#94A3B8" }}>{t}</span>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {activeTab === "gear" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {(tierPack.gear ?? []).length === 0
+            ? <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#475569" }}>No gear at Tier {tierPack.tier}.</p>
+            : (tierPack.gear ?? []).map((g, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)" }}>
+                <span style={{ color: "#10B981" }}>›</span>
+                <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#94A3B8" }}>{g}</span>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {activeTab === "services" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {(tierPack.services ?? []).length === 0
+            ? <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#475569" }}>No services at Tier {tierPack.tier}.</p>
+            : (tierPack.services ?? []).map((s, i) => {
+              if (typeof s === "string") return (
+                <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", borderRadius: 8, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)" }}>
+                  <span style={{ color: "#A78BFA" }}>›</span>
+                  <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#94A3B8" }}>{s}</span>
+                </div>
+              );
+              const uc = URGENCY_COLORS[s.urgency ?? "low"] ?? "#64748B";
+              return (
+                <div key={i} style={{ padding: "16px", borderRadius: 12, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 13, color: "#F1F5F9", marginBottom: 4 }}>{s.name}</div>
+                      {s.urgency && <span style={{ fontSize: 9, padding: "2px 7px", borderRadius: 100, background: `${uc}15`, color: uc, border: `1px solid ${uc}30`, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500, textTransform: "uppercase" }}>{s.urgency} priority</span>}
+                    </div>
+                    {s.priceRange && <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: "#64748B" }}>{s.priceRange}</span>}
+                  </div>
+                  {s.rationale && <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#64748B", lineHeight: 1.5, marginBottom: s.bookingUrl ? 10 : 0 }}>{s.rationale}</div>}
+                  {s.bookingUrl && (
+                    <a href={s.bookingUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "5px 14px", borderRadius: 7, background: "rgba(167,139,250,.1)", border: "1px solid rgba(167,139,250,.25)", color: "#A78BFA", fontSize: 11, textDecoration: "none", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500 }}>
+                      Book →
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Safety Section ─────────────────────────────────────────────────────────────
+function SafetySection({ redFlags }: { redFlags: SportsProtocolPayload["redFlags"] }) {
+  if (!redFlags) return null;
+  return (
+    <div className="bz-section-enter" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 20, fontWeight: 400, color: "#F1F5F9", margin: "0 0 4px" }}>Safety & red flags</h2>
+        <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0 }}>
+          Generated from your injury profile and medications.
+        </p>
+      </div>
+
+      {redFlags.contraindications.length > 0 && (
+        <div style={{ borderRadius: 12, overflow: "hidden", background: "rgba(239,68,68,.04)", border: "1px solid rgba(239,68,68,.15)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", borderBottom: "1px solid rgba(239,68,68,.08)" }}>
+            <span>🚫</span>
+            <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 500, color: "#FCA5A5" }}>Avoid completely</span>
+          </div>
+          {redFlags.contraindications.map((item, i) => (
+            <div key={i} style={{ display: "flex", gap: 10, padding: "11px 18px", borderBottom: i < redFlags.contraindications.length - 1 ? "1px solid rgba(239,68,68,.05)" : "none" }}>
+              <span style={{ color: "#EF4444", flexShrink: 0 }}>✕</span>
+              <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#E2E8F0", lineHeight: 1.5, margin: 0 }}>{item}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {redFlags.doctorDiscussion.length > 0 && (
+        <div style={{ borderRadius: 12, overflow: "hidden", background: "rgba(245,158,11,.04)", border: "1px solid rgba(245,158,11,.15)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", borderBottom: "1px solid rgba(245,158,11,.08)" }}>
+            <span>💬</span>
+            <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 500, color: "#FCD34D" }}>Discuss with your doctor</span>
+          </div>
+          {redFlags.doctorDiscussion.map((item, i) => (
+            <div key={i} style={{ display: "flex", gap: 10, padding: "11px 18px", borderBottom: i < redFlags.doctorDiscussion.length - 1 ? "1px solid rgba(245,158,11,.05)" : "none" }}>
+              <span style={{ color: "#F59E0B", flexShrink: 0 }}>→</span>
+              <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#E2E8F0", lineHeight: 1.5, margin: 0 }}>{item}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {redFlags.weeklyMonitoring.length > 0 && (
+        <div style={{ borderRadius: 12, overflow: "hidden", background: "rgba(59,130,246,.04)", border: "1px solid rgba(59,130,246,.15)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", borderBottom: "1px solid rgba(59,130,246,.08)" }}>
+            <span>📊</span>
+            <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 500, color: "#93C5FD" }}>Weekly monitoring</span>
+          </div>
+          {redFlags.weeklyMonitoring.map((item, i) => (
+            <div key={i} style={{ display: "flex", gap: 10, padding: "11px 18px", borderBottom: i < redFlags.weeklyMonitoring.length - 1 ? "1px solid rgba(59,130,246,.05)" : "none" }}>
+              <span style={{ color: "#3B82F6", flexShrink: 0 }}>›</span>
+              <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#E2E8F0", lineHeight: 1.5, margin: 0 }}>{item}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Metrics Section ────────────────────────────────────────────────────────────
+function MetricsSection({ metrics, hasWearable }: { metrics: SportsWearableMetric[]; hasWearable: boolean }) {
+  const [openIdx, setOpenIdx] = useState<number>(0);
+
+  return (
+    <div className="bz-section-enter" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 20, fontWeight: 400, color: "#F1F5F9", margin: "0 0 4px" }}>Wearable metrics</h2>
+        <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0 }}>Protocol-specific guidance for your wearable readings.</p>
+      </div>
+
+      {!hasWearable && (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", borderRadius: 12, background: "rgba(245,158,11,.05)", border: "1px solid rgba(245,158,11,.15)" }}>
+          <Watch size={20} color="#F59E0B" />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: "#F1F5F9", marginBottom: 2 }}>No wearable connected</div>
+            <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 11, color: "#64748B" }}>Connect to unlock readiness and HRV coaching calibrated to your protocol.</div>
+          </div>
+          <a href="/app/settings" style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 7, background: "rgba(245,158,11,.1)", border: "1px solid rgba(245,158,11,.25)", color: "#FCD34D", fontSize: 11, textDecoration: "none", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500 }}>
+            Connect →
+          </a>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {metrics.map((m, i) => (
+          <div key={i} style={{ borderRadius: 12, border: `1px solid ${openIdx === i ? "rgba(99,102,241,.25)" : "rgba(255,255,255,.06)"}`, background: openIdx === i ? "rgba(99,102,241,.05)" : "rgba(255,255,255,.02)", overflow: "hidden" }}>
+            <button
+              onClick={() => setOpenIdx(openIdx === i ? -1 : i)}
+              style={{ width: "100%", padding: "14px 18px", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left" }}
+            >
+              <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 13, color: "#F1F5F9", flex: 1 }}>{m.metric}</span>
+              <ChevronDown size={14} color="#475569" style={{ transform: openIdx === i ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+            </button>
+            {openIdx === i && (
+              <div style={{ padding: "0 18px 16px", borderTop: "1px solid rgba(255,255,255,.05)", display: "flex", flexDirection: "column", gap: 12 }}>
+                {[
+                  { label: "Good trend",     text: m.goodTrend,        color: "#10B981" },
+                  { label: "Concerning",     text: m.concerningTrend,  color: "#EF4444" },
+                  { label: "Training guide", text: m.trainingGuidance, color: "#6366F1" },
+                ].map(row => (
+                  <div key={row.label} style={{ paddingTop: 12 }}>
+                    <div style={{ fontSize: 9, color: row.color, letterSpacing: ".1em", textTransform: "uppercase", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 4 }}>{row.label}</div>
+                    <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#94A3B8", lineHeight: 1.55 }}>{row.text}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Export ────────────────────────────────────────────────────────────────
 export function SportsResultsPage({
   payload,
   eventMeta,
-  hasWearable = false,
-}: {
-  payload:     SportsProtocolPayload;
-  eventMeta:   EventMeta;
-  hasWearable?: boolean;
-}) {
-  const router   = useRouter();
-  const [adopted, setAdopted] = useState<Set<string>>(new Set());
+  hasWearable       = false,
+  hasBloodTest      = false,
+  communityCount    = 0,
+  protocolId,
+  initialAdoptedIds = [],
+}: SportsResultsPageProps) {
+  const router = useRouter();
+  const [activeSection, setActiveSectionState] = useState<SectionId>("today");
+  const [sectionKey,    setSectionKey]          = useState(0);
+  const [adoptedIds,    setAdoptedIds]           = useState<string[]>(initialAdoptedIds);
+  const prevPct = useRef(0);
 
-  // Load persisted adoptions from DB on mount
+  const supplements      = payload.tierPack?.supplements ?? [];
+  const totalSupplements = supplements.length;
+  const completionPct    = totalSupplements > 0 ? Math.round((adoptedIds.length / totalSupplements) * 100) : 0;
+  const currentPhase     = payload.periodizedTimeline?.length > 0
+    ? computeCurrentPhase(payload.periodizedTimeline, eventMeta.eventDate)
+    : null;
+  const daysToRace       = differenceInDays(new Date(eventMeta.eventDate), new Date());
+  const flagCount        = [
+    ...(payload.redFlags?.contraindications ?? []),
+    ...(payload.redFlags?.doctorDiscussion  ?? []),
+  ].length;
+
+  // 100% completion celebration
   useEffect(() => {
-    fetch("/api/supplement-adoptions")
-      .then(r => r.json())
-      .then((data: { supplement_name: string }[]) => {
-        setAdopted(new Set(data.map(d => d.supplement_name)));
-      })
-      .catch(() => {});
+    if (completionPct === 100 && prevPct.current < 100) {
+      toast.success("Protocol fully activated 🎉", {
+        description: "All supplements adopted. Your protocol is live.",
+      });
+    }
+    prevPct.current = completionPct;
+  }, [completionPct]);
+
+  function setSection(id: SectionId) {
+    setActiveSectionState(id);
+    setSectionKey(k => k + 1);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  const toggleAdopt = useCallback(async (supplementName: string) => {
+    setAdoptedIds(prev =>
+      prev.includes(supplementName) ? prev.filter(n => n !== supplementName) : [...prev, supplementName]
+    );
+    try {
+      await fetch("/api/supplement-adoptions/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ supplementName, protocolType: "sports" }),
+      });
+    } catch { /* optimistic; ignore */ }
   }, []);
 
-  const schedule          = buildPhaseSchedule(payload.periodizedTimeline, eventMeta.eventDate);
-  const currentPhaseIndex = getCurrentPhaseIndex(schedule);
-  const daysToRace        = differenceInDays(new Date(eventMeta.eventDate), new Date());
+  function bulkAdoptEssentials() {
+    const names = supplements.filter(s => s.priority === "essential").map(s => s.name);
+    setAdoptedIds(prev => Array.from(new Set([...prev, ...names])));
+    names.forEach(supplementName => {
+      fetch("/api/supplement-adoptions/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ supplementName, protocolType: "sports" }),
+      }).catch(() => {});
+    });
+  }
 
   return (
-    <div style={{ paddingBottom: "max(112px, calc(64px + env(safe-area-inset-bottom)))" }}>
-      <div className="px-4 lg:px-6 py-6 lg:py-8">
-        <EventBanner meta={eventMeta} daysToRace={daysToRace} />
+    <>
+      <style>{`
+        .bz-section-enter { animation: bzSectionIn 0.25s ease-out; }
+        @keyframes bzSectionIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes bzRingPulse { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:.9;transform:scale(1.15)} }
+        @media(min-width:1024px){.bz-left-panel{display:flex!important}.bz-mobile-tabs{display:none!important}.bz-right-content{padding-bottom:32px!important}}
+        @media(max-width:1023px){.bz-left-panel{display:none!important}.bz-mobile-tabs{display:flex!important}.bz-right-content{padding-bottom:96px!important}}
+      `}</style>
 
-        <TodaysFocusCard
-          schedule={schedule}
-          currentPhaseIndex={currentPhaseIndex}
-          hasWearable={hasWearable}
+      <div style={{ display: "flex", alignItems: "flex-start", minHeight: "calc(100svh - 4rem)" }}>
+
+        {/* Left command panel */}
+        <LeftCommandPanel
+          activeSection={activeSection}
+          setSection={setSection}
+          daysToRace={daysToRace}
+          currentPhase={currentPhase}
+          completionPct={completionPct}
+          adoptedCount={adoptedIds.length}
+          totalSupplements={totalSupplements}
+          eventMeta={eventMeta}
+          flagCount={flagCount}
+          onShare={() => generateProtocolShareCard(eventMeta)}
         />
-      </div>
 
-      <StickyNav />
+        {/* Right content */}
+        <main
+          className="bz-right-content"
+          style={{ flex: 1, minWidth: 0, padding: "32px 24px", maxWidth: 700 }}
+        >
+          {activeSection === "today" && (
+            <>
+              <ProtocolLeaderboard
+                protocolId={protocolId}
+                competitionType={eventMeta.competitionType}
+                weeksToEvent={eventMeta.weeksToEvent}
+                experienceLevel={eventMeta.experienceLevel}
+                budgetTier={eventMeta.budgetTier}
+              />
+              <AccuracyBanner hasWearable={hasWearable} hasBloodTest={hasBloodTest} />
+            </>
+          )}
 
-      <div className="px-4 lg:px-6">
-        <TimelineSection phases={payload.periodizedTimeline} eventDate={eventMeta.eventDate} />
-        <RedFlagsSection redFlags={payload.redFlags} />
-        <CompetitionPackSection tierPack={payload.tierPack} budgetTier={eventMeta.budgetTier} />
-        <SupplementScheduleSection schedule={payload.supplementSchedule} adopted={adopted} setAdopted={setAdopted} />
-        <WearableMetricsSection metrics={payload.wearableMetrics} />
-
-        {/* Bottom CTAs */}
-        <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10, paddingBottom: "max(5rem,env(safe-area-inset-bottom))" }}>
-          <button
-            onClick={() => router.push("/app/dashboard")}
-            style={{ width: "100%", padding: "16px 0", borderRadius: 14, background: PERF_GRAD, color: "#fff", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 14, fontWeight: 500, border: "none", cursor: "pointer", outline: "none" }}>
-            Go to Dashboard →
-          </button>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button
-              onClick={() => router.push("/app/goals")}
-              style={{ flex: 1, padding: "14px 0", borderRadius: 14, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.04)", color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 300, cursor: "pointer", outline: "none" }}>
-              ← Build Another Protocol
-            </button>
-            <a
-              href="/app/onboarding/sports-prep"
-              style={{ flex: 1, padding: "14px 0", borderRadius: 14, border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.04)", color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, fontWeight: 300, textDecoration: "none", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              New Race →
-            </a>
+          <div key={sectionKey}>
+            {activeSection === "today" && (
+              <TodaySection
+                payload={payload}
+                adoptedIds={adoptedIds}
+                onToggle={toggleAdopt}
+                eventMeta={eventMeta}
+                currentPhase={currentPhase}
+                hasWearable={hasWearable}
+              />
+            )}
+            {activeSection === "why" && (
+              <WhySection payload={payload} hasBloodTest={hasBloodTest} />
+            )}
+            {activeSection === "timeline" && (
+              <TimelineSection
+                phases={payload.periodizedTimeline}
+                eventDate={eventMeta.eventDate}
+                currentPhaseIndex={currentPhase?.index ?? null}
+              />
+            )}
+            {activeSection === "supplements" && (
+              <SupplementsSection
+                tierPack={payload.tierPack}
+                supplementSchedule={payload.supplementSchedule}
+                adoptedIds={adoptedIds}
+                onToggle={toggleAdopt}
+                onBulkAdoptEssentials={bulkAdoptEssentials}
+              />
+            )}
+            {activeSection === "safety" && (
+              <SafetySection redFlags={payload.redFlags} />
+            )}
+            {activeSection === "metrics" && (
+              <MetricsSection metrics={payload.wearableMetrics ?? []} hasWearable={hasWearable} />
+            )}
           </div>
-        </div>
+        </main>
       </div>
-    </div>
+
+      {/* Mobile tab bar */}
+      <MobileTabBar activeSection={activeSection} setSection={setSection} />
+    </>
   );
 }

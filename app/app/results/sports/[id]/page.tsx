@@ -16,7 +16,7 @@ export default async function SportsResultsRoute({
   if (!session) redirect("/auth/signin");
 
   const supabase = getAdminClient();
-  const [{ data: row }, { data: wearable }] = await Promise.all([
+  const [{ data: row }, { data: wearable }, { data: bloodTest }, { data: adoptions }] = await Promise.all([
     supabase
       .from(TABLES.SPORTS_PROTOCOLS)
       .select("*")
@@ -29,6 +29,16 @@ export default async function SportsResultsRoute({
       .eq(COLS.USER_ID, session.user.id)
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from(TABLES.BIOMARKERS)
+      .select(COLS.ID)
+      .eq(COLS.USER_ID, session.user.id)
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from(TABLES.USER_SUPPLEMENT_ADOPTIONS)
+      .select(COLS.SUPPLEMENT_NAME)
+      .eq(COLS.USER_ID, session.user.id),
   ]);
 
   if (!row) {
@@ -72,9 +82,21 @@ export default async function SportsResultsRoute({
   }
 
   // Ready
-  const payload   = row[COLS.PAYLOAD] as SportsProtocolPayload;
+  const payload          = row[COLS.PAYLOAD] as SportsProtocolPayload;
+  const competitionType  = row[COLS.COMPETITION_TYPE] as string;
+
+  // Community count: other athletes with same competition type active in last 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+  const { count: communityCount } = await supabase
+    .from(TABLES.SPORTS_PROTOCOLS)
+    .select(COLS.ID, { count: "exact", head: true })
+    .eq(COLS.COMPETITION_TYPE, competitionType)
+    .eq(COLS.STATUS, "ready")
+    .neq(COLS.USER_ID, session.user.id)
+    .gte(COLS.CREATED_AT, thirtyDaysAgo);
+
   const eventMeta = {
-    competitionType:  row[COLS.COMPETITION_TYPE]  as string,
+    competitionType,
     eventDate:        row[COLS.EVENT_DATE]         as string,
     weeksToEvent:     row[COLS.WEEKS_TO_EVENT]     as number,
     priorityOutcome:  row[COLS.PRIORITY_OUTCOME]   as string,
@@ -83,5 +105,17 @@ export default async function SportsResultsRoute({
     budgetValue:      row[COLS.BUDGET_VALUE]        as number,
   };
 
-  return <SportsResultsPage payload={payload} eventMeta={eventMeta} hasWearable={!!wearable} />;
+  const initialAdoptedIds = (adoptions ?? []).map((a) => a[COLS.SUPPLEMENT_NAME] as string);
+
+  return (
+    <SportsResultsPage
+      payload={payload}
+      eventMeta={eventMeta}
+      hasWearable={!!wearable}
+      hasBloodTest={!!bloodTest}
+      communityCount={communityCount ?? 0}
+      protocolId={params.id}
+      initialAdoptedIds={initialAdoptedIds}
+    />
+  );
 }
