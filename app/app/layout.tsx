@@ -25,14 +25,31 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const isExcluded = SETUP_EXCLUDED.some((p) => pathname.startsWith(p));
 
   if (!isExcluded) {
-    const { data: userRow } = await getAdminClient()
-      .from(TABLES.USERS)
-      .select(COLS.ONBOARDING_GOALS)
-      .eq(COLS.ID, session.user.id)
-      .maybeSingle();
+    const db = getAdminClient();
 
+    const [{ data: userRow }, { data: profile }] = await Promise.all([
+      db.from(TABLES.USERS)
+        .select(COLS.ONBOARDING_GOALS)
+        .eq(COLS.ID, session.user.id)
+        .maybeSingle(),
+      db.from(TABLES.PROFILES)
+        .select(COLS.ONBOARDING_STEP)
+        .eq(COLS.ID, session.user.id)
+        .maybeSingle(),
+    ]);
+
+    const step     = profile?.onboarding_step as string | null;
     const hasGoals = ((userRow?.onboarding_goals as string[] | null) ?? []).length > 0;
-    if (!hasGoals) redirect("/app/biomarkers");
+
+    // Resume onboarding if the user hasn't completed name/goal steps
+    if (step === "name") redirect("/onboarding/name");
+    if (step === "goal") redirect("/onboarding/goal");
+
+    // Brand-new user — no profile row yet, never set goals
+    if (!profile && !hasGoals) redirect("/onboarding/name");
+
+    // Existing guard: if goals never selected and not mid-data-upload step
+    if (!hasGoals && step !== "data") redirect("/app/biomarkers");
   }
 
   return (

@@ -6,6 +6,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { GroceryListBanner } from "@/components/dashboard/GroceryListBanner";
+import { BioAgeWidget } from "@/components/bio-age/BioAgeWidget";
 import Link from "next/link";
 import type { ProtocolPayload } from "@/lib/db/payload";
 
@@ -76,12 +77,44 @@ export default async function DashboardPage() {
     .in("status", ["critical", "warn"])
     .limit(5);
 
+  // Fetch bio age data + data availability for the widget
+  const [bioAgeRes, biomarkerCountRes, wearableCountRes, chronoAgeRes] = await Promise.all([
+    supabase.from(TABLES.PROFILES)
+      .select("biological_age, biological_age_delta, bio_age_percentile, bio_age_calculated_at, bio_age_confidence, bio_age_revealed, bio_age_drivers")
+      .eq(COLS.ID, userId).single(),
+    supabase.from(TABLES.BIOMARKERS)
+      .select("id", { count: "exact", head: true })
+      .eq(COLS.USER_ID, userId),
+    supabase.from(TABLES.WEARABLE_SNAPSHOTS)
+      .select("id", { count: "exact", head: true })
+      .eq(COLS.USER_ID, userId),
+    supabase.from(TABLES.SPORTS_PROTOCOLS)
+      .select("age").eq(COLS.USER_ID, userId).eq(COLS.STATUS, "ready")
+      .order(COLS.CREATED_AT, { ascending: false }).limit(1),
+  ]);
+
+  const bioAgeProfile  = bioAgeRes.data;
+  const hasBiomarkers  = (biomarkerCountRes.count ?? 0) > 0;
+  const hasWearable    = (wearableCountRes.count ?? 0) > 0;
+  const chronoAge      = (chronoAgeRes.data?.[0]?.age ?? null) as number | null;
+
+  const bioAgeInitialData = {
+    biologicalAge:   (bioAgeProfile?.biological_age    ?? null) as number | null,
+    delta:           (bioAgeProfile?.biological_age_delta ?? null) as number | null,
+    percentile:      (bioAgeProfile?.bio_age_percentile ?? null) as number | null,
+    calculatedAt:    (bioAgeProfile?.bio_age_calculated_at ?? null) as string | null,
+    confidenceLevel: (bioAgeProfile?.bio_age_confidence ?? null) as string | null,
+    revealed:        (bioAgeProfile?.bio_age_revealed   ?? false) as boolean,
+    primaryDrivers:  (bioAgeProfile?.bio_age_drivers    ?? []) as { factor: string; direction: "positive"|"negative"|"neutral"; magnitude: number; detail: string }[],
+    chronologicalAge: chronoAge,
+  };
+
   // Build metric data
   const lastSnap  = snaps.at(-1);
   const hrv       = lastSnap?.[COLS.HRV as keyof typeof lastSnap] as number | undefined;
   const sleepScore= lastSnap?.[COLS.SLEEP_SCORE as keyof typeof lastSnap] as number | undefined;
   const recovery  = lastSnap?.[COLS.RECOVERY_SCORE as keyof typeof lastSnap] as number | undefined;
-  const bioAge    = payload?.scores?.biologicalAgeEstimate ?? null;
+  const bioAge    = bioAgeInitialData.biologicalAge ?? payload?.scores?.biologicalAgeEstimate ?? null;
 
   const metrics = [
     {
@@ -141,6 +174,13 @@ export default async function DashboardPage() {
 
       {/* Grocery list banner (item 25) */}
       <GroceryListBanner />
+
+      {/* Biological Age Widget */}
+      <BioAgeWidget
+        initialData={bioAgeInitialData}
+        hasBiomarkers={hasBiomarkers}
+        hasWearable={hasWearable}
+      />
 
       {/* Metric cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 14, marginBottom: 24 }}>

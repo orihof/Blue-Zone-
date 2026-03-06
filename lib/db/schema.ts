@@ -21,6 +21,14 @@ export const TABLES = {
   SPORTS_PROTOCOLS: "sports_protocols",
   // Health goal prep packs (migration 007)
   GOAL_PROTOCOLS: "goal_protocols",
+  // Supplement adoption events (migration 008)
+  USER_SUPPLEMENT_ADOPTIONS: "user_supplement_adoptions",
+  // Onboarding profiles (migration 009)
+  PROFILES: "profiles",
+  // Referral + partners (migration 010)
+  REFERRAL_LINKS:       "referral_links",
+  REFERRAL_CONVERSIONS: "referral_conversions",
+  TRAINING_PARTNERS:    "training_partners",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -117,6 +125,39 @@ export const COLS = {
   PROTOCOL_GENERATED_AT:    "protocol_generated_at",
   // goal_protocols (migration 007)
   CATEGORY_DATA:            "category_data",
+  // user_supplement_adoptions (migration 008)
+  SUPPLEMENT_NAME:          "supplement_name",
+  ADOPTED_AT:               "adopted_at",
+  PROTOCOL_TYPE:            "protocol_type",
+  // profiles (migration 009 + 011)
+  PRIMARY_GOAL:             "primary_goal",
+  ONBOARDING_STEP:          "onboarding_step",
+  AVATAR_URL:               "avatar_url",
+  TAGLINE:                  "tagline",
+  LOCATION:                 "location",
+  PRS:                      "prs",
+  PROFILE_NUDGE_DISMISSED:  "profile_nudge_dismissed",
+  // profiles — biological age (migration 012)
+  BIOLOGICAL_AGE:           "biological_age",
+  BIOLOGICAL_AGE_DELTA:     "biological_age_delta",
+  BIO_AGE_PERCENTILE:       "bio_age_percentile",
+  BIO_AGE_CALCULATED_AT:    "bio_age_calculated_at",
+  BIO_AGE_CONFIDENCE:       "bio_age_confidence",
+  BIO_AGE_REVEALED:         "bio_age_revealed",
+  BIO_AGE_DRIVERS:          "bio_age_drivers",
+  // referral_links + referral_conversions (migration 010)
+  CODE:                     "code",
+  CLICKS:                   "clicks",
+  CONVERSIONS:              "conversions",
+  REFERRER_ID:              "referrer_id",
+  REFEREE_ID:               "referee_id",
+  CONVERTED_AT:             "converted_at",
+  // training_partners (migration 010)
+  PARTNER_USER_ID:          "partner_user_id",
+  INVITE_TOKEN:             "invite_token",
+  PARTNER_NAME:             "partner_name",
+  PARTNER_EMAIL:            "partner_email",
+  ACCEPTED_AT:              "accepted_at",
 } as const;
 
 export const BUCKETS = {

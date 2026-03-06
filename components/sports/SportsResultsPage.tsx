@@ -11,6 +11,163 @@ import type {
   SportsWearableMetric,
 } from "@/lib/db/sports-payload";
 
+// ── Canvas share card ─────────────────────────────────────────────────────────
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+async function generateProtocolShareCard(meta: EventMeta) {
+  const W = 600, H = 340;
+  const canvas = document.createElement("canvas");
+  canvas.width = W * 2; canvas.height = H * 2;   // 2x for retina
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.scale(2, 2);
+
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#07090F");
+  bg.addColorStop(1, "#0D0B18");
+  ctx.fillStyle = bg;
+  roundRect(ctx, 0, 0, W, H, 0);
+  ctx.fill();
+
+  // Indigo glow top-left
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 300);
+  glow.addColorStop(0, "rgba(99,102,241,0.18)");
+  glow.addColorStop(1, "rgba(99,102,241,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  // Top accent strip
+  const strip = ctx.createLinearGradient(0, 0, W, 0);
+  strip.addColorStop(0, "#3B82F6");
+  strip.addColorStop(0.55, "#7C3AED");
+  strip.addColorStop(1, "#A855F7");
+  ctx.fillStyle = strip;
+  roundRect(ctx, 0, 0, W, 4, 0);
+  ctx.fill();
+
+  // BZ mark (top-right)
+  const markX = W - 52, markY = 20;
+  const markGrad = ctx.createLinearGradient(markX, markY, markX + 32, markY + 32);
+  markGrad.addColorStop(0, "#3B82F6");
+  markGrad.addColorStop(1, "#A855F7");
+  ctx.fillStyle = markGrad;
+  roundRect(ctx, markX, markY, 32, 32, 9);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 14px 'Syne', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("BZ", markX + 16, markY + 22);
+  ctx.textAlign = "left";
+
+  // Overline
+  ctx.fillStyle = "#A78BFA";
+  ctx.font = "400 10px 'Inter', sans-serif";
+  ctx.fillText("⚡  COMPETITION PROTOCOL", 32, 44);
+
+  // Event label
+  const labelMap: Record<string, string> = {
+    triathlon: "Triathlon", running_race: "Running Race", cycling: "Cycling Event",
+    mma: "MMA Competition", ski_racing: "Alpine Ski Racing", swimming: "Swimming",
+    golf: "Golf Tournament",
+  };
+  const eventLabel = labelMap[meta.competitionType] ??
+    meta.competitionType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  ctx.fillStyle = "#F1F5F9";
+  ctx.font = "300 28px 'Syne', sans-serif";
+  ctx.fillText(eventLabel, 32, 84);
+
+  // Event date
+  let dateStr = meta.eventDate;
+  try { dateStr = new Date(meta.eventDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }); }
+  catch { /* keep original */ }
+  ctx.fillStyle = "#64748B";
+  ctx.font = "300 13px 'Inter', sans-serif";
+  ctx.fillText(dateStr, 32, 108);
+
+  // Divider
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(32, 126); ctx.lineTo(W - 32, 126); ctx.stroke();
+
+  // Big countdown
+  const days = Math.max(0, differenceInDays(new Date(meta.eventDate), new Date()));
+  const numGrad = ctx.createLinearGradient(32, 140, 32, 210);
+  numGrad.addColorStop(0, "#C4B5FD");
+  numGrad.addColorStop(1, "#7C3AED");
+  ctx.fillStyle = numGrad;
+  ctx.font = "300 72px 'JetBrains Mono', monospace";
+  ctx.fillText(String(days), 32, 205);
+
+  ctx.fillStyle = "#64748B";
+  ctx.font = "300 12px 'Inter', sans-serif";
+  ctx.fillText(days === 0 ? "RACE DAY" : "DAYS TO RACE", 32, 225);
+
+  // Budget + tier badge
+  const badgeX = W - 180, badgeY = 148;
+  ctx.fillStyle = "rgba(6,182,212,0.1)";
+  roundRect(ctx, badgeX, badgeY, 148, 28, 14);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(6,182,212,0.3)";
+  ctx.lineWidth = 1;
+  roundRect(ctx, badgeX, badgeY, 148, 28, 14);
+  ctx.stroke();
+  ctx.fillStyle = "#06B6D4";
+  ctx.font = "300 11px 'Inter', sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`Tier ${meta.budgetTier}  ·  $${meta.budgetValue.toLocaleString()}`, badgeX + 74, badgeY + 18);
+  ctx.textAlign = "left";
+
+  // Outcome label
+  const outcomeMap: Record<string, string> = {
+    injury_free: "Injury-Free Comeback", pr_podium: "PR / Podium Push", finish_strong: "Finish Strong",
+  };
+  const outcome = outcomeMap[meta.priorityOutcome] ??
+    meta.priorityOutcome.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  ctx.fillStyle = "#94A3B8";
+  ctx.font = "300 12px 'Inter', sans-serif";
+  ctx.fillText(outcome, W - 180, 210);
+
+  // Footer divider
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(32, H - 44); ctx.lineTo(W - 32, H - 44); ctx.stroke();
+
+  // Footer
+  ctx.fillStyle = "#334155";
+  ctx.font = "300 10px 'Inter', sans-serif";
+  ctx.fillText("Tracked with Blue Zone  ·  blue-zone.health", 32, H - 24);
+
+  // Export + share
+  const dataUrl = canvas.toDataURL("image/png");
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], "blue-zone-protocol.png", { type: "image/png" });
+    if (navigator.share && (navigator as { canShare?: (d: unknown) => boolean }).canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: `My ${eventLabel} Protocol — Blue Zone` });
+      return;
+    }
+  } catch { /* fall through to download */ }
+
+  // Desktop fallback: download
+  const a = document.createElement("a");
+  a.href     = dataUrl;
+  a.download = "blue-zone-protocol.png";
+  a.click();
+}
+
 const PERF_GRAD = "linear-gradient(135deg,#7C3AED,#06B6D4)";
 const T         = { text: "#F1F5F9", muted: "#64748B" };
 
@@ -462,6 +619,12 @@ function SupplementScheduleSection({
       next.has(name) ? next.delete(name) : next.add(name);
       return next;
     });
+    // Persist to DB (fire-and-forget)
+    fetch("/api/supplement-adoptions/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ supplementName: name, protocolType: "sports" }),
+    }).catch(() => {});
   }
 
   return (
@@ -625,9 +788,39 @@ function EventBanner({ meta, daysToRace }: { meta: EventMeta; daysToRace: number
               {daysToRace >= 0 ? "days to\nrace day" : "race\ncomplete"}
             </span>
           </div>
+
+          {/* Share protocol card */}
+          <ShareProtocolButton meta={meta} />
         </div>
       </div>
     </div>
+  );
+}
+
+function ShareProtocolButton({ meta }: { meta: EventMeta }) {
+  const [sharing, setSharing] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        if (sharing) return;
+        setSharing(true);
+        try { await generateProtocolShareCard(meta); }
+        finally { setSharing(false); }
+      }}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        padding: "7px 14px", borderRadius: 100,
+        background: "transparent",
+        border: "1px solid rgba(167,139,250,.35)",
+        color: "#A78BFA", cursor: sharing ? "default" : "pointer",
+        fontSize: 11, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400,
+        opacity: sharing ? 0.6 : 1, transition: "all .15s",
+      }}
+      onMouseEnter={e => { if (!sharing) e.currentTarget.style.background = "rgba(167,139,250,.1)"; }}
+      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+    >
+      {sharing ? "Generating…" : "↗ Share Protocol"}
+    </button>
   );
 }
 
@@ -643,6 +836,16 @@ export function SportsResultsPage({
 }) {
   const router   = useRouter();
   const [adopted, setAdopted] = useState<Set<string>>(new Set());
+
+  // Load persisted adoptions from DB on mount
+  useEffect(() => {
+    fetch("/api/supplement-adoptions")
+      .then(r => r.json())
+      .then((data: { supplement_name: string }[]) => {
+        setAdopted(new Set(data.map(d => d.supplement_name)));
+      })
+      .catch(() => {});
+  }, []);
 
   const schedule          = buildPhaseSchedule(payload.periodizedTimeline, eventMeta.eventDate);
   const currentPhaseIndex = getCurrentPhaseIndex(schedule);

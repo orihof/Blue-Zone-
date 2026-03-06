@@ -1,10 +1,22 @@
 /// app/app/onboarding/upload/page.tsx
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
+
+const GOAL_LABELS: Record<string, string> = {
+  sports_prep:   "Competition Prep protocol. Upload your blood test to personalize it.",
+  performance:   "strength & energy protocol.",
+  sleep:         "sleep optimization protocol.",
+  anti_aging:    "longevity protocol.",
+  cognition:     "cognitive performance protocol.",
+  weight_loss:   "weight loss protocol.",
+  hair:          "hair health protocol.",
+  mood:          "mood & resilience protocol.",
+  sexual_health: "sexual health protocol.",
+};
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const T = { text: "#F1F5F9", muted: "#64748B" };
@@ -44,6 +56,22 @@ function validateAHExport(file: File): { valid: boolean; error?: string; warning
 
 export default function UploadPage() {
   const router = useRouter();
+
+  // ── Personalized header (from onboarding profile) ─────────────────────────
+  const [profileName,  setProfileName]  = useState<string | null>(null);
+  const [primaryGoal,  setPrimaryGoal]  = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/onboarding/profile")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.onboarding_step === "data") {
+          setProfileName(data.name ?? null);
+          setPrimaryGoal(data.primary_goal ?? null);
+        }
+      })
+      .catch(() => null);
+  }, []);
 
   // ── General upload state ───────────────────────────────────────────────────
   const [drag, setDrag]           = useState(false);
@@ -220,6 +248,21 @@ export default function UploadPage() {
 
   return (
     <div style={{ position: "relative", zIndex: 1, maxWidth: 660, margin: "0 auto", padding: "60px 24px" }}>
+
+      {/* Personalized greeting — shown only on first visit after goal selection */}
+      {profileName && (
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <span style={{
+            fontSize: 14, color: "#64748B",
+            fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300,
+          }}>
+            Hey {profileName} 👋
+            {primaryGoal && GOAL_LABELS[primaryGoal]
+              ? ` — let's build your ${GOAL_LABELS[primaryGoal]}`
+              : " — let's get your protocol started."}
+          </span>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 44 }}>

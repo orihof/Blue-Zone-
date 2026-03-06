@@ -16,7 +16,7 @@ const USER_SCOPED_TABLES = [
   TABLES.ACCOUNTS,
 ] as const;
 
-export async function POST() {
+export async function DELETE() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

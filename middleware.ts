@@ -10,7 +10,8 @@ export async function middleware(req: NextRequest) {
   });
 
   const { pathname } = req.nextUrl;
-  const isProtected = pathname.startsWith("/app");
+  const isProtected =
+    pathname.startsWith("/app") || pathname.startsWith("/onboarding");
 
   if (isProtected && !token) {
     const signIn = new URL("/auth/signin", req.url);
@@ -25,5 +26,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*"],
+  matcher: ["/app/:path*", "/onboarding/:path*"],
 };

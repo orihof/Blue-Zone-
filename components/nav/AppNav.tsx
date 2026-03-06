@@ -7,9 +7,10 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  LogOut, Settings, Menu, X,
+  LogOut, Settings, Menu, X, Share2, UserCircle,
   Activity, Sparkles, LayoutDashboard, Watch, TrendingUp, ClipboardCheck, ShoppingBag,
 } from "lucide-react";
+import { ShareBottomSheet } from "@/components/share/ShareBottomSheet";
 
 const GRAD      = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const PERF_GRAD = "linear-gradient(135deg,#7C3AED 0%,#06B6D4 100%)";
@@ -51,6 +52,12 @@ const NAV_GROUPS: NavGroup[] = [
     label: "SHOP",
     items: [
       { href: "/app/products",   icon: ShoppingBag,    label: "Products" },
+    ],
+  },
+  {
+    label: null,
+    items: [
+      { href: "/app/profile",    icon: UserCircle,     label: "My Profile" },
     ],
   },
 ];
@@ -219,6 +226,7 @@ function SidebarItem({ it, active, isCheckin, checkinDone }: { it: NavItem; acti
 function Sidebar({ user, adherencePercent }: AppNavProps) {
   const pathname    = usePathname();
   const checkinDone = useCheckinDone();
+  const [shareOpen, setShareOpen] = useState(false);
   return (
     <aside
       style={{ width: 210, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.05)", padding: "20px 12px", position: "fixed", left: 0, top: 60, height: "calc(100vh - 60px)", overflowY: "auto", flexDirection: "column", background: "rgba(6,8,15,0.5)", backdropFilter: "blur(10px)", zIndex: 40 }}
@@ -249,6 +257,14 @@ function Sidebar({ user, adherencePercent }: AppNavProps) {
 
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8, marginTop: 8 }}>
         <button
+          onClick={() => setShareOpen(true)}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "transparent", border: "none", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#A5B4FC")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = T.muted)}
+        >
+          <Share2 size={13} /> Share Blue Zone
+        </button>
+        <button
           onClick={() => signOut({ callbackUrl: "/" })}
           style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "transparent", border: "none", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#F87171")}
@@ -263,6 +279,8 @@ function Sidebar({ user, adherencePercent }: AppNavProps) {
           </div>
         </div>
       </div>
+
+      <ShareBottomSheet isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </aside>
   );
 }
@@ -272,6 +290,7 @@ function MobileNav({ user }: AppNavProps) {
   const pathname    = usePathname();
   const checkinDone = useCheckinDone();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [shareOpen,  setShareOpen]  = useState(false);
 
   return (
     <>
@@ -282,7 +301,9 @@ function MobileNav({ user }: AppNavProps) {
           <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 16, background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
         </Link>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <UserAvatar user={user} size={28} />
+          <Link href="/app/profile" style={{ textDecoration: "none", display: "flex", borderRadius: "50%" }}>
+            <UserAvatar user={user} size={28} />
+          </Link>
           <button onClick={() => setDrawerOpen(true)} style={{ background: "transparent", border: "none", color: T.muted, cursor: "pointer", padding: 4 }}>
             <Menu size={20} />
           </button>
@@ -342,6 +363,10 @@ function MobileNav({ user }: AppNavProps) {
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <Settings size={14} color={T.muted} /> Settings
                 </Link>
+                <button onClick={() => { setDrawerOpen(false); setShareOpen(true); }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 4 }}>
+                  <Share2 size={14} color={T.muted} /> Share Blue Zone
+                </button>
                 <button onClick={() => signOut({ callbackUrl: "/" })}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: "#F87171", background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <LogOut size={14} /> Sign out
@@ -351,6 +376,8 @@ function MobileNav({ user }: AppNavProps) {
           </>
         )}
       </AnimatePresence>
+
+      <ShareBottomSheet isOpen={shareOpen} onClose={() => setShareOpen(false)} />
 
       {/* Bottom tab bar */}
       <nav className="md:hidden" style={{
@@ -410,7 +437,9 @@ function TopNav({ user }: AppNavProps) {
         <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 18, letterSpacing: "-.02em", background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
       </Link>
       <div style={{ flex: 1 }} />
-      <UserAvatar user={user} size={32} />
+      <Link href="/app/profile" style={{ textDecoration: "none", borderRadius: "50%", display: "flex" }}>
+        <UserAvatar user={user} size={32} />
+      </Link>
     </header>
   );
 }

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { type SportsPrepFormData, getBudgetTier, BUDGET_TIERS, RACE_DISTANCES, RACE_DISTANCE_LABELS } from "@/lib/db/sports-payload";
 
@@ -544,7 +544,9 @@ const STEP_LABELS = ["Competition", "Event Details", "Constraints", "Budget"];
 const TOTAL_STEPS = 4;
 
 export default function SportsPrepPage() {
-  const router = useRouter();
+  const router      = useRouter();
+  const searchParams = useSearchParams();
+  const fromOnboarding = searchParams.get("from") === "onboarding";
   const [step, setStep]   = useState(0);
   const [form, setForm]   = useState<SportsPrepFormData>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
@@ -622,7 +624,7 @@ export default function SportsPrepPage() {
   }
 
   function handleBack() {
-    if (step === 0) { router.push("/app/goals"); return; }
+    if (step === 0) { router.push(fromOnboarding ? "/onboarding/goal" : "/app/goals"); return; }
     setStep((s) => s - 1);
   }
 
