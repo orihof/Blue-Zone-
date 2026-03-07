@@ -100,17 +100,26 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body: Record<string, unknown> = await req.json();
-  const allowed = ["name", "tagline", "location", "prs", "profile_nudge_dismissed"] as const;
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  // Existing profile fields
   if (body.name                   !== undefined) update.name                    = body.name;
   if (body.tagline                !== undefined) update.tagline                 = body.tagline;
   if (body.location               !== undefined) update.location                = body.location;
   if (body.prs                    !== undefined) update.prs                     = body.prs;
   if (body.profileNudgeDismissed  !== undefined) update.profile_nudge_dismissed = body.profileNudgeDismissed;
 
-  // Guard against unexpected keys
-  void allowed;
+  // Biomarker engine intake fields (migration 014)
+  if (body.biologicalSex        !== undefined) update.biological_sex       = body.biologicalSex;
+  if (body.heightCm             !== undefined) update.height_cm            = body.heightCm;
+  if (body.weightKg             !== undefined) update.weight_kg            = body.weightKg;
+  if (body.activityLevel        !== undefined) update.activity_level       = body.activityLevel;
+  if (body.athleteArchetype     !== undefined) update.athlete_archetype    = body.athleteArchetype;
+  if (body.healthGoals          !== undefined) update.health_goals         = body.healthGoals;
+  if (body.currentMedications   !== undefined) update.current_medications  = body.currentMedications;
+  if (body.currentSupplements   !== undefined) update.current_supplements  = body.currentSupplements;
+  if (body.conditions           !== undefined) update.conditions           = body.conditions;
 
   const supabase = getAdminClient();
   const { error } = await supabase

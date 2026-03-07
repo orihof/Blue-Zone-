@@ -9,6 +9,7 @@ import { GroceryListBanner } from "@/components/dashboard/GroceryListBanner";
 import { BioAgeWidget } from "@/components/bio-age/BioAgeWidget";
 import Link from "next/link";
 import type { ProtocolPayload } from "@/lib/db/payload";
+import { GenerateAnalysisButton } from "@/components/analysis/GenerateAnalysisButton";
 
 const T = { text: "#F1F5F9", muted: "#64748B" };
 
@@ -263,16 +264,17 @@ export default async function DashboardPage() {
       </div>
 
       {/* CTA */}
-      <div className="flex flex-col sm:flex-row sm:justify-center mt-2">
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
         {latestId ? (
-          <Link href={`/app/results/${latestId}`} className="w-full sm:w-auto">
+          <Link href={`/app/results/${latestId}`} style={{ width: "100%" }}>
             <button className="cta" style={{ width: "100%" }}>View Full Protocol →</button>
           </Link>
         ) : (
-          <Link href="/app/onboarding/upload" className="w-full sm:w-auto">
+          <Link href="/app/onboarding/upload" style={{ width: "100%" }}>
             <button className="cta" style={{ width: "100%" }}>Upload Data to Start →</button>
           </Link>
         )}
+        <GenerateAnalysisButton />
       </div>
     </div>
   );

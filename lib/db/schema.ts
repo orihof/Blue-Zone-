@@ -29,6 +29,9 @@ export const TABLES = {
   REFERRAL_LINKS:       "referral_links",
   REFERRAL_CONVERSIONS: "referral_conversions",
   TRAINING_PARTNERS:    "training_partners",
+  // Analysis reports + API usage (migration 014)
+  ANALYSIS_REPORTS:     "analysis_reports",
+  API_USAGE:            "api_usage",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -173,6 +176,30 @@ export const COLS = {
   STRESS_SCORE:             "stress_score",
   SPO2:                     "spo2",
   RAW_PAYLOAD:              "raw_payload",
+  // analysis_reports + api_usage (migration 014)
+  REPORT_TYPE:              "report_type",
+  INPUT_SNAPSHOT:           "input_snapshot",
+  GENERATED_AT:             "generated_at",
+  DURATION_MS:              "duration_ms",
+  COST_USD:                 "cost_usd",
+  // api_usage — per-stage analysis detail (migration 015)
+  STAGE_2_INPUT_TOKENS:     "stage_2_input_tokens",
+  STAGE_2_OUTPUT_TOKENS:    "stage_2_output_tokens",
+  STAGE_3_INPUT_TOKENS:     "stage_3_input_tokens",
+  STAGE_3_OUTPUT_TOKENS:    "stage_3_output_tokens",
+  DEPTH_LEVEL:              "depth_level",
+  DATA_COMPLETENESS:        "data_completeness",
+  // profiles — biomarker engine additions (migration 014)
+  BIOLOGICAL_SEX:           "biological_sex",
+  HEIGHT_CM:                "height_cm",
+  WEIGHT_KG:                "weight_kg",
+  ACTIVITY_LEVEL:           "activity_level",
+  ATHLETE_ARCHETYPE:        "athlete_archetype",
+  HEALTH_GOALS:             "health_goals",
+  CURRENT_MEDICATIONS:      "current_medications",
+  CURRENT_SUPPLEMENTS:      "current_supplements",
+  CONDITIONS:               "conditions",
+  USER_TIER:                "user_tier",
 } as const;
 
 export const BUCKETS = {
