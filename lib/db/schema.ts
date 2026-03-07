@@ -158,6 +158,21 @@ export const COLS = {
   PARTNER_NAME:             "partner_name",
   PARTNER_EMAIL:            "partner_email",
   ACCEPTED_AT:              "accepted_at",
+  // Terra wearable integration (migration 013)
+  TERRA_USER_ID:            "terra_user_id",
+  RECORDED_AT:              "recorded_at",
+  HEART_RATE_RESTING:       "heart_rate_resting",
+  HEART_RATE_AVG:           "heart_rate_avg",
+  HEART_RATE_MAX:           "heart_rate_max",
+  HRV_RMSSD:                "hrv_rmssd",
+  SLEEP_TOTAL_MINUTES:      "sleep_total_minutes",
+  SLEEP_REM_MINUTES:        "sleep_rem_minutes",
+  SLEEP_DEEP_MINUTES:       "sleep_deep_minutes",
+  SLEEP_LIGHT_MINUTES:      "sleep_light_minutes",
+  VO2_MAX:                  "vo2_max",
+  STRESS_SCORE:             "stress_score",
+  SPO2:                     "spo2",
+  RAW_PAYLOAD:              "raw_payload",
 } as const;
 
 export const BUCKETS = {
@@ -165,5 +180,5 @@ export const BUCKETS = {
 } as const;
 
 export type Plan = "free" | "pro" | "clinic";
-export type WearableSource = "whoop" | "oura" | "garmin" | "apple_health";
+export type WearableSource = "whoop" | "oura" | "garmin" | "apple_health" | "samsung_galaxy_watch";
 export type UploadSource = WearableSource | "pdf";

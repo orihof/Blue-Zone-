@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { differenceInDays, format } from "date-fns";
 import {
   Sun, Brain, Calendar, FlaskConical, ShieldAlert, Watch,
@@ -13,8 +12,6 @@ import type {
   SportsProtocolPayload,
   SportsTimelinePhase,
   SportsWearableMetric,
-  SportsIntelligenceItem,
-  SportsBiomarkerDecision,
 } from "@/lib/db/sports-payload";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -1170,11 +1167,9 @@ export function SportsResultsPage({
   eventMeta,
   hasWearable       = false,
   hasBloodTest      = false,
-  communityCount    = 0,
   protocolId,
   initialAdoptedIds = [],
 }: SportsResultsPageProps) {
-  const router = useRouter();
   const [activeSection, setActiveSectionState] = useState<SectionId>("today");
   const [sectionKey,    setSectionKey]          = useState(0);
   const [adoptedIds,    setAdoptedIds]           = useState<string[]>(initialAdoptedIds);

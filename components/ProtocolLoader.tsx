@@ -32,7 +32,7 @@ function FlickerWord({ word }: { word: string }) {
     const delays = Array.from({ length: word.length }, () =>
       Math.floor(Math.random() * 120) + 60
     );
-    let timeouts: ReturnType<typeof setTimeout>[] = [];
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
 
     function scramble() {
       const id = setInterval(() => {

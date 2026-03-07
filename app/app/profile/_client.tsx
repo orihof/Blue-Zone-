@@ -152,7 +152,7 @@ function Section({
 
 // ── Main export ──────────────────────────────────────────────────────────────
 export function ProfileClient({
-  userId, initialProfile, email, memberSince,
+  initialProfile, email, memberSince,
   protocolCount, totalCheckIns, weekStreak,
   protocols, connectedDevices,
 }: Props) {

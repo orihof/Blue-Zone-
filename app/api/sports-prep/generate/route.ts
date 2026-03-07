@@ -71,6 +71,20 @@ export async function POST(req: Request) {
 
   // ── 2. Fetch health data + call Claude (awaited — serverless can't run fire-and-forget) ──
   try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+
+    // Typed shape for wearable snapshot rows (legacy + Terra columns)
+    type WearableRow = {
+      source?: string | null; date?: string | null; recorded_at?: string | null;
+      hrv?: number | null; resting_hr?: number | null; sleep_score?: number | null;
+      recovery_score?: number | null; readiness_score?: number | null; strain_score?: number | null;
+      heart_rate_resting?: number | null; heart_rate_avg?: number | null; heart_rate_max?: number | null;
+      hrv_rmssd?: number | null; sleep_total_minutes?: number | null; sleep_rem_minutes?: number | null;
+      sleep_deep_minutes?: number | null; sleep_light_minutes?: number | null;
+      steps?: number | null; active_calories?: number | null;
+      vo2_max?: number | null; stress_score?: number | null; spo2?: number | null;
+    };
+
     const [biomarkersRes, wearableRes] = await Promise.all([
       supabase
         .from(TABLES.BIOMARKERS)
@@ -80,8 +94,9 @@ export async function POST(req: Request) {
         .limit(30),
       supabase
         .from(TABLES.WEARABLE_SNAPSHOTS)
-        .select("hrv, resting_hr, sleep_score, recovery_score, readiness_score, strain_score, steps, source, date")
+        .select("*")
         .eq(COLS.USER_ID, userId)
+        .gte(COLS.CREATED_AT, sevenDaysAgo)
         .order(COLS.CREATED_AT, { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -98,18 +113,39 @@ export async function POST(req: Request) {
     }
 
     let wearableSummary: string | undefined;
-    const ws = wearableRes.data;
+    const ws = wearableRes.data as WearableRow | null;
     if (ws) {
+      // Prefer Terra-specific columns, fall back to legacy column names.
+      const restingHr  = ws.heart_rate_resting ?? ws.resting_hr;
+      const hrvRmssd   = ws.hrv_rmssd          ?? ws.hrv;
+      const sleepTotal = ws.sleep_total_minutes;
+      const sleepRem   = ws.sleep_rem_minutes;
+      const sleepDeep  = ws.sleep_deep_minutes;
+      const syncDate   = ws.recorded_at         ?? ws.date;
+
+      const sleepStr = sleepTotal != null
+        ? `${Math.floor(sleepTotal / 60)}h ${sleepTotal % 60}m`
+        : null;
+
       wearableSummary = [
-        ws.source ? `Source: ${ws.source}` : "",
-        ws.date   ? `Date: ${ws.date}`     : "",
-        ws.hrv            != null ? `HRV: ${ws.hrv} ms`               : "",
-        ws.resting_hr     != null ? `Resting HR: ${ws.resting_hr} bpm` : "",
-        ws.sleep_score    != null ? `Sleep Score: ${ws.sleep_score}/100` : "",
-        ws.recovery_score != null ? `Recovery: ${ws.recovery_score}/100` : "",
-        ws.readiness_score!= null ? `Readiness: ${ws.readiness_score}/100` : "",
-        ws.strain_score   != null ? `Strain: ${ws.strain_score}`      : "",
-        ws.steps          != null ? `Steps: ${ws.steps}`              : "",
+        `WEARABLE DATA (${ws.source ?? "wearable"} — last synced ${syncDate}):`,
+        restingHr          != null ? `- Resting HR: ${restingHr} bpm`                                              : "",
+        ws.heart_rate_avg  != null ? `- Avg HR: ${ws.heart_rate_avg} bpm`                                         : "",
+        ws.heart_rate_max  != null ? `- Max HR: ${ws.heart_rate_max} bpm`                                         : "",
+        hrvRmssd           != null ? `- HRV (RMSSD): ${hrvRmssd} ms`                                              : "",
+        sleepStr                   ? `- Sleep: ${sleepStr}${sleepRem != null ? ` (REM: ${sleepRem}min, Deep: ${sleepDeep ?? "N/A"}min)` : ""}` : "",
+        ws.sleep_score     != null ? `- Sleep score: ${ws.sleep_score}/100`                                        : "",
+        ws.steps           != null ? `- Daily steps: ${ws.steps.toLocaleString()}`                                 : "",
+        ws.active_calories != null ? `- Active calories: ${ws.active_calories}`                                    : "",
+        ws.vo2_max         != null ? `- VO2 max: ${ws.vo2_max} ml/kg/min`                                         : "",
+        ws.stress_score    != null ? `- Stress score: ${ws.stress_score}/100`                                      : "",
+        ws.spo2            != null ? `- SpO2: ${ws.spo2}%`                                                        : "",
+        ws.recovery_score  != null ? `- Recovery: ${ws.recovery_score}/100`                                       : "",
+        ws.readiness_score != null ? `- Readiness: ${ws.readiness_score}/100`                                      : "",
+        "",
+        "Use this wearable data to personalise recovery recommendations.",
+        "Flag HRV (RMSSD) below 40 ms as a red flag requiring modified training load.",
+        "Calibrate training intensity in the periodized timeline based on recovery and readiness scores.",
       ].filter(Boolean).join("\n");
     }
 

@@ -221,13 +221,16 @@ function SportsTile({ unlocked }: { unlocked: boolean }) {
 }
 
 // ── Goal Card ─────────────────────────────────────────────────────────────────
+const SUPPORTED_PREP_CATEGORIES = new Set(["weight_loss","anti_aging","performance","cognition","sleep","hair","mood","sexual_health"]);
+
 function GoalCard({
-  g, isSelected, maxed, onToggle,
+  g, isSelected, maxed, onToggle, onPrepPack,
 }: {
   g: typeof GOALS[number];
   isSelected: boolean;
   maxed: boolean;
   onToggle: () => void;
+  onPrepPack?: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -238,40 +241,64 @@ function GoalCard({
     : hovered && !maxed ? "0 4px 16px rgba(99,102,241,.1)" : "none";
 
   return (
-    <button
-      onClick={onToggle}
-      disabled={maxed}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%", minHeight: 160, padding: "22px 20px", borderRadius: 16, textAlign: "left",
-        cursor: maxed ? "not-allowed" : "pointer",
-        opacity: maxed ? 0.4 : 1,
-        transition: "all .2s",
-        background: bg,
-        border,
-        boxShadow: shadow,
-        transform: hovered && !maxed && !isSelected ? "translateY(-1px)" : "none",
-        position: "relative", overflow: "hidden",
-        outline: "none",
-      }}
-    >
-      {/* Social proof badge — top left */}
-      {g.badge && (
-        <div style={{ position: "absolute", top: 10, left: 10, fontSize: 9, fontWeight: 500, letterSpacing: ".04em", color: "#FCD34D", background: "rgba(245,158,11,.13)", border: "1px solid rgba(245,158,11,.3)", borderRadius: 100, padding: "2px 8px", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-          {g.badge}
-        </div>
-      )}
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={onToggle}
+        disabled={maxed}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          width: "100%", minHeight: 160, padding: onPrepPack ? "22px 20px 48px" : "22px 20px", borderRadius: 16, textAlign: "left",
+          cursor: maxed ? "not-allowed" : "pointer",
+          opacity: maxed ? 0.4 : 1,
+          transition: "all .2s",
+          background: bg,
+          border,
+          boxShadow: shadow,
+          transform: hovered && !maxed && !isSelected ? "translateY(-1px)" : "none",
+          position: "relative", overflow: "hidden",
+          outline: "none",
+        }}
+      >
+        {/* Social proof badge — top left */}
+        {g.badge && (
+          <div style={{ position: "absolute", top: 10, left: 10, fontSize: 9, fontWeight: 500, letterSpacing: ".04em", color: "#FCD34D", background: "rgba(245,158,11,.13)", border: "1px solid rgba(245,158,11,.3)", borderRadius: 100, padding: "2px 8px", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+            {g.badge}
+          </div>
+        )}
 
-      {/* Selected checkmark — top right */}
-      {isSelected && (
-        <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700 }}>✓</div>
-      )}
+        {/* Selected checkmark — top right */}
+        {isSelected && (
+          <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700 }}>✓</div>
+        )}
 
-      <div style={{ fontSize: 28, marginBottom: 10, marginTop: g.badge ? 18 : 0 }}>{g.icon}</div>
-      <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 15, color: isSelected ? "#C4B5FD" : T.text, marginBottom: 5, letterSpacing: "-.01em" }}>{g.label}</div>
-      <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", lineHeight: 1.55 }}>{g.desc}</div>
-    </button>
+        <div style={{ fontSize: 28, marginBottom: 10, marginTop: g.badge ? 18 : 0 }}>{g.icon}</div>
+        <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 15, color: isSelected ? "#C4B5FD" : T.text, marginBottom: 5, letterSpacing: "-.01em" }}>{g.label}</div>
+        <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", lineHeight: 1.55 }}>{g.desc}</div>
+      </button>
+
+      {/* Get Prep Pack ghost button — sits below card content, outside the card button to avoid nesting */}
+      {onPrepPack && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onPrepPack(); }}
+          style={{
+            position: "absolute", bottom: 10, left: 12, right: 12,
+            fontSize: 10, fontWeight: 500, letterSpacing: ".02em",
+            color: "rgba(255,255,255,.45)",
+            background: "transparent",
+            border: "1px solid rgba(255,255,255,.1)",
+            borderRadius: 8, padding: "5px 0",
+            cursor: "pointer",
+            fontFamily: "var(--font-ui,'Inter',sans-serif)",
+            transition: "color .15s, border-color .15s",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,.75)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,.25)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,.45)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,.1)"; }}
+        >
+          Get Prep Pack →
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -370,6 +397,7 @@ export function GoalsClient({ hasUploads }: { hasUploads: boolean; hasWearables?
                 isSelected={isSelected}
                 maxed={maxed}
                 onToggle={() => toggleGoal(g.id)}
+                onPrepPack={SUPPORTED_PREP_CATEGORIES.has(g.id) ? () => router.push(`/app/onboarding/goal-prep?category=${g.id}`) : undefined}
               />
             );
           })}

@@ -259,6 +259,9 @@ export function normalizeWearable(
       return normalizeGarmin(data);
     case "apple_health":
       return normalizeAppleHealth(data);
+    case "samsung_galaxy_watch":
+      // Terra writes directly to wearable_snapshots — no client-side normalization needed.
+      throw new Error("samsung_galaxy_watch data is ingested via Terra webhook, not this normalizer");
   }
 }
 

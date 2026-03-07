@@ -275,9 +275,18 @@ function GoalPackSection({ tierPack }: { tierPack: GoalProtocolPayload["tierPack
 
         {tab === "services" && (
           <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
-            {tierPack.services.map((s, i) => (
-              <li key={i} style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.7 }}>{s}</li>
-            ))}
+            {tierPack.services.map((s, i) => {
+              if (typeof s === "string") {
+                return <li key={i} style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.7 }}>{s}</li>;
+              }
+              return (
+                <li key={i} style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.7 }}>
+                  <span style={{ fontWeight: 500 }}>{s.name}</span>
+                  {s.rationale && <span style={{ color: "#94A3B8" }}> — {s.rationale}</span>}
+                  {s.priceRange && <span style={{ color: "#64748B", fontSize: 11 }}> ({s.priceRange})</span>}
+                </li>
+              );
+            })}
           </ul>
         )}
 

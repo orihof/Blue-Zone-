@@ -5,6 +5,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { type SportsPrepFormData, getBudgetTier, BUDGET_TIERS, RACE_DISTANCES, RACE_DISTANCE_LABELS } from "@/lib/db/sports-payload";
+import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
+import SamsungHealthHelpModal from "@/components/upload/SamsungHealthHelpModal";
 
 const PERF_GRAD = "linear-gradient(135deg,#7C3AED,#06B6D4)";
 const T         = { text: "#F1F5F9", muted: "#64748B" };
@@ -326,7 +328,254 @@ function Step3({ form, update }: { form: SportsPrepFormData; update: (p: Partial
   );
 }
 
-// ── Step 4 — Budget ────────────────────────────────────────────────────────────
+// ── Step 4 — Blood Test Upload ─────────────────────────────────────────────────
+function Step4BT({ uploaded, onUpload }: { uploaded: boolean; onUpload: (v: boolean) => void }) {
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">(
+    uploaded ? "success" : "idle"
+  );
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [drag,     setDrag]     = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    setUploadState("uploading");
+    setFileName(file.name);
+    try {
+      const signRes = await fetch("/api/uploads/sign", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: [{ name: file.name, size: file.size, type: file.type }] }),
+      });
+      if (!signRes.ok) throw new Error("Failed to get upload URL");
+      const { files: signed } = await signRes.json();
+      const { signedUrl, storagePath } = signed[0] as { signedUrl: string; storagePath: string };
+      await fetch(signedUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      await fetch("/api/uploads/commit", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType: file.type }] }),
+      });
+      setUploadState("success");
+      onUpload(true);
+    } catch {
+      setUploadState("error");
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div>
+        <p style={{ fontSize: 11, letterSpacing: ".1em", color: "#06B6D4", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const, marginBottom: 8 }}>🩸 Blood Test</p>
+        <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(20px,3vw,28px)", color: T.text, marginBottom: 6, letterSpacing: "-.02em" }}>
+          Upload your blood test
+        </h2>
+        <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+          Your biomarker data lets us calibrate your supplement protocol precisely — not generically.
+        </p>
+      </div>
+
+      {uploadState !== "success" ? (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+          onClick={() => uploadState !== "uploading" && fileRef.current?.click()}
+          style={{ border: `2px dashed ${drag ? "rgba(6,182,212,.55)" : "rgba(255,255,255,.1)"}`, borderRadius: 16, padding: "40px 24px", textAlign: "center", cursor: uploadState === "uploading" ? "wait" : "pointer", transition: "border-color .18s, background .18s", background: drag ? "rgba(6,182,212,.04)" : "transparent" }}
+        >
+          <div style={{ fontSize: 38, marginBottom: 12 }}>{uploadState === "uploading" ? "⏳" : "🩸"}</div>
+          <p style={{ fontSize: 14, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 4 }}>
+            {uploadState === "uploading" ? `Uploading ${fileName}…` : "Drop your blood test here or tap to browse"}
+          </p>
+          <p style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>PDF, PNG, JPG, or CSV</p>
+          {uploadState === "error" && (
+            <p style={{ fontSize: 11, color: "#F87171", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 8 }}>
+              Upload failed — please try a different file format.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", borderRadius: 14, background: "rgba(6,182,212,.06)", border: "1px solid rgba(6,182,212,.25)" }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(6,182,212,.15)", border: "1px solid rgba(6,182,212,.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>✓</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, color: "#67E8F9", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>Blood test uploaded</div>
+            <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</div>
+          </div>
+          <button onClick={() => { setUploadState("idle"); setFileName(null); onUpload(false); }}
+            style={{ fontSize: 11, color: T.muted, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", flexShrink: 0 }}>
+            Replace
+          </button>
+        </div>
+      )}
+
+      <input ref={fileRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.csv" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+      <div style={{ padding: "16px 18px", borderRadius: 14, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)" }}>
+        <p style={{ fontSize: 10, letterSpacing: ".1em", color: T.muted, textTransform: "uppercase" as const, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 12 }}>What your blood test unlocks</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[
+            "Supplement doses calibrated to your actual biomarkers",
+            "Inflammation markers mapped to injury recovery protocol",
+            "Cardiovascular risk factors factored into race-day strategy",
+          ].map((item) => (
+            <div key={item} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ color: "#06B6D4", fontSize: 11, flexShrink: 0, marginTop: 1 }}>→</span>
+              <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Step 5 — Wearables ─────────────────────────────────────────────────────────
+const WEARABLES_CP = [
+  { id: "whoop",   name: "WHOOP",          icon: "⚡", desc: "HRV, recovery, sleep strain",   type: "oauth",  oauthHref: "/api/oauth/whoop/start",  accept: null },
+  { id: "oura",    name: "Oura Ring",      icon: "💍", desc: "Readiness, sleep, heart rate",  type: "oauth",  oauthHref: "/api/oauth/oura/start",   accept: null },
+  { id: "apple",   name: "Apple Health",   icon: "🍎", desc: "Upload your Health export",     type: "upload", oauthHref: null,                      accept: ".zip" },
+  { id: "samsung", name: "Samsung Health", icon: "📱", desc: "Steps, heart rate, sleep CSV",  type: "upload", oauthHref: null,                      accept: ".zip,.csv" },
+] as const;
+
+function Step4W({ connected, onConnect }: { connected: string[]; onConnect: (ids: string[]) => void }) {
+  const appleRef   = useRef<HTMLInputElement>(null);
+  const samsungRef = useRef<HTMLInputElement>(null);
+  const [appleUploading,   setAppleUploading]   = useState(false);
+  const [samsungUploading, setSamsungUploading] = useState(false);
+  const [showAppleModal,   setShowAppleModal]   = useState(false);
+  const [showSamsungModal, setShowSamsungModal] = useState(false);
+
+  async function handleAppleUpload(file: File) {
+    setAppleUploading(true);
+    try {
+      const signRes = await fetch("/api/uploads/sign", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: [{ name: file.name, size: file.size, type: file.type }] }),
+      });
+      if (!signRes.ok) throw new Error();
+      const { files: signed } = await signRes.json();
+      const { signedUrl, storagePath } = signed[0] as { signedUrl: string; storagePath: string };
+      await fetch(signedUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      await fetch("/api/uploads/commit", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType: file.type }] }),
+      });
+      onConnect([...Array.from(new Set([...connected, "apple"]))]);
+      if (appleRef.current) appleRef.current.value = "";
+    } catch {
+      toast.error("Apple Health upload failed");
+    } finally {
+      setAppleUploading(false);
+    }
+  }
+
+  async function handleSamsungUpload(file: File) {
+    setSamsungUploading(true);
+    try {
+      const { parseSamsungHealthZip } = await import("@/lib/wearables/samsung-health-parser");
+      const summary = await parseSamsungHealthZip(file);
+      const res = await fetch("/api/wearables/samsung/ingest", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(summary),
+      });
+      if (!res.ok) throw new Error();
+      onConnect([...Array.from(new Set([...connected, "samsung"]))]);
+      if (samsungRef.current) samsungRef.current.value = "";
+    } catch {
+      toast.error("Samsung Health import failed");
+    } finally {
+      setSamsungUploading(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div>
+        <p style={{ fontSize: 11, letterSpacing: ".1em", color: "#A78BFA", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const, marginBottom: 8 }}>⌚ Wearables</p>
+        <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(20px,3vw,28px)", color: T.text, marginBottom: 6, letterSpacing: "-.02em" }}>
+          Connect your wearable
+        </h2>
+        <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+          Live HRV and recovery data lets your protocol adapt to how your body is actually responding.
+        </p>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {WEARABLES_CP.map((w) => {
+          const isConnected = connected.includes(w.id);
+          const isBusy = (w.id === "apple" && appleUploading) || (w.id === "samsung" && samsungUploading);
+          return (
+            <div key={w.id} className="card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: isConnected ? "rgba(16,185,129,.12)" : "rgba(124,58,237,.08)", border: `1px solid ${isConnected ? "rgba(16,185,129,.3)" : "rgba(124,58,237,.2)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                {w.icon}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, marginBottom: 1 }}>{w.name}</div>
+                <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{w.desc}</div>
+              </div>
+              {isConnected ? (
+                <span style={{ fontSize: 11, color: "#10B981", fontFamily: "var(--font-ui,'Inter',sans-serif)", whiteSpace: "nowrap" }}>✓ Done</span>
+              ) : w.type === "oauth" ? (
+                <a href={w.oauthHref}>
+                  <button style={{ padding: "7px 14px", borderRadius: 8, fontSize: 11, cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", background: PERF_GRAD, color: "#fff", border: "none", whiteSpace: "nowrap" }}>
+                    Connect
+                  </button>
+                </a>
+              ) : (
+                <button
+                  disabled={isBusy}
+                  onClick={() => w.id === "apple" ? setShowAppleModal(true) : setShowSamsungModal(true)}
+                  style={{ padding: "7px 14px", borderRadius: 8, fontSize: 11, cursor: isBusy ? "wait" : "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", background: PERF_GRAD, color: "#fff", border: "none", whiteSpace: "nowrap", opacity: isBusy ? 0.6 : 1 }}
+                >
+                  {isBusy ? "…" : "Upload"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {connected.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(16,185,129,.06)", border: "1px solid rgba(16,185,129,.2)" }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10B981" }} />
+          <span style={{ fontSize: 12, color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+            {connected.length === 1 ? `${WEARABLES_CP.find((w) => w.id === connected[0])?.name ?? connected[0]} connected` : `${connected.length} devices connected`}
+          </span>
+        </div>
+      )}
+
+      <div style={{ padding: "16px 18px", borderRadius: 14, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.06)" }}>
+        <p style={{ fontSize: 10, letterSpacing: ".1em", color: T.muted, textTransform: "uppercase" as const, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 12 }}>What your wearable unlocks</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[
+            "HRV-based daily training decisions (go hard vs. recover)",
+            "Sleep quality mapped to recovery supplement timing",
+            "Resting HR trends used to detect overtraining before race day",
+          ].map((item) => (
+            <div key={item} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ color: "#A78BFA", fontSize: 11, flexShrink: 0, marginTop: 1 }}>→</span>
+              <span style={{ fontSize: 12, color: "#94A3B8", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <input ref={appleRef}   type="file" accept=".zip"      style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAppleUpload(f);   }} />
+      <input ref={samsungRef} type="file" accept=".zip,.csv" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSamsungUpload(f); }} />
+
+      <AppleHealthHelpModal
+        open={showAppleModal}
+        onClose={() => setShowAppleModal(false)}
+        onRequestUpload={() => appleRef.current?.click()}
+      />
+      <SamsungHealthHelpModal
+        open={showSamsungModal}
+        onClose={() => setShowSamsungModal(false)}
+        onRequestUpload={() => samsungRef.current?.click()}
+      />
+    </div>
+  );
+}
+
+// ── Step 6 — Budget ────────────────────────────────────────────────────────────
 function Step4({ form, update }: { form: SportsPrepFormData; update: (p: Partial<SportsPrepFormData>) => void }) {
   const tier = getBudgetTier(form.budgetValue);
   const tierInfo = BUDGET_TIERS.find((t) => t.tier === tier)!;
@@ -540,8 +789,8 @@ function LoadingScreen({ form, onComplete, onError, preWarmedId }: {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-const STEP_LABELS = ["Competition", "Event Details", "Constraints", "Budget"];
-const TOTAL_STEPS = 4;
+const STEP_LABELS = ["Competition", "Event Details", "Constraints", "Blood Test", "Wearables", "Budget"];
+const TOTAL_STEPS = 6;
 
 export default function SportsPrepPage() {
   const router      = useRouter();
@@ -551,6 +800,8 @@ export default function SportsPrepPage() {
   const [form, setForm]   = useState<SportsPrepFormData>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [bloodTestUploaded,  setBloodTestUploaded]  = useState(false);
+  const [wearablesConnected, setWearablesConnected] = useState<string[]>([]);
 
   // Pre-warm refs — store the result of the early generate call
   const preWarmRef         = useRef<{ sportsPrepId: string; budgetTier: number } | null>(null);
@@ -561,23 +812,25 @@ export default function SportsPrepPage() {
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const { step: s, form: f } = JSON.parse(saved);
-        if (s != null) setStep(s);
-        if (f != null) setForm(f);
+        const { step: s, form: f, bloodTestUploaded: bt, wearablesConnected: wc } = JSON.parse(saved);
+        if (s  != null) setStep(s);
+        if (f  != null) setForm(f);
+        if (bt != null) setBloodTestUploaded(bt);
+        if (wc != null) setWearablesConnected(wc);
       }
     } catch { /* silent */ }
   }, []);
 
   // Persist to sessionStorage on every change
   useEffect(() => {
-    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, form })); } catch { /* silent */ }
-  }, [step, form]);
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ step, form, bloodTestUploaded, wearablesConnected })); } catch { /* silent */ }
+  }, [step, form, bloodTestUploaded, wearablesConnected]);
 
-  // Pre-warm: fire the generate call as soon as the user reaches the budget step (step 3).
+  // Pre-warm: fire the generate call as soon as the user reaches the budget step (step 5).
   // By the time they click "Generate", Claude may already be running or done.
   // Re-fires only when the budget tier changes — not on every slider tick.
   useEffect(() => {
-    if (step !== 3) return;
+    if (step !== 5) return;
     if (lastPreWarmTierRef.current === form.budgetTier) return;
 
     lastPreWarmTierRef.current = form.budgetTier;
@@ -612,7 +865,9 @@ export default function SportsPrepPage() {
     if (step === 0) return !!form.competitionType;
     if (step === 1) return !!(form.eventDate && form.weeksToEvent > 0 && form.priorityOutcome && form.age >= 16 && form.gender && form.experienceLevel);
     if (step === 2) return !!form.stimulantTolerance;
-    if (step === 3) return form.budgetValue > 0;
+    if (step === 3) return true; // optional — blood test
+    if (step === 4) return true; // optional — wearables
+    if (step === 5) return form.budgetValue > 0;
     return false;
   }
 
@@ -687,22 +942,35 @@ export default function SportsPrepPage() {
         {step === 0 && <Step1 form={form} update={update} />}
         {step === 1 && <Step2 form={form} update={update} />}
         {step === 2 && <Step3 form={form} update={update} />}
-        {step === 3 && <Step4 form={form} update={update} />}
+        {step === 3 && <Step4BT uploaded={bloodTestUploaded} onUpload={setBloodTestUploaded} />}
+        {step === 4 && <Step4W  connected={wearablesConnected} onConnect={setWearablesConnected} />}
+        {step === 5 && <Step4   form={form} update={update} />}
       </div>
 
       {/* Sticky CTA */}
-      <div style={{ position: "sticky", bottom: 0, padding: "20px 0 8px", background: "linear-gradient(0deg,#06080F 70%,transparent)" }}>
-        <button
-          onClick={handleNext}
-          disabled={!canAdvance()}
-          style={{ width: "100%", padding: "16px 28px", borderRadius: 12, fontSize: 15, fontWeight: 400, cursor: canAdvance() ? "pointer" : "default", border: "none", transition: "all .18s", fontFamily: "var(--font-ui,'Inter',sans-serif)",
-            background: canAdvance() ? PERF_GRAD : "rgba(255,255,255,.06)",
-            color: canAdvance() ? "#fff" : T.muted,
-            opacity: canAdvance() ? 1 : 0.5,
-            boxShadow: canAdvance() ? "0 0 24px rgba(124,58,237,0.35)" : "none" }}>
-          {step === TOTAL_STEPS - 1 ? "Generate My Competition Pack →" : "Continue →"}
-        </button>
-      </div>
+      {(() => {
+        const isOptional  = step === 3 || step === 4;
+        const optionalDone = (step === 3 && bloodTestUploaded) || (step === 4 && wearablesConnected.length > 0);
+        const showGhost   = isOptional && !optionalDone;
+        const ok          = canAdvance();
+        return (
+          <div style={{ position: "sticky", bottom: 0, padding: "20px 0 8px", background: "linear-gradient(0deg,#06080F 70%,transparent)" }}>
+            <button
+              onClick={handleNext}
+              disabled={!ok}
+              style={{ width: "100%", padding: "16px 28px", borderRadius: 12, fontSize: 15, fontWeight: 400,
+                cursor: ok ? "pointer" : "default",
+                border: showGhost ? "1px solid rgba(255,255,255,.12)" : "none",
+                transition: "all .18s", fontFamily: "var(--font-ui,'Inter',sans-serif)",
+                background: showGhost ? "transparent" : (ok ? PERF_GRAD : "rgba(255,255,255,.06)"),
+                color: showGhost ? T.muted : (ok ? "#fff" : T.muted),
+                opacity: ok ? 1 : 0.5,
+                boxShadow: (!showGhost && ok) ? "0 0 24px rgba(124,58,237,0.35)" : "none" }}>
+              {step === TOTAL_STEPS - 1 ? "Generate My Competition Pack →" : showGhost ? "Skip for now →" : "Continue →"}
+            </button>
+          </div>
+        );
+      })()}
     </div>
   );
 }

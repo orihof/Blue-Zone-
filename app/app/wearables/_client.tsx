@@ -5,6 +5,7 @@ import { useState, useRef } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
 import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
+import SamsungHealthHelpModal from "@/components/upload/SamsungHealthHelpModal";
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const GT   = { background: GRAD, WebkitBackgroundClip: "text" as const, WebkitTextFillColor: "transparent" as const, backgroundClip: "text" as const };
@@ -32,6 +33,12 @@ const WEARABLES = [
     type: "upload" as const, oauthHref: null,
   },
   {
+    id: "samsung", name: "Samsung Health", icon: "⌚",
+    desc: "Steps, heart rate, sleep, SpO₂ — export from Samsung Health app",
+    metrics: ["Heart Rate", "HRV", "Sleep", "Steps", "SpO₂"],
+    type: "upload" as const, oauthHref: null,
+  },
+  {
     id: "garmin", name: "Garmin",       icon: "🏃",
     desc: "Steps, VO₂ max, heart rate zones & more",
     metrics: ["VO₂ Max", "Steps", "HR Zones"],
@@ -52,14 +59,17 @@ const WEARABLES = [
 ] as const;
 
 export function WearablesClient({ connected }: { connected: WearableConn[] }) {
-  const [uploading, setUploading] = useState(false);
+  const [appleUploading,   setAppleUploading]   = useState(false);
+  const [samsungUploading, setSamsungUploading] = useState(false);
   const [ahModalOpen, setAhModalOpen] = useState(false);
-  const appleFileRef = useRef<HTMLInputElement>(null);
+  const [shModalOpen, setShModalOpen] = useState(false);
+  const appleFileRef  = useRef<HTMLInputElement>(null);
+  const samsungFileRef = useRef<HTMLInputElement>(null);
 
   const connectedIds = new Set(connected.map((c) => c.provider));
 
   async function handleAppleUpload(file: File) {
-    setUploading(true);
+    setAppleUploading(true);
     try {
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -79,7 +89,26 @@ export function WearablesClient({ connected }: { connected: WearableConn[] }) {
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
-      setUploading(false);
+      setAppleUploading(false);
+    }
+  }
+
+  async function handleSamsungUpload(file: File) {
+    setSamsungUploading(true);
+    try {
+      const { parseSamsungHealthZip } = await import("@/lib/wearables/samsung-health-parser");
+      const summary = await parseSamsungHealthZip(file);
+      const res = await fetch("/api/wearables/samsung/ingest", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(summary),
+      });
+      if (!res.ok) throw new Error("Failed to save Samsung Health data");
+      toast.success("Samsung Health data imported!");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setSamsungUploading(false);
+      if (samsungFileRef.current) samsungFileRef.current.value = "";
     }
   }
 
@@ -171,22 +200,16 @@ export function WearablesClient({ connected }: { connected: WearableConn[] }) {
                     )
                   )}
 
-                  {w.type === "upload" && (
+                  {w.type === "upload" && w.id === "apple" && (
                     <div>
-                      <input
-                        ref={appleFileRef}
-                        type="file" accept=".zip" style={{ display: "none" }}
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAppleUpload(f); }}
-                        disabled={uploading}
-                      />
                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                         <button
                           className="cta cta-sm"
-                          style={{ fontSize: 12, opacity: uploading ? 0.6 : 1, cursor: uploading ? "wait" : "pointer" }}
-                          disabled={uploading}
+                          style={{ fontSize: 12, opacity: appleUploading ? 0.6 : 1, cursor: appleUploading ? "wait" : "pointer" }}
+                          disabled={appleUploading}
                           onClick={() => appleFileRef.current?.click()}
                         >
-                          {uploading ? "Uploading…" : "Upload Health Export"}
+                          {appleUploading ? "Uploading…" : "Upload Health Export"}
                         </button>
                         <button
                           onClick={() => setAhModalOpen(true)}
@@ -197,6 +220,30 @@ export function WearablesClient({ connected }: { connected: WearableConn[] }) {
                       </div>
                       <p style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                         On iPhone: Health → Profile → Export All Health Data → share export.zip
+                      </p>
+                    </div>
+                  )}
+
+                  {w.type === "upload" && w.id === "samsung" && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <button
+                          className="cta cta-sm"
+                          style={{ fontSize: 12, opacity: samsungUploading ? 0.6 : 1, cursor: samsungUploading ? "wait" : "pointer" }}
+                          disabled={samsungUploading}
+                          onClick={() => samsungFileRef.current?.click()}
+                        >
+                          {samsungUploading ? "Importing…" : "Import Health Data"}
+                        </button>
+                        <button
+                          onClick={() => setShModalOpen(true)}
+                          style={{ background: "none", border: "none", fontSize: 12, color: "#6366F1", cursor: "pointer", padding: 0, fontFamily: "var(--font-ui,'Inter',sans-serif)", textDecoration: "underline", textUnderlineOffset: 3 }}
+                        >
+                          Need Help?
+                        </button>
+                      </div>
+                      <p style={{ fontSize: 10, color: T.muted, marginTop: 6, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                        Samsung Health → ⋮ Menu → Settings → Download personal data
                       </p>
                     </div>
                   )}
@@ -213,10 +260,29 @@ export function WearablesClient({ connected }: { connected: WearableConn[] }) {
         })}
       </div>
 
+      {/* Hidden file inputs */}
+      <input
+        ref={appleFileRef}
+        type="file" accept=".zip" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAppleUpload(f); }}
+        disabled={appleUploading}
+      />
+      <input
+        ref={samsungFileRef}
+        type="file" accept=".zip,.csv" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSamsungUpload(f); }}
+        disabled={samsungUploading}
+      />
+
       <AppleHealthHelpModal
         open={ahModalOpen}
         onClose={() => setAhModalOpen(false)}
         onRequestUpload={() => appleFileRef.current?.click()}
+      />
+      <SamsungHealthHelpModal
+        open={shModalOpen}
+        onClose={() => setShModalOpen(false)}
+        onRequestUpload={() => samsungFileRef.current?.click()}
       />
     </>
   );

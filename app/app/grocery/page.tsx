@@ -6,7 +6,6 @@ import Link from "next/link";
 
 interface GroceryItem { id: string; title: string }
 
-const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const T = { text: "#F1F5F9", muted: "#64748B" };
 
 export default function GroceryPage() {

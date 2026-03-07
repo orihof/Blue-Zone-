@@ -216,7 +216,7 @@ export default function DemoPage() {
           {/* Weekly targets */}
           <div className="card" style={{ padding: 22 }}>
             <SectionLabel>This Week&apos;s Targets</SectionLabel>
-            {MOCK_CHECKLIST.map((item, idx) => (
+            {MOCK_CHECKLIST.map((item) => (
               <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                 <div style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, background: item.done ? "rgba(16,185,129,.15)" : "rgba(255,255,255,.04)", border: `1px solid ${item.done ? "rgba(16,185,129,.35)" : "rgba(255,255,255,.1)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#34D399" }}>
                   {item.done ? "✓" : ""}

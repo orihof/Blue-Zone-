@@ -12,6 +12,11 @@ const ALLOWED_TYPES = new Set([
   "text/csv",
   "text/xml",
   "application/xml",
+  // Apple Health & Samsung Health exports
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/x-zip",
+  "application/octet-stream", // fallback: some browsers report ZIP as generic binary
 ]);
 
 export async function POST(req: Request) {
@@ -32,7 +37,7 @@ export async function POST(req: Request) {
     if (!ALLOWED_TYPES.has(f.type)) {
       return NextResponse.json({ error: `File type not supported: ${f.type}` }, { status: 400 });
     }
-    if (f.size > 15 * 1024 * 1024) {
+    if (f.size > 500 * 1024 * 1024) {
       return NextResponse.json({ error: `File too large: ${f.name}` }, { status: 400 });
     }
   }

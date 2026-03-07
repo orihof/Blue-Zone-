@@ -1,10 +1,12 @@
 /// app/app/biomarkers/_setup.tsx  (underscore = not a route)
 "use client";
 
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
+import SamsungHealthHelpModal from "@/components/upload/SamsungHealthHelpModal";
+import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const GT   = { background: GRAD, WebkitBackgroundClip: "text" as const, WebkitTextFillColor: "transparent" as const, backgroundClip: "text" as const };
@@ -179,12 +181,13 @@ function UploadSection({ initialDone, onDone }: { initialDone: boolean; onDone: 
 
 // ── Wearables section ──────────────────────────────────────────────────────────
 const WEARABLE_CARDS = [
-  { id: "whoop",  name: "WHOOP",        icon: "⚡", desc: "HRV, recovery, sleep strain",   oauthHref: "/api/oauth/whoop/start" },
-  { id: "oura",   name: "Oura Ring",    icon: "💍", desc: "Readiness, sleep, heart rate",  oauthHref: "/api/oauth/oura/start"  },
-  { id: "apple",  name: "Apple Health", icon: "🍎", desc: "Export from Health app",        oauthHref: null },
-  { id: "garmin", name: "Garmin",       icon: "🏃", desc: "Steps, VO₂ max, HR zones",     oauthHref: null, soon: true },
-  { id: "cgm",    name: "CGM",          icon: "🩸", desc: "Continuous glucose monitoring", oauthHref: null, soon: true },
-  { id: "manual", name: "Manual Entry", icon: "✏️", desc: "Enter measurements by hand",   oauthHref: null, soon: true },
+  { id: "whoop",   name: "WHOOP",          icon: "⚡", desc: "HRV, recovery, sleep strain",      oauthHref: "/api/oauth/whoop/start" },
+  { id: "oura",    name: "Oura Ring",      icon: "💍", desc: "Readiness, sleep, heart rate",     oauthHref: "/api/oauth/oura/start"  },
+  { id: "apple",   name: "Apple Health",   icon: "🍎", desc: "Export from Health app",           oauthHref: null },
+  { id: "samsung", name: "Samsung Health", icon: "📱", desc: "Steps, sleep, heart rate (CSV)",   oauthHref: null },
+  { id: "garmin",  name: "Garmin",         icon: "🏃", desc: "Steps, VO₂ max, HR zones",        oauthHref: null, soon: true },
+  { id: "cgm",     name: "CGM",            icon: "🩸", desc: "Continuous glucose monitoring",    oauthHref: null, soon: true },
+  { id: "manual",  name: "Manual Entry",   icon: "✏️", desc: "Enter measurements by hand",      oauthHref: null, soon: true },
 ];
 
 function WearablesSection({
@@ -196,8 +199,59 @@ function WearablesSection({
   initialDone: boolean;
   onDone: () => void;
 }) {
-  const [done, setDone]   = useState(initialDone || initialConnected.length > 0);
-  const [skipped, setSkip] = useState(false);
+  const [done, setDone]         = useState(initialDone || initialConnected.length > 0);
+  const [skipped, setSkip]      = useState(false);
+  const [shModalOpen, setShModal]     = useState(false);
+  const [ahModalOpen, setAhModal]     = useState(false);
+  const [samsungBusy, setSamsungBusy] = useState(false);
+  const [appleBusy,   setAppleBusy]   = useState(false);
+  const samsungFileRef = useRef<HTMLInputElement>(null);
+  const appleFileRef   = useRef<HTMLInputElement>(null);
+
+  async function handleSamsungUpload(file: File) {
+    setSamsungBusy(true);
+    try {
+      const { parseSamsungHealthZip } = await import("@/lib/wearables/samsung-health-parser");
+      const summary = await parseSamsungHealthZip(file);
+      const res = await fetch("/api/wearables/samsung/ingest", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(summary),
+      });
+      if (!res.ok) throw new Error("Failed to save Samsung Health data");
+      toast.success("Samsung Health data imported!");
+      setShModal(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setSamsungBusy(false);
+      if (samsungFileRef.current) samsungFileRef.current.value = "";
+    }
+  }
+
+  async function handleAppleUpload(file: File) {
+    setAppleBusy(true);
+    try {
+      const signRes = await fetch("/api/uploads/sign", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: [{ name: file.name, size: file.size, type: file.type }] }),
+      });
+      if (!signRes.ok) throw new Error("Failed to get upload URL");
+      const { files: signed } = await signRes.json();
+      const { signedUrl, storagePath } = signed[0] as { signedUrl: string; storagePath: string };
+      await fetch(signedUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      await fetch("/api/uploads/commit", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType: file.type }] }),
+      });
+      toast.success("Apple Health data uploaded!");
+      setAhModal(false);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setAppleBusy(false);
+      if (appleFileRef.current) appleFileRef.current.value = "";
+    }
+  }
 
   function handleSkip() {
     setSkip(true);
@@ -250,6 +304,24 @@ function WearablesSection({
                 <a href={w.oauthHref}>
                   <button className="cta cta-sm" style={{ fontSize: 11, whiteSpace: "nowrap" }}>Connect</button>
                 </a>
+              ) : w.id === "samsung" ? (
+                <button
+                  className="cta cta-sm"
+                  style={{ fontSize: 11, whiteSpace: "nowrap", opacity: samsungBusy ? 0.6 : 1, cursor: samsungBusy ? "wait" : "pointer" }}
+                  disabled={samsungBusy}
+                  onClick={() => setShModal(true)}
+                >
+                  {samsungBusy ? "Importing…" : "Upload"}
+                </button>
+              ) : w.id === "apple" ? (
+                <button
+                  className="cta cta-sm"
+                  style={{ fontSize: 11, whiteSpace: "nowrap", opacity: appleBusy ? 0.6 : 1, cursor: appleBusy ? "wait" : "pointer" }}
+                  disabled={appleBusy}
+                  onClick={() => setAhModal(true)}
+                >
+                  {appleBusy ? "Uploading…" : "Upload"}
+                </button>
               ) : (
                 <Link href="/app/wearables">
                   <button className="cta cta-sm" style={{ fontSize: 11 }}>Upload</button>
@@ -269,6 +341,29 @@ function WearablesSection({
           Skip for now
         </button>
       </div>
+
+      <input
+        ref={appleFileRef}
+        type="file" accept=".zip" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAppleUpload(f); }}
+        disabled={appleBusy}
+      />
+      <input
+        ref={samsungFileRef}
+        type="file" accept=".zip,.csv" style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSamsungUpload(f); }}
+        disabled={samsungBusy}
+      />
+      <AppleHealthHelpModal
+        open={ahModalOpen}
+        onClose={() => setAhModal(false)}
+        onRequestUpload={() => appleFileRef.current?.click()}
+      />
+      <SamsungHealthHelpModal
+        open={shModalOpen}
+        onClose={() => setShModal(false)}
+        onRequestUpload={() => samsungFileRef.current?.click()}
+      />
     </div>
   );
 }

@@ -252,22 +252,22 @@ function ProfileStep({ value, onChange, onNext }: { value: ProfileValue; onChang
 }
 
 // ── Wearable connection step ──────────────────────────────────────────────────
-type WearableId = "whoop" | "oura" | "apple" | "garmin" | "lumen";
-interface WearableConn { id: WearableId; name: string; icon: string; description: string; type: "oauth" | "upload" | "soon"; oauthHref?: string; }
+type WearableId = "whoop" | "oura" | "apple" | "samsung" | "garmin" | "lumen";
+interface WearableConn { id: WearableId; name: string; icon: string; description: string; type: "oauth" | "upload" | "soon"; oauthHref?: string; accept?: string; }
 
 const WEARABLES: WearableConn[] = [
-  { id: "whoop",  name: "WHOOP",       icon: "⚡", description: "HRV, recovery, sleep strain", type: "oauth", oauthHref: "/api/oauth/whoop/start"  },
-  { id: "oura",   name: "Oura Ring",   icon: "💍", description: "Readiness, sleep, heart rate", type: "oauth", oauthHref: "/api/oauth/oura/start"   },
-  { id: "apple",  name: "Apple Health",icon: "🍎", description: "Upload your Health export",    type: "upload" },
-  { id: "garmin", name: "Garmin",      icon: "🏃", description: "Steps, VO₂ max, HR zones",    type: "soon"   },
-  { id: "lumen",  name: "Lumen",       icon: "🔬", description: "Metabolic flexibility (CSV)",  type: "soon"   },
+  { id: "whoop",   name: "WHOOP",          icon: "⚡", description: "HRV, recovery, sleep strain",   type: "oauth",  oauthHref: "/api/oauth/whoop/start" },
+  { id: "oura",    name: "Oura Ring",      icon: "💍", description: "Readiness, sleep, heart rate",  type: "oauth",  oauthHref: "/api/oauth/oura/start"  },
+  { id: "apple",   name: "Apple Health",   icon: "🍎", description: "Upload your Health export",     type: "upload", accept: ".json,.xml,.csv"            },
+  { id: "samsung", name: "Samsung Health", icon: "📱", description: "Upload Samsung Health ZIP/CSV", type: "upload", accept: ".zip,.csv"                  },
+  { id: "garmin",  name: "Garmin",         icon: "🏃", description: "Steps, VO₂ max, HR zones",     type: "soon"                                         },
+  { id: "lumen",   name: "Lumen",          icon: "🔬", description: "Metabolic flexibility (CSV)",   type: "soon"                                         },
 ];
 
 function WearableStep({
   connected,
   skipped,
   onToggleSkip,
-  onConnect,
   onFileUpload,
   onNext,
 }: {
@@ -325,7 +325,7 @@ function WearableStep({
                 ) : (
                   <>
                     <label style={{ cursor: "pointer" }}>
-                      <input type="file" accept=".json,.xml,.csv" style={{ display: "none" }}
+                      <input type="file" accept={w.accept ?? ".json,.xml,.csv"} style={{ display: "none" }}
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileUpload(w.id, f); }} />
                       <span className="cta cta-sm" style={{ fontSize: 11, display: "inline-block" }}>Upload</span>
                     </label>
@@ -520,7 +520,7 @@ function OnboardingInner() {
     if (ouraStatus  === "error")     toast.error("Oura connection failed — try again.");
   }, [whoopStatus, ouraStatus]);
 
-  const handleAppleUpload = useCallback(async (id: WearableId, file: File) => {
+  const handleAppleUpload = useCallback(async (file: File) => {
     try {
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST",
@@ -535,12 +535,34 @@ function OnboardingInner() {
       await fetch("/api/uploads/commit", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType: file.type }] }) });
 
-      setConnected((prev) => ({ ...prev, [id]: true }));
+      setConnected((prev) => ({ ...prev, apple: true }));
       toast.success(`${file.name} uploaded successfully!`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     }
   }, []);
+
+  const handleSamsungUpload = useCallback(async (file: File) => {
+    try {
+      const { parseSamsungHealthZip } = await import("@/lib/wearables/samsung-health-parser");
+      const summary = await parseSamsungHealthZip(file);
+      const res = await fetch("/api/wearables/samsung/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(summary),
+      });
+      if (!res.ok) throw new Error("Failed to save Samsung Health data");
+      setConnected((prev) => ({ ...prev, samsung: true }));
+      toast.success("Samsung Health data imported!");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Import failed");
+    }
+  }, []);
+
+  const handleFileUpload = useCallback((id: WearableId, file: File) => {
+    if (id === "samsung") return handleSamsungUpload(file);
+    return handleAppleUpload(file);
+  }, [handleAppleUpload, handleSamsungUpload]);
 
   const progressPct = (step / (STEP_LABELS.length - 1)) * 100;
 
@@ -581,7 +603,7 @@ function OnboardingInner() {
             skipped={skipped}
             onToggleSkip={(id) => setSkipped((prev) => ({ ...prev, [id]: !prev[id] }))}
             onConnect={(id) => setConnected((prev) => ({ ...prev, [id]: true }))}
-            onFileUpload={handleAppleUpload}
+            onFileUpload={handleFileUpload}
             onNext={() => setStep(3)}
           />
         )}

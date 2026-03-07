@@ -20,10 +20,20 @@ export const GoalRedFlagsSchema = z.object({
 });
 
 export const GoalTierSupplementSchema = z.object({
-  name:   z.string(),
-  dose:   z.string(),
-  timing: z.string(),
-  notes:  z.string(),
+  name:          z.string(),
+  dose:          z.string(),
+  timing:        z.string(),
+  notes:         z.string(),
+  purchaseUrl:   z.string().optional(),
+  priceEstimate: z.string().optional(),
+  priority:      z.enum(["essential", "high", "moderate"]).optional(),
+});
+
+export const GoalServiceSchema = z.object({
+  name:       z.string(),
+  rationale:  z.string().optional(),
+  urgency:    z.enum(["high", "medium", "low"]).optional(),
+  priceRange: z.string().optional(),
 });
 
 export const GoalTierPackSchema = z.object({
@@ -31,7 +41,7 @@ export const GoalTierPackSchema = z.object({
   supplements:       z.array(GoalTierSupplementSchema),
   testing:           z.array(z.string()),
   lifestyle:         z.array(z.string()),   // replaces "gear"
-  services:          z.array(z.string()),
+  services:          z.array(z.union([z.string(), GoalServiceSchema])),
   biggestROI:        z.array(z.string()).min(1).max(5),
   whatYouAreMissing: z.array(z.string()),
 });
@@ -64,6 +74,7 @@ export const GoalProtocolPayloadSchema = z.object({
 export type GoalPhase                = z.infer<typeof GoalPhaseSchema>;
 export type GoalRedFlags             = z.infer<typeof GoalRedFlagsSchema>;
 export type GoalTierSupplement       = z.infer<typeof GoalTierSupplementSchema>;
+export type GoalService              = z.infer<typeof GoalServiceSchema>;
 export type GoalTierPack             = z.infer<typeof GoalTierPackSchema>;
 export type GoalSupplementItem       = z.infer<typeof GoalSupplementScheduleItemSchema>;
 export type GoalTrackingMetric       = z.infer<typeof GoalTrackingMetricSchema>;

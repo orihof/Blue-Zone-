@@ -291,6 +291,34 @@ function TrendChart({ metricKey, data, weeks, color, markers }: {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const containerRef   = useRef<HTMLDivElement>(null);
   const mobileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const n = data.length;
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const relX = (e.clientX - rect.left) / rect.width;
+    const rawI = Math.round(relX * (n - 1));
+    const idx  = Math.max(0, Math.min(n - 1, rawI));
+    const xPct = (PAD.l + idx * (VW - PAD.l - PAD.r) / Math.max(n - 1, 1)) / VW;
+    setTooltip({ idx, xPct });
+  }, [n]);
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const relX = (e.clientX - rect.left) / rect.width;
+    const rawI = Math.round(relX * (n - 1));
+    const idx  = Math.max(0, Math.min(n - 1, rawI));
+    const xPct = (PAD.l + idx * (VW - PAD.l - PAD.r) / Math.max(n - 1, 1)) / VW;
+    setTooltip({ idx, xPct });
+    if (mobileTimerRef.current) clearTimeout(mobileTimerRef.current);
+    mobileTimerRef.current = setTimeout(() => setTooltip(null), 3000);
+  }, [n]);
+
+  const handleMouseLeave = useCallback(() => {
+    setTooltip(null);
+    if (mobileTimerRef.current) clearTimeout(mobileTimerRef.current);
+  }, []);
 
   if (data.length < 2) {
     return (
@@ -300,7 +328,6 @@ function TrendChart({ metricKey, data, weeks, color, markers }: {
     );
   }
 
-  const n    = data.length;
   const xs   = data.map((_, i) => xFromIdx(i, n));
   const ys   = data.map(v  => yFromVal(v, domMin, domMax));
   const pts  = xs.map((x, i) => `${x},${ys[i]}`).join(" ");
@@ -308,37 +335,6 @@ function TrendChart({ metricKey, data, weeks, color, markers }: {
   const areaPts = `${xs[0]},${botY} ${pts} ${xs[n - 1]},${botY}`;
   const gradId  = `grad-${metricKey}`;
   const optY    = yFromVal(cfg.optimalMin, domMin, domMax);
-
-  function computeTooltip(e: React.MouseEvent<HTMLDivElement>): TooltipState | null {
-    if (!containerRef.current) return null;
-    const rect = containerRef.current.getBoundingClientRect();
-    const relX = (e.clientX - rect.left) / rect.width;
-    const rawI = Math.round(relX * (n - 1));
-    const idx  = Math.max(0, Math.min(n - 1, rawI));
-    const xPct = (PAD.l + idx * (VW - PAD.l - PAD.r) / Math.max(n - 1, 1)) / VW;
-    return { idx, xPct };
-  }
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const t = computeTooltip(e);
-    if (t) setTooltip(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [n]);
-
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // Mobile: tap to show tooltip, auto-dismiss after 3s
-    const t = computeTooltip(e);
-    if (!t) return;
-    setTooltip(t);
-    if (mobileTimerRef.current) clearTimeout(mobileTimerRef.current);
-    mobileTimerRef.current = setTimeout(() => setTooltip(null), 3000);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [n]);
-
-  const handleMouseLeave = useCallback(() => {
-    setTooltip(null);
-    if (mobileTimerRef.current) clearTimeout(mobileTimerRef.current);
-  }, []);
 
   const tip       = tooltip;
   const tipVal    = tip !== null ? data[tip.idx]  : null;

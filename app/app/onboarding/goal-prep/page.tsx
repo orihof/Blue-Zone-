@@ -689,14 +689,6 @@ function GoalPrepContent() {
   const searchParams = useSearchParams();
   const category     = searchParams.get("category") ?? "";
 
-  const categoryMeta = GOAL_CATEGORIES[category];
-  if (!categoryMeta) {
-    if (typeof window !== "undefined") router.replace("/app/goals");
-    return null;
-  }
-
-  const STORAGE_KEY = `bz_goal_prep_v1_${category}`;
-
   const defaultForm: GoalPrepFormData = {
     category,
     age: 35, gender: "Male",
@@ -705,12 +697,20 @@ function GoalPrepContent() {
     categoryData: {},
   };
 
-  const [step, setStep]             = useState(0);
-  const [form, setForm]             = useState<GoalPrepFormData>(defaultForm);
-  const [phase, setPhase]           = useState<"form" | "loading" | "error">("form");
-  const [errorMsg, setErrorMsg]     = useState("");
+  const [step, setStep]               = useState(0);
+  const [form, setForm]               = useState<GoalPrepFormData>(defaultForm);
+  const [phase, setPhase]             = useState<"form" | "loading" | "error">("form");
+  const [errorMsg, setErrorMsg]       = useState("");
   const [preWarmedId, setPreWarmedId] = useState<string | undefined>();
-  const preWarmFiredRef             = useRef(false);
+  const preWarmFiredRef               = useRef(false);
+
+  const categoryMeta = GOAL_CATEGORIES[category];
+  const STORAGE_KEY  = `bz_goal_prep_v1_${category}`;
+
+  function updateForm(updated: GoalPrepFormData) {
+    setForm(updated);
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+  }
 
   // Restore from sessionStorage
   useEffect(() => {
@@ -720,11 +720,6 @@ function GoalPrepContent() {
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  function updateForm(updated: GoalPrepFormData) {
-    setForm(updated);
-    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
-  }
 
   // Pre-warm when budget step (step 3) becomes visible
   useEffect(() => {
@@ -745,6 +740,11 @@ function GoalPrepContent() {
       .catch(() => { /* pre-warm failure is silent */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
+
+  if (!categoryMeta) {
+    if (typeof window !== "undefined") router.replace("/app/goals");
+    return null;
+  }
 
   if (phase === "loading") {
     return (
