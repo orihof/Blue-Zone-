@@ -5,6 +5,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireConsent } from "@/middleware/requireConsent";
 
 export const runtime    = "nodejs";
 export const maxDuration = 120;
@@ -60,7 +61,7 @@ interface ClaudeResponse {
   primaryDrivers:  BioAgeDriver[];
 }
 
-export async function POST() {
+export const POST = requireConsent(1)(async () => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -188,4 +189,4 @@ export async function POST() {
     primaryDrivers:  parsed.primaryDrivers,
     chronologicalAge: chronoAge,
   });
-}
+});

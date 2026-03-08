@@ -183,6 +183,13 @@
   100% { background-position:  200% 0; }
 }
 
+/* Upload parsing indeterminate shimmer */
+@keyframes parseShimmer {
+  0%   { opacity: 1;   transform: scaleX(0.95); }
+  50%  { opacity: 0.7; transform: scaleX(1);    }
+  100% { opacity: 1;   transform: scaleX(0.95); }
+}
+
 /* Slow pulse */
 @keyframes bz-pulse-slow {
   0%, 100% { opacity: 0.55; }

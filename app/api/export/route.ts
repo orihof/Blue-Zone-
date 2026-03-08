@@ -5,9 +5,10 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email";
+import { requireConsent } from "@/middleware/requireConsent";
 import { track } from "@/lib/analytics";
 
-export async function GET() {
+export const GET = requireConsent(1)(async () => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -42,4 +43,4 @@ export async function GET() {
       "Content-Disposition": `attachment; filename="bluezone-export-${Date.now()}.json"`,
     },
   });
-}
+});

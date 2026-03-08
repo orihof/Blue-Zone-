@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS, BUCKETS } from "@/lib/db/schema";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import type { NormalizedBiomarkers } from "@/lib/types/health";
+import { requireConsent } from "@/middleware/requireConsent";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -46,7 +47,8 @@ function category(mimeType: string): "pdf" | "image" | "json" | "xml" | "unknown
 // Body: { storagePath: string; mimeType: string; fileName: string; source?: string }
 // ----------------------------------------------------------------
 
-export async function POST(req: Request) {
+// TODO: confirm consent tier — this route ingests user health data rather than serving it
+export const POST = requireConsent(1)(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -222,4 +224,4 @@ export async function POST(req: Request) {
     normalizedWearable:   wearableInserted ? true : null,
     warnings,
   });
-}
+});

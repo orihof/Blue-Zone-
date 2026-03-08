@@ -1,6 +1,6 @@
 /// app/api/user/onboarding/route.ts
 // GET  → returns current onboarding state (goals, wearable_done)
-// PATCH → updates goals and/or wearable_done
+// PATCH → updates goals and/or wearable_done; also syncs primaryGoal → profiles.primary_goal
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -27,23 +27,35 @@ export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json().catch(() => ({}));
-  const update: Record<string, unknown> = {};
+  const body   = await req.json().catch(() => ({}));
+  const userId = session.user.id;
+  const supabase = getAdminClient();
 
-  if (Array.isArray(body.goals))            update[COLS.ONBOARDING_GOALS]         = body.goals;
-  if (typeof body.wearableDone === "boolean") update[COLS.ONBOARDING_WEARABLE_DONE] = body.wearableDone;
+  const userUpdate: Record<string, unknown> = {};
+  if (Array.isArray(body.goals))              userUpdate[COLS.ONBOARDING_GOALS]         = body.goals;
+  if (typeof body.wearableDone === "boolean") userUpdate[COLS.ONBOARDING_WEARABLE_DONE] = body.wearableDone;
 
-  if (Object.keys(update).length === 0) {
+  const hasUserUpdate  = Object.keys(userUpdate).length > 0;
+  const hasPrimaryGoal = typeof body.primaryGoal === "string" && !!body.primaryGoal;
+
+  if (!hasUserUpdate && !hasPrimaryGoal) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
 
-  const { error } = await getAdminClient()
-    .from(TABLES.USERS)
-    .update(update)
-    .eq(COLS.ID, session.user.id);
+  const [userRes, profileRes] = await Promise.all([
+    hasUserUpdate
+      ? supabase.from(TABLES.USERS).update(userUpdate).eq(COLS.ID, userId)
+      : Promise.resolve({ error: null }),
+    hasPrimaryGoal
+      ? supabase
+          .from(TABLES.PROFILES)
+          .upsert({ [COLS.ID]: userId, [COLS.PRIMARY_GOAL]: body.primaryGoal as string }, { onConflict: COLS.ID })
+      : Promise.resolve({ error: null }),
+  ]);
 
-  if (error) {
-    console.error("[user/onboarding PATCH]", error.message);
+  const failed = userRes.error ?? profileRes.error;
+  if (failed) {
+    console.error("[user/onboarding PATCH]", failed.message);
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 

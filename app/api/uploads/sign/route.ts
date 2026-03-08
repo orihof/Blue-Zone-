@@ -10,8 +10,10 @@ const ALLOWED_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "text/csv",
+  "text/plain",
   "text/xml",
   "application/xml",
+  "application/json",
   // Apple Health & Samsung Health exports
   "application/zip",
   "application/x-zip-compressed",
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
       const storagePath = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { data, error } = await supabase.storage
         .from(BUCKETS.HEALTH_FILES)
-        .createSignedUploadUrl(storagePath);
+        .createSignedUploadUrl(storagePath, { upsert: true });
       if (error) throw new Error(`Supabase sign error: ${error.message}`);
       return {
         storagePath,

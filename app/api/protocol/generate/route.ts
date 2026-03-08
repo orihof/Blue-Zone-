@@ -6,7 +6,8 @@ import { TABLES, COLS } from "@/lib/db/schema";
 import { generateProtocol } from "@/lib/ai/generateProtocol";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { NormalizedBiomarkers, NormalizedWearableData, UserProfile } from "@/lib/types/health";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireConsent } from "@/middleware/requireConsent";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -23,7 +24,7 @@ export const maxDuration = 120;
 // }
 // ----------------------------------------------------------------
 
-export async function POST(req: Request) {
+export const POST = requireConsent(1)(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -175,4 +176,4 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ outputId: data.id, output: result.output });
-}
+});

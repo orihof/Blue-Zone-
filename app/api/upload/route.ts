@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { requireConsent } from "@/middleware/requireConsent";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase-server";
 import { parseAppleHealth } from "@/lib/apple-health";
@@ -10,7 +11,8 @@ import type { ApiResponse, UploadResponse, ParsedHealthData } from "@/types";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
+// TODO: confirm consent tier — this route ingests user health data rather than serving it
+export const POST = requireConsent(1)(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json<ApiResponse<never>>(
@@ -128,4 +130,4 @@ export async function POST(req: NextRequest) {
       parsed_data: parsedData,
     },
   });
-}
+});

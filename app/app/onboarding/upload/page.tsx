@@ -5,6 +5,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
+import { MissingMarkersModal } from "@/components/blood-test/MissingMarkersModal";
+import { detectMissingMarkers, type DetectionResult } from "@/lib/blood-test/detect-missing-markers";
+import type { IngestResult } from "@/lib/types/health";
+import { supabasePublic } from "@/lib/supabase/public";
+import { BUCKETS } from "@/lib/db/schema";
 
 const GOAL_LABELS: Record<string, string> = {
   sports_prep:   "Competition Prep protocol. Upload your blood test to personalize it.",
@@ -39,6 +44,21 @@ const PARSING_STEPS = [
   { id: "normalizing",label: "Normalizing units" },
   { id: "ready",      label: "Ready for protocol" },
 ];
+
+// ── MIME type normaliser (some browsers, especially iOS, leave f.type empty) ──
+const EXT_MIME: Record<string, string> = {
+  pdf:  "application/pdf",
+  csv:  "text/csv",
+  json: "application/json",
+  xml:  "application/xml",
+  txt:  "text/plain",
+  zip:  "application/zip",
+};
+function normalizeType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_MIME[ext] ?? "application/octet-stream";
+}
 
 // ── Apple Health file validation ──────────────────────────────────────────────
 function validateAHExport(file: File): { valid: boolean; error?: string; warning?: string } {
@@ -79,6 +99,10 @@ export default function UploadPage() {
   const [pct,  setPct]            = useState(0);
   const [uploading, setUploading] = useState(false);
 
+  // ── Missing-markers modal state ────────────────────────────────────────────
+  const [showMissingModal,  setShowMissingModal]  = useState(false);
+  const [detectionResult,   setDetectionResult]   = useState<DetectionResult | null>(null);
+
   // ── Apple Health state ─────────────────────────────────────────────────────
   const ahInputRef      = useRef<HTMLInputElement>(null);
   const ahRetryCountRef = useRef(0);
@@ -98,34 +122,36 @@ export default function UploadPage() {
     setUploading(true);
     setPct(0);
 
+    const fileType = normalizeType(f);
+
     try {
+      // 1. Sign
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: [{ name: f.name, size: f.size, type: f.type }] }),
+        body: JSON.stringify({ files: [{ name: f.name, size: f.size, type: fileType }] }),
       });
       if (!signRes.ok) {
         const errBody = await signRes.json().catch(() => ({}));
-        throw new Error(errBody.error ?? "Failed to get upload URL");
+        throw new Error((errBody as Record<string, string>).error ?? "Failed to get upload URL");
       }
-      const { files: signedFiles } = await signRes.json();
+      const { files: signedFiles } = await signRes.json() as { files: { signedUrl: string; storagePath: string; token: string }[] };
       if (!signedFiles?.[0]) throw new Error("No signed URL returned");
-      const { signedUrl, storagePath } = signedFiles[0] as { signedUrl: string; storagePath: string };
+      const { storagePath, token } = signedFiles[0];
 
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) setPct(Math.round((e.loaded / e.total) * 85));
-        };
-        xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
-        xhr.onerror = () => reject(new Error("Upload failed"));
-        xhr.open("PUT", signedUrl);
-        xhr.setRequestHeader("Content-Type", f.type || "application/octet-stream");
-        xhr.send(f);
-      });
+      // 2. Upload via Supabase SDK (handles auth headers) — fake progress 0–58%
+      let fakePct = 0;
+      const tick = setInterval(() => { fakePct = Math.min(fakePct + 4, 58); setPct(fakePct); }, 200);
+      const { error: uploadError } = await supabasePublic.storage
+        .from(BUCKETS.HEALTH_FILES)
+        .uploadToSignedUrl(storagePath, token, f, { contentType: fileType, upsert: true });
+      clearInterval(tick);
+      if (uploadError) throw new Error(uploadError.message);
+      setPct(60);
 
-      setPct(95);
+      setPct(65);
 
+      // 3. Commit metadata
       const commitRes = await fetch("/api/uploads/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,8 +159,47 @@ export default function UploadPage() {
       });
       if (!commitRes.ok) throw new Error("Failed to commit upload");
 
+      setPct(75);
+
+      // 4. Ingest — OCR + biomarker extraction
+      // For blood test files (PDF / CSV / images) we always want to run detection
+      // and show the missing-markers modal. If OCR fails or finds no markers we
+      // fall back to an empty map so the modal still appears with full guidance.
+      const isBloodTestFile = /pdf|csv|image\//.test(f.type || "");
+
+      let markerMap: Record<string, number> = {};
+      try {
+        const ingestRes = await fetch("/api/ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ storagePath, mimeType: f.type, fileName: f.name }),
+        });
+        if (ingestRes.ok) {
+          const ingestData = await ingestRes.json() as IngestResult;
+          markerMap = Object.fromEntries(
+            ingestData.normalizedBiomarkers.map((b) => [b.name, b.value]),
+          );
+        }
+      } catch {
+        // Non-fatal — markerMap stays empty, detection will show all as missing
+      }
+
       setPct(100);
-      setTimeout(() => router.push("/app/onboarding/dial"), 400);
+
+      // 5. Show missing-markers modal or redirect
+      // Always show the modal for blood-test file types regardless of OCR outcome.
+      if (isBloodTestFile) {
+        const detection = detectMissingMarkers(markerMap);
+        setTimeout(() => {
+          setDetectionResult(detection);
+          setUploading(false);
+          setPct(0);
+          setFile(null);
+          setShowMissingModal(true);
+        }, 400);
+      } else {
+        setTimeout(() => router.push("/app/onboarding/dial"), 400);
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
       setUploading(false);
@@ -153,36 +218,36 @@ export default function UploadPage() {
     setAhParseStep(0);
     console.log("[analytics] apple_health_upload_started", { fileSize: f.size, fileName: f.name });
 
+    const ahFileType = normalizeType(f) || "application/zip";
+
     try {
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: [{ name: f.name, size: f.size, type: f.type || "application/zip" }] }),
+        body: JSON.stringify({ files: [{ name: f.name, size: f.size, type: ahFileType }] }),
       });
       if (!signRes.ok) {
         const errBody = await signRes.json().catch(() => ({}));
         throw new Error(errBody.error ?? "Failed to get upload URL");
       }
-      const { files: signedFiles } = await signRes.json();
+      const { files: signedFiles } = await signRes.json() as { files: { signedUrl: string; storagePath: string; token: string }[] };
       if (!signedFiles?.[0]) throw new Error("No signed URL returned");
-      const { signedUrl, storagePath } = signedFiles[0] as { signedUrl: string; storagePath: string };
+      const { storagePath, token } = signedFiles[0];
 
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) setAhPct(Math.round((e.loaded / e.total) * 100));
-        };
-        xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
-        xhr.onerror = () => reject(new Error("Upload failed"));
-        xhr.open("PUT", signedUrl);
-        xhr.setRequestHeader("Content-Type", "application/zip");
-        xhr.send(f);
-      });
+      // Upload via Supabase SDK (handles auth headers) — fake progress 0–95%
+      let ahFakePct = 0;
+      const ahTick = setInterval(() => { ahFakePct = Math.min(ahFakePct + 3, 95); setAhPct(ahFakePct); }, 200);
+      const { error: ahUploadError } = await supabasePublic.storage
+        .from(BUCKETS.HEALTH_FILES)
+        .uploadToSignedUrl(storagePath, token, f, { contentType: ahFileType, upsert: true });
+      clearInterval(ahTick);
+      if (ahUploadError) throw new Error(ahUploadError.message);
+      setAhPct(100);
 
       const commitRes = await fetch("/api/uploads/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: [{ storagePath, fileName: f.name, fileSize: f.size, mimeType: "application/zip" }] }),
+        body: JSON.stringify({ files: [{ storagePath, fileName: f.name, fileSize: f.size, mimeType: ahFileType }] }),
       });
       if (!commitRes.ok) throw new Error("Failed to commit upload");
 
@@ -479,6 +544,19 @@ export default function UploadPage() {
         onClose={() => setHelpModalOpen(false)}
         onRequestUpload={() => ahInputRef.current?.click()}
       />
+
+      {/* Missing Markers Modal — shown 800ms after successful lab upload */}
+      {detectionResult && (
+        <MissingMarkersModal
+          isOpen={showMissingModal}
+          onClose={() => setShowMissingModal(false)}
+          onContinue={() => {
+            setShowMissingModal(false);
+            router.push("/app/onboarding/dial");
+          }}
+          detectionResult={detectionResult}
+        />
+      )}
     </div>
   );
 }

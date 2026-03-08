@@ -32,6 +32,8 @@ export const TABLES = {
   // Analysis reports + API usage (migration 014)
   ANALYSIS_REPORTS:     "analysis_reports",
   API_USAGE:            "api_usage",
+  // Wearable upload event tracking (migration 016)
+  WEARABLE_UPLOAD_EVENTS: "wearable_upload_events",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];
@@ -132,8 +134,11 @@ export const COLS = {
   SUPPLEMENT_NAME:          "supplement_name",
   ADOPTED_AT:               "adopted_at",
   PROTOCOL_TYPE:            "protocol_type",
-  // profiles (migration 009 + 011)
+  // profiles (migration 009 + 011 + 017)
   PRIMARY_GOAL:             "primary_goal",
+  SECONDARY_GOAL:           "secondary_goal",
+  SECONDARY_GOAL_SET_AT:    "secondary_goal_set_at",
+  ONBOARDING_COMPLETED_AT:  "onboarding_completed_at",
   ONBOARDING_STEP:          "onboarding_step",
   AVATAR_URL:               "avatar_url",
   TAGLINE:                  "tagline",
@@ -200,6 +205,10 @@ export const COLS = {
   CURRENT_SUPPLEMENTS:      "current_supplements",
   CONDITIONS:               "conditions",
   USER_TIER:                "user_tier",
+  // wearable upload events + profile freshness (migration 016)
+  SCENARIO:                     "scenario",
+  LAST_WEARABLE_UPLOAD_AT:      "last_wearable_upload_at",
+  BASELINE_ESTABLISHED_AT:      "baseline_established_at",
 } as const;
 
 export const BUCKETS = {

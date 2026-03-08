@@ -9,12 +9,13 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { generateSportsProtocol } from "@/lib/ai/generateSportsProtocol";
 import { type SportsPrepFormData } from "@/lib/db/sports-payload";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireConsent } from "@/middleware/requireConsent";
 
 export const runtime     = "nodejs";
 export const maxDuration = 120; // allow up to 2 min for Claude generation
 
-export async function POST(req: Request) {
+export const POST = requireConsent(1)(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -172,4 +173,4 @@ export async function POST(req: Request) {
 
   // ── 3. Return sportsPrepId — status is now "ready" or "failed" in DB ──────────
   return NextResponse.json({ sportsPrepId });
-}
+});

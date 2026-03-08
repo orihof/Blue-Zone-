@@ -8,12 +8,13 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { generateGoalProtocol } from "@/lib/ai/generateGoalProtocol";
 import { GOAL_CATEGORIES, type GoalPrepFormData } from "@/lib/db/goal-payload";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireConsent } from "@/middleware/requireConsent";
 
 export const runtime     = "nodejs";
 export const maxDuration = 120;
 
-export async function POST(req: Request) {
+export const POST = requireConsent(1)(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -128,4 +129,4 @@ export async function POST(req: Request) {
 
   // ── 3. Return goalPrepId — status is "ready" or "failed" in DB ────────────
   return NextResponse.json({ goalPrepId });
-}
+});

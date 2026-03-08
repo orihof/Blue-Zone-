@@ -10,6 +10,7 @@ import { BioAgeWidget } from "@/components/bio-age/BioAgeWidget";
 import Link from "next/link";
 import type { ProtocolPayload } from "@/lib/db/payload";
 import { GenerateAnalysisButton } from "@/components/analysis/GenerateAnalysisButton";
+import { SecondaryGoalNudge }    from "@/components/dashboard/SecondaryGoalNudge";
 
 const T = { text: "#F1F5F9", muted: "#64748B" };
 
@@ -81,7 +82,7 @@ export default async function DashboardPage() {
   // Fetch bio age data + data availability for the widget
   const [bioAgeRes, biomarkerCountRes, wearableCountRes, chronoAgeRes] = await Promise.all([
     supabase.from(TABLES.PROFILES)
-      .select("biological_age, biological_age_delta, bio_age_percentile, bio_age_calculated_at, bio_age_confidence, bio_age_revealed, bio_age_drivers")
+      .select("biological_age, biological_age_delta, bio_age_percentile, bio_age_calculated_at, bio_age_confidence, bio_age_revealed, bio_age_drivers, primary_goal, secondary_goal, onboarding_completed_at")
       .eq(COLS.ID, userId).single(),
     supabase.from(TABLES.BIOMARKERS)
       .select("id", { count: "exact", head: true })
@@ -98,6 +99,22 @@ export default async function DashboardPage() {
   const hasBiomarkers  = (biomarkerCountRes.count ?? 0) > 0;
   const hasWearable    = (wearableCountRes.count ?? 0) > 0;
   const chronoAge      = (chronoAgeRes.data?.[0]?.age ?? null) as number | null;
+
+  const primaryGoal           = (bioAgeProfile?.primary_goal           as string | null) ?? null;
+  const secondaryGoal         = (bioAgeProfile?.secondary_goal         as string | null) ?? null;
+  const onboardingCompletedAt = (bioAgeProfile?.onboarding_completed_at as string | null) ?? null;
+
+  // First dashboard visit — stamp onboarding_completed_at (fire-and-forget)
+  if (!onboardingCompletedAt) {
+    void supabase
+      .from(TABLES.PROFILES)
+      .upsert({ [COLS.ID]: userId, [COLS.ONBOARDING_COMPLETED_AT]: new Date().toISOString() }, { onConflict: COLS.ID });
+  }
+  const daysSinceOnboarding   = onboardingCompletedAt
+    ? Math.floor((Date.now() - new Date(onboardingCompletedAt).getTime()) / 86_400_000)
+    : null;
+  const showSecondaryNudge =
+    !!primaryGoal && !secondaryGoal && daysSinceOnboarding !== null && daysSinceOnboarding >= 30;
 
   const bioAgeInitialData = {
     biologicalAge:   (bioAgeProfile?.biological_age    ?? null) as number | null,
@@ -172,6 +189,9 @@ export default async function DashboardPage() {
           {latestId ? `Your protocol is active. Upload new data to refine it.` : "Upload health data to generate your personal protocol."}
         </p>
       </div>
+
+      {/* Secondary goal unlock nudge — shown 30 days post-onboarding */}
+      {showSecondaryNudge && <SecondaryGoalNudge primaryGoal={primaryGoal!} />}
 
       {/* Grocery list banner (item 25) */}
       <GroceryListBanner />

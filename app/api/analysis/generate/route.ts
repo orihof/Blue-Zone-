@@ -27,6 +27,7 @@ import type {
 }                                 from "@/lib/analysis/types";
 import { Resend }                 from "resend";
 import { NextRequest, NextResponse } from "next/server";
+import { requireConsent }          from "@/middleware/requireConsent";
 
 export const runtime     = "nodejs";
 export const maxDuration = 120;
@@ -40,7 +41,7 @@ const DISCLAIMER =
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest) {
+export const POST = requireConsent(1)(async (req: NextRequest) => {
   // ── 1. Authenticate ───────────────────────────────────────────────────────
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -305,7 +306,7 @@ export async function POST(req: NextRequest) {
 
   // ── 10. Return full result ────────────────────────────────────────────────
   return NextResponse.json({ ...result, reportId });
-}
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Email helper

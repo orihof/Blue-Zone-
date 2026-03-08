@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { requireConsent } from "@/middleware/requireConsent";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase-server";
 import { analyzeHealthData } from "@/lib/openai";
@@ -14,7 +15,7 @@ import type {
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-export async function POST(req: NextRequest) {
+export const POST = requireConsent(1)(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json<ApiResponse<never>>(
@@ -134,4 +135,4 @@ export async function POST(req: NextRequest) {
       recommendations: insertedRecs ?? [],
     },
   });
-}
+});
