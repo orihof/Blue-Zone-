@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  LogOut, Settings, Menu, X, Share2, UserCircle,
+  LogOut, Settings, Menu, X, Share2, UserCircle, Shield,
   Activity, Sparkles, LayoutDashboard, Watch, TrendingUp, ClipboardCheck, ShoppingBag,
 } from "lucide-react";
 import { ShareBottomSheet } from "@/components/share/ShareBottomSheet";
@@ -57,7 +57,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: null,
     items: [
-      { href: "/app/profile",    icon: UserCircle,     label: "My Profile" },
+      { href: "/app/profile",      icon: UserCircle, label: "My Profile" },
+      { href: "/settings/privacy", icon: Shield,     label: "Privacy & Data" },
     ],
   },
 ];
@@ -362,6 +363,10 @@ function MobileNav({ user }: AppNavProps) {
                 <Link href="/app/settings" onClick={() => setDrawerOpen(false)}
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <Settings size={14} color={T.muted} /> Settings
+                </Link>
+                <Link href="/settings/privacy" onClick={() => setDrawerOpen(false)}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                  <Shield size={14} color={T.muted} /> Privacy & Data
                 </Link>
                 <button onClick={() => { setDrawerOpen(false); setShareOpen(true); }}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 4 }}>

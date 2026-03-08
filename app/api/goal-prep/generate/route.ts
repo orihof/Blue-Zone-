@@ -8,8 +8,16 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { generateGoalProtocol } from "@/lib/ai/generateGoalProtocol";
 import { GOAL_CATEGORIES, type GoalPrepFormData } from "@/lib/db/goal-payload";
+import { isProtocolGated, getActiveCriticalEvents } from "@/lib/critical-values";
 import { NextRequest, NextResponse } from "next/server";
 import { requireConsent } from "@/middleware/requireConsent";
+import type { UserHealthContextRow } from "@/lib/types/health";
+import {
+  getPregnancyRulesForProduct,
+  applyPregnancyGate,
+  getPregnancyContextForNarrative,
+  getMandatoryPregnancyDisclaimer,
+} from "@/lib/pregnancy-safety";
 
 export const runtime     = "nodejs";
 export const maxDuration = 120;
@@ -19,6 +27,32 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = session.user.id;
+  const supabase = getAdminClient();
+
+  // ── Protocol gate check ────────────────────────────────────────────────────
+  const { data: userCtx } = await supabase
+    .from(TABLES.USER_HEALTH_CONTEXT)
+    .select("protocol_gated_reason, protocol_gated_at, protocol_gate_acknowledged, pregnancy_status")
+    .eq(COLS.USER_ID, userId)
+    .maybeSingle();
+
+  if (userCtx && isProtocolGated(userCtx as UserHealthContextRow)) {
+    return NextResponse.json({
+      gated:             true,
+      gate_reason:       userCtx.protocol_gated_reason,
+      gate_activated_at: userCtx.protocol_gated_at,
+      recommendations:   [],
+      critical_events:   await getActiveCriticalEvents(userId),
+    }, { status: 403 });
+  }
+  // ── End gate check ─────────────────────────────────────────────────────────
+
+  // ── Pregnancy safety context ──────────────────────────────────────────────
+  const pregnancyStatus     = (userCtx as { pregnancy_status?: string | null } | null)?.pregnancy_status ?? "not_pregnant";
+  const pregnancyContext    = getPregnancyContextForNarrative(pregnancyStatus);
+  const pregnancyDisclaimer = getMandatoryPregnancyDisclaimer(pregnancyStatus);
+  // ── End pregnancy safety context ─────────────────────────────────────────
+
   const body: GoalPrepFormData | null = await req.json().catch(() => null);
 
   if (
@@ -33,8 +67,6 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   ) {
     return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
   }
-
-  const supabase = getAdminClient();
 
   // ── 1. Create pending record ───────────────────────────────────────────────
   const { data: record, error: insertErr } = await supabase
@@ -106,7 +138,37 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
       ].filter(Boolean).join("\n");
     }
 
-    const payload = await generateGoalProtocol({ ...body, bloodTestSummary, wearableSummary });
+    const bloodTestFinal = [
+      bloodTestSummary,
+      pregnancyContext ? `PREGNANCY SAFETY CONTEXT: ${pregnancyContext}` : undefined,
+    ].filter((x): x is string => !!x).join("\n\n") || undefined;
+
+    const payload = await generateGoalProtocol({ ...body, bloodTestSummary: bloodTestFinal, wearableSummary });
+
+    // ── Pregnancy supplement filter ───────────────────────────────────────────
+    if (pregnancyStatus !== "not_pregnant") {
+      const schedule = (payload as Record<string, unknown>).supplementSchedule;
+      if (Array.isArray(schedule)) {
+        const filtered = (await Promise.all(
+          (schedule as Array<Record<string, unknown>>).map(async (item) => {
+            const category = String(item.supplement ?? "");
+            const doseMg   = typeof item.dose_mg === "number" ? item.dose_mg : 0;
+            const rules    = await getPregnancyRulesForProduct(category, pregnancyStatus);
+            const gate     = applyPregnancyGate(category, rules, doseMg);
+            if (gate.blocked) return null;
+            if (gate.action === "dose_limit" && gate.dose_limit !== undefined) {
+              return { ...item, dose_mg: gate.dose_limit };
+            }
+            return item;
+          }),
+        )).filter((x): x is Record<string, unknown> => x !== null);
+        (payload as Record<string, unknown>).supplementSchedule = filtered;
+      }
+      if (pregnancyDisclaimer) {
+        (payload as Record<string, unknown>).pregnancy_disclaimer = pregnancyDisclaimer;
+      }
+    }
+    // ── End pregnancy supplement filter ──────────────────────────────────────
 
     await supabase
       .from(TABLES.GOAL_PROTOCOLS)
@@ -128,5 +190,5 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
 
   // ── 3. Return goalPrepId — status is "ready" or "failed" in DB ────────────
-  return NextResponse.json({ goalPrepId });
+  return NextResponse.json({ goalPrepId, ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}) });
 });

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { AppNav } from "@/components/nav/AppNav";
+import { ConsentUpdateBanner } from "@/components/consent/ConsentUpdateBanner";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 
@@ -14,6 +15,7 @@ const SETUP_EXCLUDED = [
   "/app/wearables",
   "/app/results",
   "/app/onboarding",
+  "/app/consent",
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -50,10 +52,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
     // Existing guard: if goals never selected and not mid-data-upload step
     if (!hasGoals && step !== "data") redirect("/app/biomarkers");
+
+    // Consent guard: redirect to consent onboarding if user has no consent record
+    // Only applies to users who have completed the basic onboarding flow
+    const onboardingComplete = hasGoals && step !== "name" && step !== "goal";
+    if (onboardingComplete) {
+      const { data: consentRow } = await db
+        .from("consent_records")
+        .select("id")
+        .eq(COLS.USER_ID, session.user.id)
+        .eq("is_current", true)
+        .maybeSingle();
+
+      if (!consentRow) redirect("/onboarding/consent");
+    }
   }
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bz-midnight)" }}>
+      <ConsentUpdateBanner />
       <AppNav user={session.user} />
       <main className="md:pl-[210px] pt-14 pb-14 md:pt-0 md:pb-0 min-h-screen overflow-x-hidden">
         {children}

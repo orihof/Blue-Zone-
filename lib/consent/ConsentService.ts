@@ -14,7 +14,8 @@ export type ConsentMethod =
   | "onboarding_modal"
   | "settings_page"
   | "api"
-  | "import";
+  | "import"
+  | "policy_update_acknowledgment";
 
 export interface PartnerConsent {
   partnerId:   string;

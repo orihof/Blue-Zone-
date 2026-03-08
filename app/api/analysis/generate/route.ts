@@ -12,6 +12,8 @@ import { TABLES, COLS }           from "@/lib/db/schema";
 import {
   generateAnalysis,
 }                                 from "@/lib/analysis/biomarker-engine";
+import { isProtocolGated, getActiveCriticalEvents } from "@/lib/critical-values";
+import type { UserHealthContextRow }                from "@/lib/types/health";
 import type { AnalysisResult }    from "@/lib/analysis/biomarker-engine";
 import { logApiUsage }            from "@/lib/ai/logApiUsage";
 import {
@@ -28,6 +30,12 @@ import type {
 import { Resend }                 from "resend";
 import { NextRequest, NextResponse } from "next/server";
 import { requireConsent }          from "@/middleware/requireConsent";
+import {
+  getPregnancyRulesForProduct,
+  applyPregnancyGate,
+  getPregnancyContextForNarrative,
+  getMandatoryPregnancyDisclaimer,
+} from "@/lib/pregnancy-safety";
 
 export const runtime     = "nodejs";
 export const maxDuration = 120;
@@ -54,6 +62,31 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   const userId    = session.user.id as string;
   const userEmail = (session.user.email as string | null) ?? null;
   const supabase  = getAdminClient();
+
+  // ── Protocol gate check ────────────────────────────────────────────────────
+  const { data: userCtx } = await supabase
+    .from(TABLES.USER_HEALTH_CONTEXT)
+    .select("protocol_gated_reason, protocol_gated_at, protocol_gate_acknowledged, pregnancy_status")
+    .eq(COLS.USER_ID, userId)
+    .maybeSingle();
+
+  if (userCtx && isProtocolGated(userCtx as UserHealthContextRow)) {
+    return NextResponse.json({
+      gated:             true,
+      gate_reason:       userCtx.protocol_gated_reason,
+      gate_activated_at: userCtx.protocol_gated_at,
+      recommendations:   [],
+      critical_events:   await getActiveCriticalEvents(userId),
+      disclaimer:        DISCLAIMER,
+    }, { status: 403 });
+  }
+  // ── End gate check ─────────────────────────────────────────────────────────
+
+  // ── Pregnancy safety context ──────────────────────────────────────────────
+  const pregnancyStatus     = (userCtx as { pregnancy_status?: string | null } | null)?.pregnancy_status ?? "not_pregnant";
+  const pregnancyContext    = getPregnancyContextForNarrative(pregnancyStatus);
+  const pregnancyDisclaimer = getMandatoryPregnancyDisclaimer(pregnancyStatus);
+  // ── End pregnancy safety context ─────────────────────────────────────────
 
   // ── 2. Parse optional manual blood override ───────────────────────────────
   let manualBlood: Partial<BloodPanel> = {};
@@ -189,8 +222,14 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     heightCm:          typeof pRow?.height_cm === "number" ? pRow.height_cm : undefined,
     weightKg:          typeof pRow?.weight_kg === "number" ? pRow.weight_kg : undefined,
     activityLevel:     pRow?.activity_level as UserProfile["activityLevel"],
-    conditions:        Array.isArray(pRow?.conditions)
-                         ? (pRow.conditions as string[])
+    conditions:        [
+                         ...(pregnancyContext ? [`PREGNANCY SAFETY CONTEXT: ${pregnancyContext}`] : []),
+                         ...(Array.isArray(pRow?.conditions) ? (pRow.conditions as string[]) : []),
+                       ].length > 0
+                         ? [
+                             ...(pregnancyContext ? [`PREGNANCY SAFETY CONTEXT: ${pregnancyContext}`] : []),
+                             ...(Array.isArray(pRow?.conditions) ? (pRow.conditions as string[]) : []),
+                           ]
                          : undefined,
     currentMedications: typeof pRow?.current_medications === "string"
                           ? pRow.current_medications
@@ -225,6 +264,32 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     );
   }
   const durationMs = Date.now() - t0;
+
+  // ── Pregnancy supplement filter ───────────────────────────────────────────
+  if (pregnancyStatus !== "not_pregnant") {
+    const output = result as unknown as Record<string, unknown>;
+    const schedule = output.supplementSchedule;
+    if (Array.isArray(schedule)) {
+      const filtered = (await Promise.all(
+        (schedule as Array<Record<string, unknown>>).map(async (item) => {
+          const category = String(item.supplement ?? item.name ?? "");
+          const doseMg   = typeof item.dose_mg === "number" ? item.dose_mg : 0;
+          const rules    = await getPregnancyRulesForProduct(category, pregnancyStatus);
+          const gate     = applyPregnancyGate(category, rules, doseMg);
+          if (gate.blocked) return null;
+          if (gate.action === "dose_limit" && gate.dose_limit !== undefined) {
+            return { ...item, dose_mg: gate.dose_limit };
+          }
+          return item;
+        }),
+      )).filter((x): x is Record<string, unknown> => x !== null);
+      output.supplementSchedule = filtered;
+    }
+    if (pregnancyDisclaimer) {
+      output.pregnancy_disclaimer = pregnancyDisclaimer;
+    }
+  }
+  // ── End pregnancy supplement filter ──────────────────────────────────────
 
   // ── 7. Persist result to analysis_reports ─────────────────────────────────
   const previousScore =
@@ -305,7 +370,7 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
 
   // ── 10. Return full result ────────────────────────────────────────────────
-  return NextResponse.json({ ...result, reportId });
+  return NextResponse.json({ ...result, reportId, ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}) });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

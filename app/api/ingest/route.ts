@@ -5,6 +5,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS, BUCKETS } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import type { NormalizedBiomarkers } from "@/lib/types/health";
+import { checkForCriticalValues, gateCriticalProtocol } from "@/lib/critical-values";
 import { requireConsent } from "@/middleware/requireConsent";
 
 export const runtime = "nodejs";
@@ -130,6 +131,32 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
         const { error: bioErr } = await supabase.from(TABLES.BIOMARKERS).insert(rows);
         if (bioErr) warnings.push(`Failed to save ${biomarkers.length} biomarkers: ${bioErr.message}`);
       }
+
+      // ── Critical value check (after biomarkers saved) ──────────────────────
+      if (biomarkers.length > 0) {
+        const parsedResults = biomarkers.map((b) => ({
+          name:  b.name,
+          value: b.value,
+          unit:  b.unit,
+        }));
+        const criticalEvents = await checkForCriticalValues(parsedResults);
+
+        if (criticalEvents.length > 0) {
+          await gateCriticalProtocol(session.user.id, criticalEvents);
+          await supabase
+            .from(TABLES.HEALTH_UPLOADS)
+            .update({ [COLS.PARSED_DATA]: biomarkers, [COLS.WARNINGS]: warnings, [COLS.STATUS]: "done" })
+            .eq(COLS.ID, uploadId);
+          return NextResponse.json({
+            status:                "critical_value_detected",
+            critical_events:       criticalEvents,
+            immediate_action_texts: criticalEvents.map((e) => e.notes),
+            biomarkers_saved:      true,
+            protocol_gated:        true,
+          });
+        }
+      }
+      // ── End critical value check ───────────────────────────────────────────
 
       await supabase
         .from(TABLES.HEALTH_UPLOADS)

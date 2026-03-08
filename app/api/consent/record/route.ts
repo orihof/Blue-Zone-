@@ -5,7 +5,7 @@ import { ConsentService } from "@/lib/consent/ConsentService";
 import type { ConsentMethod } from "@/lib/consent/ConsentService";
 import { NextResponse } from "next/server";
 
-const VALID_METHODS = new Set<ConsentMethod>(["onboarding_modal", "settings_page", "api"]);
+const VALID_METHODS = new Set<ConsentMethod>(["onboarding_modal", "settings_page", "api", "policy_update_acknowledgment"]);
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
