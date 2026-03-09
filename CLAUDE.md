@@ -182,10 +182,12 @@ Every decision you make on Blue Zone should pass this test:
 If yes: ship it.
 If no: redesign it.
 ## CURRENT BUILD CONTEXT
-- Active feature: 
-- Completed: 
-- Known issues: 
-- Do NOT touch: 
+- Stage: Pre-launch (building v1)
+- Active feature: [what you're building right now]
+- Completed: [what's already working]
+- Known issues: [anything broken or uncertain]
+- Do NOT touch: [anything stable you don't want changed]
+- Not built yet: [features that don't exist yet]
 ```
 
 Fill in each line with where your project actually stands right now. For example:
