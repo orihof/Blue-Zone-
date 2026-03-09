@@ -183,16 +183,21 @@ If yes: ship it.
 If no: redesign it.
 ## CURRENT BUILD CONTEXT
 - Stage: Pre-launch (building v1)
-- Active feature: [what you're building right now]
-- Completed: [what's already working]
-- Known issues: [anything broken or uncertain]
-- Do NOT touch: [anything stable you don't want changed]
-- Not built yet: [features that don't exist yet]
-```
 
-Fill in each line with where your project actually stands right now. For example:
-```
-- Active feature: Onboarding flow
-- Completed: Auth setup, Supabase schema v1
-- Known issues: None yet
-- Do NOT touch: NextAuth config
+- Active feature: Consent onboarding flow — resolving "Failed to record consent" error and toggle hydration bug (Suspense boundary fix just applied, migration 024)
+
+- Completed:
+  AUTH & INFRASTRUCTURE: NextAuth v4 JWT (Google OAuth + magic link), Supabase schema (24 migrations) covering users, biomarkers, wearables, protocols, bookmarks, consent, clinical safety, cohort research
+  ONBOARDING: File upload (blood tests, Apple Health, wearables), age dial, goals selection, health profile, event fork (sports vs goal prep), consent screen
+  PROTOCOL ENGINE: Claude AI protocol generation (full biomarker + wearable pipeline), protocol results page (Supplements, Nutrition, Clinics, Home tabs), protocol history + diff comparison
+  SPORTS PREP PACK: Multi-step intake → Claude generation → results page (/app/results/sports/[id])
+  GOAL PREP PACKS: 8 categories (Weight Loss, Anti-Aging, Performance, Cognition, Sleep, Hair, Mood, Sexual Health) → intake → generation → results (/app/results/goal/[id])
+  CLINICAL SAFETY: CriticalValueGate, PregnancySafetyBanner, NutrientConflictPanel, OutcomeArcWidget — all integrated into protocol results page
+  PAGES: Dashboard, Biomarkers, Trends, Wearables (Oura + Whoop OAuth + Terra), Products, Grocery, Analytics, Settings, Privacy center, Uploads history, Biological age, Analysis reports
+  BACKEND: 60+ route handlers (auth, ingest, protocols, wearables, consent, clinical values, outcomes, exports, admin cohort tools, cron jobs, Stripe webhooks)
+
+- Known issues: "Failed to record consent" error on consent onboarding screen (active fix in progress)
+
+- Do NOT touch: NextAuth config, Supabase client setup, all 24 migrations, CriticalValueGate, Stripe webhook handlers, Terra wearable integration
+
+- Not built yet: Social features, athlete archetype public profiles, leaderboards, community layer, push notifications, sound/haptics layer

@@ -35,15 +35,15 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
 // ── Static data ───────────────────────────────────────────────────────────────
 
 const TIER2_BULLETS = [
-  "Zero personally identifiable information",
-  "Revoke anytime — data excluded immediately",
-  "Earn 500 protocol credits for opting in",
+  "Your identity is never attached to research data",
+  "Opt out anytime — your data is removed within 24 hours",
+  "Earn 500 credits toward premium protocol features",
 ] as const;
 
 const TIER3_BULLETS = [
-  "You approve each partner individually",
-  "See exactly what data they access before agreeing",
-  "Get exclusive offers (lab discounts, gear upgrades)",
+  "You choose each partner — no blanket approvals",
+  "Full data transparency before you agree to anything",
+  "Unlock member-only offers: lab discounts, gear upgrades, and more",
 ] as const;
 
 const DATA_TABLE_ROWS = [
@@ -75,10 +75,10 @@ export function ConsentOnboardingModal({ onComplete }: Props) {
           {/* ── Header ───────────────────────────────────────────────────── */}
           <div className="mb-8 text-center">
             <h1 className="mb-2 text-2xl font-semibold leading-snug text-white">
-              Choose how your data helps —<br className="hidden sm:block" /> and what you get back
+              Your data, your terms
             </h1>
             <p className="text-sm text-white/40">
-              You control exactly what&apos;s shared. Change it anytime in Settings.
+              Nothing is shared without your explicit choice. You can change this at any time.
             </p>
           </div>
 
@@ -214,7 +214,7 @@ export function ConsentOnboardingModal({ onComplete }: Props) {
               disabled={isSubmitting}
               className="w-full rounded-xl bg-[#7EB8F7] py-3.5 text-sm font-semibold text-[#06090D] transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {isSubmitting ? "Saving…" : "Continue →"}
+              {isSubmitting ? "Saving…" : "Save my preferences →"}
             </button>
             <p className="mt-3 text-center text-xs text-white/30">
               You can change these anytime in Settings

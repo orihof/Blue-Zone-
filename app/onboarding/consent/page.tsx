@@ -1,22 +1,15 @@
 /// app/onboarding/consent/page.tsx
-"use client";
+import { Suspense } from "react";
+import ConsentInner from "./_inner";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { ConsentOnboardingModal } from "@/components/consent/ConsentOnboardingModal";
-
+// ConsentInner uses useSearchParams() — must be in its own Suspense boundary
+// so Next.js can hydrate the modal independently and attach all event handlers.
 export default function ConsentOnboardingPage() {
-  const searchParams = useSearchParams();
-  const router       = useRouter();
-
-  function handleComplete() {
-    const callbackUrl = searchParams.get("callbackUrl") ?? "";
-    const destination = callbackUrl.startsWith("/app") ? callbackUrl : "/app/dashboard";
-    router.replace(destination);
-  }
-
   return (
     <div className="min-h-screen bg-[#06090D]">
-      <ConsentOnboardingModal onComplete={handleComplete} />
+      <Suspense>
+        <ConsentInner />
+      </Suspense>
     </div>
   );
 }

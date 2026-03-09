@@ -25,19 +25,27 @@ export async function POST(req: Request) {
     req.headers.get("x-real-ip") ??
     undefined;
 
-  const result = await ConsentService.recordConsent(
-    session.user.id,
-    {
-      tier2_research:       typeof tier2_research === "boolean" ? tier2_research : undefined,
-      tier2_research_types: Array.isArray(tier2_research_types)  ? tier2_research_types as string[] : undefined,
-      tier3_commercial:     typeof tier3_commercial === "boolean" ? tier3_commercial : undefined,
-      tier3_partners:       Array.isArray(tier3_partners)         ? tier3_partners  as import("@/lib/consent/ConsentService").PartnerConsent[] : undefined,
-    },
-    method as ConsentMethod,
-    ipAddress,
-  );
+  let result: Awaited<ReturnType<typeof ConsentService.recordConsent>>;
+  try {
+    result = await ConsentService.recordConsent(
+      session.user.id,
+      {
+        tier2_research:       typeof tier2_research === "boolean" ? tier2_research : undefined,
+        tier2_research_types: Array.isArray(tier2_research_types)  ? tier2_research_types as string[] : undefined,
+        tier3_commercial:     typeof tier3_commercial === "boolean" ? tier3_commercial : undefined,
+        tier3_partners:       Array.isArray(tier3_partners)         ? tier3_partners  as import("@/lib/consent/ConsentService").PartnerConsent[] : undefined,
+      },
+      method as ConsentMethod,
+      ipAddress,
+    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[consent/record] Unhandled exception:", message, err);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
 
   if (!result.success) {
+    console.error("[consent/record] recordConsent failed:", result.error);
     return NextResponse.json({ success: false, error: result.error }, { status: 500 });
   }
 
