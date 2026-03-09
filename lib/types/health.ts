@@ -670,7 +670,14 @@ export type CompetitionType =
   | "transporter_competition"
   | "binding_inhibition"
   | "metabolic_depletion"
-  | "receptor_competition";
+  | "receptor_competition"
+  | "synergy_dependency"
+  | "synergy_enhancer"
+  | "antagonism"
+  | "oxidative_interference"
+  | "absorption_inhibition"
+  | "absorption_inhibitor"
+  | "masking_interaction";
 
 export interface NutrientCompetitionRule {
   id:                         string;
@@ -685,6 +692,12 @@ export interface NutrientCompetitionRule {
   clinical_note:              string | null;
   source:                     string | null;
   is_active:                  boolean;
+  // migration 022: MD-audited interaction metadata
+  evidence_level:             string | null;
+  timing_separation_hours:    number | null;
+  is_bidirectional:           boolean | null;
+  interaction_direction:      string | null;
+  clinical_significance:      string | null;
 }
 
 // ── Section D — Adverse Event Reporting ──────────────────────────────────────

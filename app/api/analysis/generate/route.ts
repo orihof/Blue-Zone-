@@ -36,6 +36,20 @@ import {
   getPregnancyContextForNarrative,
   getMandatoryPregnancyDisclaimer,
 } from "@/lib/pregnancy-safety";
+import {
+  getNutrientPairsForProtocol,
+  applyCompetitionRules,
+  generateTimingSchedule,
+  getCompetitionNarrativeContext,
+  type ProtocolProduct,
+  type CompetitionResult,
+  type TimingSlot,
+} from "@/lib/nutrient-competition";
+import {
+  getBaselineContext,
+  getBaselineNarrativeContext,
+  type BaselineContext,
+} from "@/lib/personal-baselines";
 
 export const runtime     = "nodejs";
 export const maxDuration = 120;
@@ -291,6 +305,50 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
   // ── End pregnancy supplement filter ──────────────────────────────────────
 
+  // ── Nutrient competition layer ─────────────────────────────────────────────
+  const compPayload  = result as unknown as Record<string, unknown>;
+  const compSchedule = Array.isArray(compPayload.supplementSchedule)
+    ? (compPayload.supplementSchedule as Array<Record<string, unknown>>)
+    : [];
+  const protocolProducts: ProtocolProduct[] = compSchedule
+    .map((item) => ({
+      supplement: String(item.supplement ?? item.name ?? ""),
+      dose_mg:    typeof item.dose_mg === "number" ? item.dose_mg : undefined,
+    }))
+    .filter((p) => !!p.supplement);
+  const competitionRules   = await getNutrientPairsForProtocol(
+    protocolProducts.map((p) => p.supplement),
+  );
+  const competitionResults = applyCompetitionRules(competitionRules, protocolProducts);
+  const timingSchedule     = generateTimingSchedule(competitionResults, protocolProducts);
+  const criticalConflicts  = competitionResults.filter((r) => r.clinical_significance === "critical");
+  compPayload.competition_narrative = getCompetitionNarrativeContext(competitionResults);
+  compPayload.competition_conflicts = competitionResults;
+  compPayload.timing_schedule       = timingSchedule;
+  const synergyNotes = competitionResults
+    .filter((r) => r.action === "suggest_addition")
+    .map((r) => `Consider recommending ${r.nutrient_b} — user is taking ${r.nutrient_a} which creates a synergy dependency.`);
+  if (synergyNotes.length > 0) {
+    compPayload.synergy_suggestions = synergyNotes;
+  }
+  // ── End nutrient competition layer ────────────────────────────────────────
+
+  // ── Personal baseline context ──────────────────────────────────────────────
+  const markerNames = dbBiomarkers.map((b) => b.name as string);
+  let baselineContexts: BaselineContext[] = [];
+  if (markerNames.length > 0) {
+    try {
+      baselineContexts = await getBaselineContext(userId, markerNames);
+      const baselineNarrative = getBaselineNarrativeContext(baselineContexts);
+      if (baselineNarrative) {
+        compPayload.baseline_narrative = baselineNarrative;
+      }
+    } catch (err) {
+      console.error("[analysis/generate] baseline context error:", err instanceof Error ? err.message : err);
+    }
+  }
+  // ── End personal baseline context ─────────────────────────────────────────
+
   // ── 7. Persist result to analysis_reports ─────────────────────────────────
   const previousScore =
     typeof prevReport?.payload?.overallScore === "number"
@@ -370,7 +428,15 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
 
   // ── 10. Return full result ────────────────────────────────────────────────
-  return NextResponse.json({ ...result, reportId, ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}) });
+  return NextResponse.json({
+    ...result,
+    reportId,
+    competition_conflicts: competitionResults,
+    timing_schedule:       timingSchedule,
+    critical_conflicts:    criticalConflicts,
+    baseline_context:      baselineContexts,
+    ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}),
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

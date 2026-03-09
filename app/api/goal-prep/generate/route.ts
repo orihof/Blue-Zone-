@@ -18,6 +18,16 @@ import {
   getPregnancyContextForNarrative,
   getMandatoryPregnancyDisclaimer,
 } from "@/lib/pregnancy-safety";
+import {
+  getNutrientPairsForProtocol,
+  applyCompetitionRules,
+  generateTimingSchedule,
+  getCompetitionNarrativeContext,
+  type ProtocolProduct,
+  type CompetitionResult,
+  type TimingSlot,
+} from "@/lib/nutrient-competition";
+import { shouldSuppressProduct } from "@/lib/adverse-events";
 
 export const runtime     = "nodejs";
 export const maxDuration = 120;
@@ -93,6 +103,11 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
 
   const goalPrepId = record.id as string;
+
+  let competitionResults:  CompetitionResult[] = [];
+  let timingSchedule:      TimingSlot[]        = [];
+  let criticalConflicts:   CompetitionResult[] = [];
+  let suppressedProducts:  string[]            = [];
 
   // ── 2. Fetch health data + call Claude (awaited — serverless can't fire-and-forget) ──
   try {
@@ -170,6 +185,59 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     }
     // ── End pregnancy supplement filter ──────────────────────────────────────
 
+    // ── Nutrient competition layer ─────────────────────────────────────────────
+    const payloadObj  = payload as Record<string, unknown>;
+    const scheduleArr = Array.isArray(payloadObj.supplementSchedule)
+      ? (payloadObj.supplementSchedule as Array<Record<string, unknown>>)
+      : [];
+    const protocolProducts: ProtocolProduct[] = scheduleArr
+      .map((item) => ({
+        supplement: String(item.supplement ?? item.name ?? ""),
+        dose_mg:    typeof item.dose_mg === "number" ? item.dose_mg : undefined,
+      }))
+      .filter((p) => !!p.supplement);
+    const competitionRules = await getNutrientPairsForProtocol(
+      protocolProducts.map((p) => p.supplement),
+    );
+    competitionResults = applyCompetitionRules(competitionRules, protocolProducts);
+    timingSchedule     = generateTimingSchedule(competitionResults, protocolProducts);
+    criticalConflicts  = competitionResults.filter((r) => r.clinical_significance === "critical");
+    payloadObj.competition_narrative = getCompetitionNarrativeContext(competitionResults);
+    payloadObj.competition_conflicts = competitionResults;
+    payloadObj.timing_schedule       = timingSchedule;
+    const synergyNotes = competitionResults
+      .filter((r) => r.action === "suggest_addition")
+      .map((r) => `Consider recommending ${r.nutrient_b} — user is taking ${r.nutrient_a} which creates a synergy dependency.`);
+    if (synergyNotes.length > 0) {
+      payloadObj.synergy_suggestions = synergyNotes;
+    }
+    // ── End nutrient competition layer ────────────────────────────────────────
+
+    // ── Adverse event suppression ────────────────────────────────────────────
+    const aeSchedule = Array.isArray(payloadObj.supplementSchedule)
+      ? (payloadObj.supplementSchedule as Array<Record<string, unknown>>)
+      : [];
+    if (aeSchedule.length > 0) {
+      const aeFiltered = (await Promise.all(
+        aeSchedule.map(async (item) => {
+          const productId = typeof item.product_id === "string" ? item.product_id : null;
+          if (!productId) return item;
+          const suppressed = await shouldSuppressProduct(productId, userId);
+          if (suppressed) {
+            suppressedProducts.push(String(item.supplement ?? item.name ?? productId));
+            return null;
+          }
+          return item;
+        }),
+      )).filter((x): x is Record<string, unknown> => x !== null);
+      payloadObj.supplementSchedule = aeFiltered;
+    }
+    if (suppressedProducts.length > 0) {
+      payloadObj.adverse_event_note =
+        `The following products have been removed due to reported adverse events: ${suppressedProducts.join(", ")}`;
+    }
+    // ── End adverse event suppression ────────────────────────────────────────
+
     await supabase
       .from(TABLES.GOAL_PROTOCOLS)
       .update({
@@ -190,5 +258,12 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
 
   // ── 3. Return goalPrepId — status is "ready" or "failed" in DB ────────────
-  return NextResponse.json({ goalPrepId, ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}) });
+  return NextResponse.json({
+    goalPrepId,
+    competition_conflicts: competitionResults,
+    timing_schedule:       timingSchedule,
+    critical_conflicts:    criticalConflicts,
+    suppressed_products:   suppressedProducts,
+    ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}),
+  });
 });

@@ -8,6 +8,11 @@ import type { CardAdoptionState } from "@/components/RecommendationCard";
 import type { RecItem, ClinicItem } from "@/lib/db/payload";
 import type { ProtocolPayload } from "@/lib/db/payload";
 import type { Goal, BudgetTier, Preferences } from "@/lib/recommendations/generate";
+import type { CompetitionResult } from "@/lib/nutrient-competition";
+import { CriticalValueGate }     from "@/app/components/CriticalValueGate";
+import { PregnancySafetyBanner } from "@/app/components/PregnancySafetyBanner";
+import { NutrientConflictPanel } from "@/app/components/NutrientConflictPanel";
+import { OutcomeArcWidget }      from "@/app/components/OutcomeArcWidget";
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const T = { text: "#F1F5F9", muted: "#64748B" };
@@ -130,12 +135,14 @@ type TabFilter  = "all" | "pending" | "adopted" | "rejected";
 type PrimaryTab = "daily" | "setup";
 
 interface ResultsPageProps {
-  protocol: Protocol;
-  payload:  ProtocolPayload;
+  protocol:             Protocol;
+  payload:              ProtocolPayload;
+  pregnancyStatus:      string;
+  competitionConflicts: CompetitionResult[];
 }
 
 // ── Inner component (uses useSearchParams — needs Suspense) ────────────────
-function ResultsPageInner({ protocol, payload }: ResultsPageProps) {
+function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConflicts }: ResultsPageProps) {
   const searchParams = useSearchParams();
   const router       = useRouter();
 
@@ -223,6 +230,9 @@ function ResultsPageInner({ protocol, payload }: ResultsPageProps) {
   return (
     <div style={{ paddingBottom: 60 }}>
 
+      {/* Full-screen critical value gate — renders null when no active events */}
+      <CriticalValueGate />
+
       {/* Check-in banner */}
       <CheckInBanner />
 
@@ -250,6 +260,17 @@ function ResultsPageInner({ protocol, payload }: ResultsPageProps) {
           </p>
         )}
       </div>
+
+      {/* Pregnancy safety banner — hidden for not_pregnant */}
+      {pregnancyStatus !== "not_pregnant" && (
+        <div style={{ marginBottom: 20 }}>
+          <PregnancySafetyBanner
+            pregnancyStatus={pregnancyStatus}
+            blockedCount={0}
+            cappedCount={0}
+          />
+        </div>
+      )}
 
       {/* Analysis complete banner */}
       <div className="fu" style={{ background: "linear-gradient(135deg,rgba(16,185,129,.07),rgba(59,130,246,.07))", border: "1px solid rgba(16,185,129,.18)", borderRadius: 14, padding: "18px 22px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
@@ -381,6 +402,9 @@ function ResultsPageInner({ protocol, payload }: ResultsPageProps) {
               )}
             </div>
           )}
+
+          {/* Nutrient interaction panel — below all recommendations in daily tab */}
+          <NutrientConflictPanel conflicts={competitionConflicts} />
         </>
       )}
 
@@ -460,6 +484,11 @@ function ResultsPageInner({ protocol, payload }: ResultsPageProps) {
         </div>
       )}
 
+      {/* Outcome arc widget */}
+      <div style={{ marginBottom: 20 }}>
+        <OutcomeArcWidget />
+      </div>
+
       {/* Stack safety */}
       {payload.stackSafetyNotes?.length > 0 && (
         <div style={{ background: "rgba(245,158,11,.06)", border: "1px solid rgba(245,158,11,.20)", borderRadius: 14, padding: "14px 18px", marginBottom: 20 }}>
@@ -501,3 +530,4 @@ export function ResultsPage(props: ResultsPageProps) {
     </Suspense>
   );
 }
+

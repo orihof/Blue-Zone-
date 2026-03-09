@@ -11,6 +11,8 @@ import Link from "next/link";
 import type { ProtocolPayload } from "@/lib/db/payload";
 import type { Goal, BudgetTier, Preferences } from "@/lib/recommendations/generate";
 import { C } from "@/components/ui/tokens";
+import { getNutrientPairsForProtocol, applyCompetitionRules } from "@/lib/nutrient-competition";
+import type { CompetitionResult } from "@/lib/nutrient-competition";
 
 interface Protocol {
   id: string;
@@ -74,7 +76,33 @@ export default async function ResultsServerPage({ params }: PageProps) {
     );
   }
 
-  // ── Ready: render interactive client component ───────────────────────────
+  // ── Ready: fetch supplementary context in parallel ───────────────────────
+
+  const payload = protocol.payload as ProtocolPayload;
+
+  // 1. Pregnancy status — from user_health_context
+  const { data: healthCtx } = await supabase
+    .from(TABLES.USER_HEALTH_CONTEXT)
+    .select("pregnancy_status")
+    .eq(COLS.USER_ID, session.user.id)
+    .maybeSingle();
+
+  const pregnancyStatus = (healthCtx?.pregnancy_status as string | null) ?? "not_pregnant";
+
+  // 2. Nutrient competition conflicts — derive categories from supplement IDs
+  let competitionConflicts: CompetitionResult[] = [];
+  try {
+    const supplementIds = payload.recommendations.supplements.map((s) => s.id);
+    if (supplementIds.length >= 2) {
+      const rules   = await getNutrientPairsForProtocol(supplementIds);
+      const products = supplementIds.map((id) => ({ supplement: id }));
+      competitionConflicts = applyCompetitionRules(rules, products);
+    }
+  } catch {
+    // Non-fatal — panel will not render if empty
+  }
+
+  // ── Render interactive client component ──────────────────────────────────
   return (
     <ResultsPage
       protocol={{
@@ -86,7 +114,9 @@ export default async function ResultsServerPage({ params }: PageProps) {
         mode:         protocol.mode,
         created_at:   protocol.created_at,
       }}
-      payload={protocol.payload as ProtocolPayload}
+      payload={payload}
+      pregnancyStatus={pregnancyStatus}
+      competitionConflicts={competitionConflicts}
     />
   );
 }

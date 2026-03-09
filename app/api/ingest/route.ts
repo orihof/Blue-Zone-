@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { NormalizedBiomarkers } from "@/lib/types/health";
 import { checkForCriticalValues, gateCriticalProtocol } from "@/lib/critical-values";
 import { requireConsent } from "@/middleware/requireConsent";
+import { upsertBaseline } from "@/lib/personal-baselines";
+import { evaluateMilestones } from "@/lib/outcome-tracker";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -130,6 +132,17 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
 
         const { error: bioErr } = await supabase.from(TABLES.BIOMARKERS).insert(rows);
         if (bioErr) warnings.push(`Failed to save ${biomarkers.length} biomarkers: ${bioErr.message}`);
+
+        // ── Update personal baselines + evaluate milestones (fire-and-forget) ─
+        if (!bioErr) {
+          void Promise.allSettled(
+            biomarkers.map(async (b) => {
+              await upsertBaseline(session.user.id, b.name, b.value, b.unit, b.source);
+              await evaluateMilestones(session.user.id, b.name, b.value);
+            }),
+          );
+        }
+        // ── End personal baselines ───────────────────────────────────────────
       }
 
       // ── Critical value check (after biomarkers saved) ──────────────────────

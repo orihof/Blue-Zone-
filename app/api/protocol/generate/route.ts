@@ -15,6 +15,30 @@ import {
   getPregnancyContextForNarrative,
   getMandatoryPregnancyDisclaimer,
 } from "@/lib/pregnancy-safety";
+import {
+  getNutrientPairsForProtocol,
+  applyCompetitionRules,
+  generateTimingSchedule,
+  getCompetitionNarrativeContext,
+  type ProtocolProduct,
+  type CompetitionResult,
+  type TimingSlot,
+} from "@/lib/nutrient-competition";
+import { shouldSuppressProduct } from "@/lib/adverse-events";
+import {
+  getBaselineContext,
+  getBaselineNarrativeContext,
+  type BaselineContext,
+} from "@/lib/personal-baselines";
+import {
+  getEffectiveTrainingPhase,
+  getPhaseNarrativeContext,
+} from "@/lib/training-phase-detector";
+import {
+  generateOutcomeSummary,
+  getOutcomeNarrativeContext,
+  type OutcomeSummary,
+} from "@/lib/outcome-tracker";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -206,6 +230,122 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
   // ── End pregnancy supplement filter ──────────────────────────────────────
 
+  // ── Nutrient competition layer ─────────────────────────────────────────────
+  const compPayload  = result.output as unknown as Record<string, unknown>;
+  const compSchedule = Array.isArray(compPayload.supplementSchedule)
+    ? (compPayload.supplementSchedule as Array<Record<string, unknown>>)
+    : [];
+  const protocolProducts: ProtocolProduct[] = compSchedule
+    .map((item) => ({
+      supplement: String(item.supplement ?? item.name ?? ""),
+      dose_mg:    typeof item.dose_mg === "number" ? item.dose_mg : undefined,
+    }))
+    .filter((p) => !!p.supplement);
+  const competitionRules   = await getNutrientPairsForProtocol(
+    protocolProducts.map((p) => p.supplement),
+  );
+  const competitionResults = applyCompetitionRules(competitionRules, protocolProducts);
+  const timingSchedule     = generateTimingSchedule(competitionResults, protocolProducts);
+  const criticalConflicts  = competitionResults.filter((r) => r.clinical_significance === "critical");
+  compPayload.competition_narrative = getCompetitionNarrativeContext(competitionResults);
+  compPayload.competition_conflicts = competitionResults;
+  compPayload.timing_schedule       = timingSchedule;
+  const synergyNotes = competitionResults
+    .filter((r) => r.action === "suggest_addition")
+    .map((r) => `Consider recommending ${r.nutrient_b} — user is taking ${r.nutrient_a} which creates a synergy dependency.`);
+  if (synergyNotes.length > 0) {
+    compPayload.synergy_suggestions = synergyNotes;
+  }
+  // ── End nutrient competition layer ────────────────────────────────────────
+
+  // ── Adverse event suppression ──────────────────────────────────────────────
+  const suppressedProducts: string[] = [];
+  const aeSchedule = Array.isArray(compPayload.supplementSchedule)
+    ? (compPayload.supplementSchedule as Array<Record<string, unknown>>)
+    : [];
+  if (aeSchedule.length > 0) {
+    const aeFiltered = (await Promise.all(
+      aeSchedule.map(async (item) => {
+        const productId = typeof item.product_id === "string" ? item.product_id : null;
+        if (!productId) return item;
+        const suppressed = await shouldSuppressProduct(productId, session.user.id);
+        if (suppressed) {
+          suppressedProducts.push(String(item.supplement ?? item.name ?? productId));
+          return null;
+        }
+        return item;
+      }),
+    )).filter((x): x is Record<string, unknown> => x !== null);
+    compPayload.supplementSchedule = aeFiltered;
+  }
+  if (suppressedProducts.length > 0) {
+    compPayload.adverse_event_note =
+      `The following products have been removed due to reported adverse events: ${suppressedProducts.join(", ")}`;
+  }
+  // ── End adverse event suppression ────────────────────────────────────────
+
+  // ── Personal baseline context ──────────────────────────────────────────────
+  const markerNames = biomarkers.map((b) => b.name);
+  let baselineContexts: BaselineContext[] = [];
+  if (markerNames.length > 0) {
+    try {
+      baselineContexts = await getBaselineContext(session.user.id, markerNames);
+      const baselineNarrative = getBaselineNarrativeContext(baselineContexts);
+      if (baselineNarrative) {
+        compPayload.baseline_narrative = baselineNarrative;
+      }
+    } catch (err) {
+      console.error("[protocol/generate] baseline context error:", err instanceof Error ? err.message : err);
+    }
+  }
+  // ── End personal baseline context ─────────────────────────────────────────
+
+  // ── Training phase context ─────────────────────────────────────────────────
+  let effectivePhase  = "base";
+  let phaseConfidence = 0.5;
+  try {
+    const [phase, phaseConfRes] = await Promise.all([
+      getEffectiveTrainingPhase(session.user.id),
+      supabase
+        .from(TABLES.USER_HEALTH_CONTEXT)
+        .select("auto_phase_confidence")
+        .eq(COLS.USER_ID, session.user.id)
+        .maybeSingle(),
+    ]);
+    effectivePhase  = phase;
+    phaseConfidence = (phaseConfRes.data as { auto_phase_confidence: number | null } | null)
+      ?.auto_phase_confidence ?? 0.5;
+    const phaseNarrative = getPhaseNarrativeContext(effectivePhase, phaseConfidence);
+    compPayload.training_phase_context = phaseNarrative;
+  } catch (err) {
+    console.error("[protocol/generate] training phase context error:", err instanceof Error ? err.message : err);
+  }
+  // ── End training phase context ─────────────────────────────────────────────
+
+  // ── Outcome context ────────────────────────────────────────────────────────
+  let outcomeSummary: OutcomeSummary | null = null;
+  try {
+    // Fetch the most recent previous snapshot (before this generation)
+    const { data: prevSnapshot } = await supabase
+      .from(TABLES.PROTOCOL_OUTPUTS)
+      .select(COLS.ID)
+      .eq(COLS.USER_ID, session.user.id)
+      .order(COLS.CREATED_AT, { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (prevSnapshot?.id) {
+      outcomeSummary = await generateOutcomeSummary(session.user.id, prevSnapshot.id as string);
+      const outcomeNarrative = getOutcomeNarrativeContext(outcomeSummary);
+      if (outcomeNarrative) {
+        compPayload.outcome_context = outcomeNarrative;
+      }
+    }
+  } catch (err) {
+    console.error("[protocol/generate] outcome context error:", err instanceof Error ? err.message : err);
+  }
+  // ── End outcome context ────────────────────────────────────────────────────
+
   // ----------------------------------------------------------------
   // Persist to protocol_outputs
   // ----------------------------------------------------------------
@@ -232,5 +372,17 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     return NextResponse.json({ error: "Failed to save protocol" }, { status: 500 });
   }
 
-  return NextResponse.json({ outputId: data.id, output: result.output, ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}) });
+  return NextResponse.json({
+    outputId:              data.id,
+    output:                result.output,
+    competition_conflicts: competitionResults,
+    timing_schedule:       timingSchedule,
+    critical_conflicts:    criticalConflicts,
+    suppressed_products:   suppressedProducts,
+    baseline_context:      baselineContexts,
+    training_phase:        effectivePhase,
+    phase_confidence:      phaseConfidence,
+    outcome_summary:       outcomeSummary,
+    ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}),
+  });
 });

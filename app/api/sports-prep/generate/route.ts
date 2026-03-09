@@ -19,6 +19,19 @@ import {
   getPregnancyContextForNarrative,
   getMandatoryPregnancyDisclaimer,
 } from "@/lib/pregnancy-safety";
+import {
+  getNutrientPairsForProtocol,
+  applyCompetitionRules,
+  generateTimingSchedule,
+  getCompetitionNarrativeContext,
+  type ProtocolProduct,
+  type CompetitionResult,
+  type TimingSlot,
+} from "@/lib/nutrient-competition";
+import {
+  getEffectiveTrainingPhase,
+  getPhaseNarrativeContext,
+} from "@/lib/training-phase-detector";
 
 export const runtime     = "nodejs";
 export const maxDuration = 120; // allow up to 2 min for Claude generation
@@ -101,6 +114,12 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
 
   const sportsPrepId = record.id as string;
+
+  let competitionResults: CompetitionResult[] = [];
+  let timingSchedule:     TimingSlot[]        = [];
+  let criticalConflicts:  CompetitionResult[] = [];
+  let effectivePhase  = "base";
+  let phaseConfidence = 0.5;
 
   // ── 2. Fetch health data + call Claude (awaited — serverless can't run fire-and-forget) ──
   try {
@@ -214,6 +233,54 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     }
     // ── End pregnancy supplement filter ──────────────────────────────────────
 
+    // ── Nutrient competition layer ─────────────────────────────────────────────
+    const payloadObj  = payload as Record<string, unknown>;
+    const scheduleArr = Array.isArray(payloadObj.supplementSchedule)
+      ? (payloadObj.supplementSchedule as Array<Record<string, unknown>>)
+      : [];
+    const protocolProducts: ProtocolProduct[] = scheduleArr
+      .map((item) => ({
+        supplement: String(item.supplement ?? item.name ?? ""),
+        dose_mg:    typeof item.dose_mg === "number" ? item.dose_mg : undefined,
+      }))
+      .filter((p) => !!p.supplement);
+    const competitionRules = await getNutrientPairsForProtocol(
+      protocolProducts.map((p) => p.supplement),
+    );
+    competitionResults = applyCompetitionRules(competitionRules, protocolProducts);
+    timingSchedule     = generateTimingSchedule(competitionResults, protocolProducts);
+    criticalConflicts  = competitionResults.filter((r) => r.clinical_significance === "critical");
+    payloadObj.competition_narrative = getCompetitionNarrativeContext(competitionResults);
+    payloadObj.competition_conflicts = competitionResults;
+    payloadObj.timing_schedule       = timingSchedule;
+    const synergyNotes = competitionResults
+      .filter((r) => r.action === "suggest_addition")
+      .map((r) => `Consider recommending ${r.nutrient_b} — user is taking ${r.nutrient_a} which creates a synergy dependency.`);
+    if (synergyNotes.length > 0) {
+      payloadObj.synergy_suggestions = synergyNotes;
+    }
+    // ── End nutrient competition layer ────────────────────────────────────────
+
+    // ── Training phase context ─────────────────────────────────────────────────
+    const [phase, phaseConfRes] = await Promise.all([
+      getEffectiveTrainingPhase(userId),
+      supabase
+        .from(TABLES.USER_HEALTH_CONTEXT)
+        .select("auto_phase_confidence")
+        .eq(COLS.USER_ID, userId)
+        .maybeSingle(),
+    ]);
+    effectivePhase  = phase;
+    phaseConfidence = (phaseConfRes.data as { auto_phase_confidence: number | null } | null)
+      ?.auto_phase_confidence ?? 0.5;
+    const phaseNarrative = getPhaseNarrativeContext(effectivePhase, phaseConfidence);
+    payloadObj.training_phase_context = phaseNarrative;
+    if (effectivePhase === "peak") {
+      payloadObj.peak_phase_note =
+        "User is in peak phase — do not introduce new supplements. Optimize timing and dosing of existing protocol only.";
+    }
+    // ── End training phase context ─────────────────────────────────────────────
+
     await supabase
       .from(TABLES.SPORTS_PROTOCOLS)
       .update({
@@ -234,5 +301,13 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   }
 
   // ── 3. Return sportsPrepId — status is now "ready" or "failed" in DB ──────────
-  return NextResponse.json({ sportsPrepId, ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}) });
+  return NextResponse.json({
+    sportsPrepId,
+    competition_conflicts: competitionResults,
+    timing_schedule:       timingSchedule,
+    critical_conflicts:    criticalConflicts,
+    training_phase:        effectivePhase,
+    phase_confidence:      phaseConfidence,
+    ...(pregnancyDisclaimer ? { pregnancy_disclaimer: pregnancyDisclaimer } : {}),
+  });
 });
