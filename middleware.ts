@@ -19,12 +19,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(signIn);
   }
 
-  // Consent check — only for authenticated users on /app/* routes (not /app/consent or /onboarding)
+  // Consent check — only for authenticated users on /app/* routes
+  // Exclude: /app/consent (consent page itself), /onboarding/*, /app/onboarding/* (onboarding flow)
   const needsConsentCheck =
     !!token &&
     token.sub !== undefined &&
     pathname.startsWith("/app") &&
     !pathname.startsWith("/app/consent") &&
+    !pathname.startsWith("/app/onboarding") &&
     !pathname.startsWith("/onboarding");
 
   if (needsConsentCheck) {

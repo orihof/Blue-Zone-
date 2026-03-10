@@ -1,6 +1,5 @@
 /// lib/consent/ConsentService.ts
 // Server-only — never import from client components
-import { createHash } from "crypto";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { sendConsentConfirmationEmail } from "./sendConsentConfirmationEmail";
 
@@ -48,10 +47,6 @@ type ConsentUpdates = Partial<Pick<
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-function hashIp(ip: string): string {
-  const salt = process.env.IP_HASH_SALT ?? "";
-  return createHash("sha256").update(salt + ip).digest("hex");
-}
 
 // ── ConsentService ────────────────────────────────────────────────────────────
 
@@ -121,7 +116,7 @@ export class ConsentService {
       policy_version:       process.env.POLICY_VERSION   ?? "1.0",
       terms_version:        process.env.TERMS_VERSION    ?? "1.0",
       consent_method:       method,
-      ip_address:           ipAddress ? hashIp(ipAddress) : null,
+      ip_address:           ipAddress ?? null,
       user_agent:           null as string | null,
       is_current:           true,
     };

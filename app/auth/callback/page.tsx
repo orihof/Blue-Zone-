@@ -17,10 +17,10 @@ export default function AuthCallbackPage() {
           if (goals && goals.length > 0) {
             router.replace("/app/results");   // redirects to latest protocol
           } else {
-            router.replace("/app/biomarkers"); // first-time setup flow
+            router.replace("/app/goals"); // first-time setup flow — goal selection
           }
         })
-        .catch(() => router.replace("/app/biomarkers"));
+        .catch(() => router.replace("/app/goals"));
     } else if (status === "unauthenticated") {
       router.replace("/auth/signin");
     }

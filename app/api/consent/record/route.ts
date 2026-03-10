@@ -2,7 +2,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { ConsentService } from "@/lib/consent/ConsentService";
-import type { ConsentMethod } from "@/lib/consent/ConsentService";
+import type { ConsentMethod, PartnerConsent } from "@/lib/consent/ConsentService";
 import { NextResponse } from "next/server";
 
 const VALID_METHODS = new Set<ConsentMethod>(["onboarding_modal", "settings_page", "api", "policy_update_acknowledgment"]);
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         tier2_research:       typeof tier2_research === "boolean" ? tier2_research : undefined,
         tier2_research_types: Array.isArray(tier2_research_types)  ? tier2_research_types as string[] : undefined,
         tier3_commercial:     typeof tier3_commercial === "boolean" ? tier3_commercial : undefined,
-        tier3_partners:       Array.isArray(tier3_partners)         ? tier3_partners  as import("@/lib/consent/ConsentService").PartnerConsent[] : undefined,
+        tier3_partners:       Array.isArray(tier3_partners)         ? tier3_partners  as PartnerConsent[] : undefined,
       },
       method as ConsentMethod,
       ipAddress,

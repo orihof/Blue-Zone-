@@ -1,13 +1,13 @@
 /// app/onboarding/consent/page.tsx
+// Server component page — ConsentInner is the "use client" boundary.
+// Suspense is required here because ConsentInner calls useSearchParams().
 import { Suspense } from "react";
 import ConsentInner from "./_inner";
 
-// ConsentInner uses useSearchParams() — must be in its own Suspense boundary
-// so Next.js can hydrate the modal independently and attach all event handlers.
 export default function ConsentOnboardingPage() {
   return (
     <div className="min-h-screen bg-[#06090D]">
-      <Suspense>
+      <Suspense fallback={<div className="fixed inset-0 bg-[#06090D]" />}>
         <ConsentInner />
       </Suspense>
     </div>

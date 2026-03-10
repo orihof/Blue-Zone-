@@ -17,6 +17,8 @@ const nextConfig = {
       "nodemailer",
       "@supabase/supabase-js",
       "@supabase/ssr",
+      "@anthropic-ai/sdk",
+      "resend",
     ],
   },
   webpack: (config, { isServer }) => {

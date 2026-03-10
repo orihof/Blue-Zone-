@@ -266,7 +266,7 @@ function Sidebar({ user, adherencePercent }: AppNavProps) {
           <Share2 size={13} /> Share Blue Zone
         </button>
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => signOut({ callbackUrl: "/auth/signin" })}
           style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "transparent", border: "none", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#F87171")}
           onMouseLeave={(e) => (e.currentTarget.style.color = T.muted)}
@@ -372,7 +372,7 @@ function MobileNav({ user }: AppNavProps) {
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 4 }}>
                   <Share2 size={14} color={T.muted} /> Share Blue Zone
                 </button>
-                <button onClick={() => signOut({ callbackUrl: "/" })}
+                <button onClick={() => signOut({ callbackUrl: "/auth/signin" })}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: "#F87171", background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <LogOut size={14} /> Sign out
                 </button>

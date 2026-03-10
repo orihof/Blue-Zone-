@@ -24,7 +24,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const pathname = headers().get("x-pathname") ?? "";
 
-  const isExcluded = SETUP_EXCLUDED.some((p) => pathname.startsWith(p));
+  // If middleware didn't set x-pathname (e.g. during layout boundary crossing), treat as excluded.
+  // An empty pathname should never trigger a redirect — that would cause false onboarding loops.
+  const isExcluded = !pathname || SETUP_EXCLUDED.some((p) => pathname.startsWith(p));
 
   if (!isExcluded) {
     const db = getAdminClient();
