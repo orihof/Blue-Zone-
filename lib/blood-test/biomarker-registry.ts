@@ -26,7 +26,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Fasting Glucose",
     category:     "metabolic",
     tier:         "essential",
-    whyItMatters: "Core indicator of metabolic health and insulin response. Elevated levels affect energy, recovery, and inflammation.",
+    whyItMatters: "Cannot calibrate your metabolic age score or insulin response baseline without this marker.",
     aliases:      ["glucose", "blood glucose", "fasting blood sugar", "fbg"],
   },
   {
@@ -34,7 +34,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Fasting Insulin",
     category:     "metabolic",
     tier:         "essential",
-    whyItMatters: "Reveals insulin resistance years before glucose becomes abnormal. Critical for metabolic protocol calibration.",
+    whyItMatters: "Without this, insulin resistance stays invisible — your protocol treats symptoms, not the root metabolic issue.",
     aliases:      ["insulin", "serum insulin", "fasting insulin level"],
   },
   {
@@ -42,7 +42,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "HbA1c",
     category:     "metabolic",
     tier:         "essential",
-    whyItMatters: "3-month average blood sugar. Indicates how well your body has managed glucose over time.",
+    whyItMatters: "Without 90-day glucose history, your protocol cannot distinguish chronic metabolic dysfunction from a one-time blood sugar spike.",
     aliases:      ["hemoglobin a1c", "glycated hemoglobin", "a1c", "hgba1c"],
   },
   {
@@ -50,7 +50,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Triglycerides",
     category:     "metabolic",
     tier:         "essential",
-    whyItMatters: "Elevated triglycerides indicate poor carbohydrate metabolism and increase cardiovascular risk.",
+    whyItMatters: "Cannot accurately assess cardiovascular risk or calibrate omega-3 dosing without a triglyceride baseline.",
     aliases:      ["trig", "trigs", "triglyceride"],
   },
 
@@ -60,7 +60,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "LDL Cholesterol",
     category:     "cardiovascular",
     tier:         "essential",
-    whyItMatters: "Standard cardiovascular risk marker. Used to calibrate CoQ10 and omega-3 recommendations.",
+    whyItMatters: "Cannot calibrate your CoQ10, omega-3, or cardiovascular supplement doses without an LDL baseline.",
     aliases:      ["ldl-c", "ldl cholesterol", "low density lipoprotein", "ldl"],
   },
   {
@@ -68,7 +68,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "HDL Cholesterol",
     category:     "cardiovascular",
     tier:         "essential",
-    whyItMatters: "Protective cholesterol. Low HDL combined with high triglycerides signals metabolic syndrome.",
+    whyItMatters: "Without this, your protocol cannot detect the metabolic syndrome pattern that drives cardiovascular and longevity risk.",
     aliases:      ["hdl-c", "hdl cholesterol", "high density lipoprotein", "hdl"],
   },
   {
@@ -76,7 +76,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "ApoB",
     category:     "cardiovascular",
     tier:         "recommended",
-    whyItMatters: "More accurate than LDL-C alone for predicting cardiovascular risk. Counts every atherogenic particle.",
+    whyItMatters: "Without ApoB, LDL alone misses the atherogenic particle count — your cardiovascular risk assessment is incomplete.",
     aliases:      ["apolipoprotein b", "apo b", "apob-100"],
   },
   {
@@ -84,7 +84,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Homocysteine",
     category:     "cardiovascular",
     tier:         "recommended",
-    whyItMatters: "Elevated homocysteine is an independent cardiovascular risk factor and signals B-vitamin deficiency.",
+    whyItMatters: "Cannot identify B-vitamin deficiency or cardiovascular risk without this independent inflammation marker.",
     aliases:      ["total homocysteine", "plasma homocysteine"],
   },
 
@@ -94,7 +94,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "hs-CRP",
     category:     "inflammation",
     tier:         "essential",
-    whyItMatters: "High-sensitivity inflammation marker. Elevated hs-CRP drives supplement choices for anti-inflammatory protocol.",
+    whyItMatters: "Without hs-CRP, your protocol cannot identify or target the inflammation driving your recovery and longevity risk.",
     aliases:      ["high sensitivity crp", "hscrp", "c-reactive protein", "crp", "hs-crp"],
   },
 
@@ -104,7 +104,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Total Testosterone",
     category:     "hormonal",
     tier:         "essential",
-    whyItMatters: "Foundational hormone for muscle preservation, recovery, libido, and mood in athletes.",
+    whyItMatters: "Without this, recovery load recommendations are generic — your protocol cannot adapt to your hormonal baseline.",
     aliases:      ["testosterone total", "testosterone", "serum testosterone"],
   },
   {
@@ -112,7 +112,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Free Testosterone",
     category:     "hormonal",
     tier:         "recommended",
-    whyItMatters: "Only free testosterone is biologically active. Total T can be normal while free T is low.",
+    whyItMatters: "Total testosterone alone misses bioavailability. Without free T, hormonal recommendations are calibrated to the wrong number.",
     aliases:      ["free t", "free testosterone level", "bioavailable testosterone"],
   },
   {
@@ -120,7 +120,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "SHBG",
     category:     "hormonal",
     tier:         "recommended",
-    whyItMatters: "Sex hormone binding globulin determines how much testosterone is available to tissues.",
+    whyItMatters: "Without SHBG, the protocol cannot determine how much testosterone is biologically active vs. bound and unavailable.",
     aliases:      ["sex hormone binding globulin", "sex hormone-binding globulin", "shbg"],
   },
   {
@@ -128,7 +128,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Cortisol (AM)",
     category:     "hormonal",
     tier:         "recommended",
-    whyItMatters: "Morning cortisol reveals HPA axis function. Critical for athletes in heavy training blocks.",
+    whyItMatters: "Without morning cortisol, your HRV data has no hormonal context — training load decisions cannot account for HPA axis state.",
     aliases:      ["cortisol", "serum cortisol", "morning cortisol", "cortisol am"],
   },
   {
@@ -136,7 +136,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "DHEA-S",
     category:     "hormonal",
     tier:         "advanced",
-    whyItMatters: "Adrenal reserve marker. Declines with age and chronic stress. Relevant for longevity protocols.",
+    whyItMatters: "Cannot assess adrenal reserve or age-related hormonal decline trajectory without this marker.",
     aliases:      ["dhea sulfate", "dehydroepiandrosterone sulfate", "dheas", "dhea-s"],
   },
 
@@ -146,7 +146,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Vitamin D (25-OH)",
     category:     "micronutrients",
     tier:         "essential",
-    whyItMatters: "Deficiency affects bone density, immune function, testosterone production, and mood.",
+    whyItMatters: "Without this, your immune, mood, and testosterone protocols are dosed in the dark — deficiency is common and impacts all three.",
     aliases:      ["25-oh vitamin d", "25 hydroxyvitamin d", "vitamin d3", "25(oh)d", "vitamin d"],
   },
   {
@@ -154,7 +154,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Vitamin B12",
     category:     "micronutrients",
     tier:         "essential",
-    whyItMatters: "Essential for nerve function, red blood cell production, and energy metabolism.",
+    whyItMatters: "Without B12, nerve function and energy system markers cannot be optimised — deficiency mimics overtraining syndrome.",
     aliases:      ["b12", "cobalamin", "vitamin b-12", "cyanocobalamin", "vitamin b12"],
   },
   {
@@ -162,7 +162,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Ferritin",
     category:     "micronutrients",
     tier:         "essential",
-    whyItMatters: "Iron storage marker. Low ferritin causes fatigue, poor VO2max, and impaired recovery even when hemoglobin is normal.",
+    whyItMatters: "Cannot detect iron deficiency that tanks VO2max and recovery even when hemoglobin appears normal — ferritin is the earlier signal.",
     aliases:      ["serum ferritin", "ferritin level", "ferritin"],
   },
   {
@@ -170,7 +170,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Magnesium (RBC)",
     category:     "micronutrients",
     tier:         "recommended",
-    whyItMatters: "RBC magnesium is more accurate than serum. Deficiency impairs sleep, muscle recovery, and glucose metabolism.",
+    whyItMatters: "Without RBC magnesium, sleep and muscle recovery supplement dosing are based on assumptions, not your actual intracellular status.",
     aliases:      ["rbc magnesium", "red blood cell magnesium", "intracellular magnesium", "magnesium"],
   },
   {
@@ -178,7 +178,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Zinc",
     category:     "micronutrients",
     tier:         "recommended",
-    whyItMatters: "Depleted by exercise and sweat. Affects testosterone synthesis, immune function, and tissue repair.",
+    whyItMatters: "Without this, testosterone synthesis and tissue repair protocols are calibrated without the most exercise-depleted mineral.",
     aliases:      ["serum zinc", "plasma zinc", "zinc level", "zinc"],
   },
   {
@@ -186,7 +186,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Folate",
     category:     "micronutrients",
     tier:         "recommended",
-    whyItMatters: "B9 is essential for DNA synthesis and pairs with B12 for methylation support.",
+    whyItMatters: "Cannot optimise methylation support or pair B12 supplementation correctly without a folate baseline.",
     aliases:      ["folic acid", "serum folate", "b9", "folate"],
   },
 
@@ -196,7 +196,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "TSH",
     category:     "thyroid",
     tier:         "essential",
-    whyItMatters: "Thyroid function affects metabolism, energy, body composition, and recovery capacity.",
+    whyItMatters: "Without thyroid function data, your metabolism, energy, and body composition targets are set against an unknown baseline — the protocol cannot adapt.",
     aliases:      ["thyroid stimulating hormone", "thyrotropin", "tsh"],
   },
   {
@@ -204,7 +204,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Free T3",
     category:     "thyroid",
     tier:         "recommended",
-    whyItMatters: "Active thyroid hormone. TSH alone can miss subclinical thyroid dysfunction.",
+    whyItMatters: "TSH alone misses active thyroid hormone availability. Without Free T3, subclinical dysfunction stays invisible.",
     aliases:      ["ft3", "triiodothyronine free", "free triiodothyronine", "free t3"],
   },
 
@@ -214,7 +214,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "ALT",
     category:     "kidney_liver",
     tier:         "essential",
-    whyItMatters: "Liver enzyme. Elevated ALT can signal overtraining stress, NAFLD, or supplement toxicity.",
+    whyItMatters: "Cannot determine safe supplement dosing thresholds without knowing whether your liver is under stress from training or current supplementation.",
     aliases:      ["alanine aminotransferase", "sgpt", "alanine transaminase", "alt"],
   },
   {
@@ -222,7 +222,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "Creatinine",
     category:     "kidney_liver",
     tier:         "essential",
-    whyItMatters: "Kidney function marker. Important for athletes on creatine supplementation.",
+    whyItMatters: "Without kidney function data, creatine and protein protocol dosing cannot be confirmed safe for your organs.",
     aliases:      ["serum creatinine", "creatinine level", "creatinine"],
   },
   {
@@ -230,7 +230,7 @@ export const BIOMARKER_REGISTRY: BiomarkerDefinition[] = [
     name:         "eGFR",
     category:     "kidney_liver",
     tier:         "recommended",
-    whyItMatters: "Estimated glomerular filtration rate — overall kidney health score.",
+    whyItMatters: "Without overall kidney health status, the protocol cannot ensure supplement loads are safely filtered.",
     aliases:      ["estimated gfr", "glomerular filtration rate", "egfr"],
   },
 ];

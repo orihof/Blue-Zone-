@@ -42,7 +42,7 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     .select("*")
     .eq("id", snapshot_id)
     .eq("user_id", session.user.id)
-    .single();
+    .maybeSingle();
 
   if (snapshotError || !snapshot) {
     return NextResponse.json<ApiResponse<never>>(

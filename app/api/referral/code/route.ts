@@ -25,7 +25,7 @@ export async function GET() {
     .from(TABLES.REFERRAL_LINKS)
     .select("code, clicks, conversions")
     .eq(COLS.USER_ID, userId)
-    .single();
+    .maybeSingle();
 
   if (existing) return NextResponse.json(existing);
 

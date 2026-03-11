@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { ConsentService } from "@/lib/consent/ConsentService";
 import type { ConsentMethod, PartnerConsent } from "@/lib/consent/ConsentService";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 
 const VALID_METHODS = new Set<ConsentMethod>(["onboarding_modal", "settings_page", "api", "policy_update_acknowledgment"]);
@@ -11,6 +12,11 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rl = checkRateLimit(`consent:${session.user.id}`, 5, 60 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>;

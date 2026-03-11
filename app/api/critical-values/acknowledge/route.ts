@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     .from(TABLES.USER_HEALTH_CONTEXT)
     .select("protocol_gated_reason, protocol_gate_acknowledged")
     .eq(COLS.USER_ID, session.user.id)
-    .single();
+    .maybeSingle();
 
   const allAcknowledged = context?.protocol_gate_acknowledged === true;
   const protocolResuming = allAcknowledged && context?.protocol_gated_reason !== null;

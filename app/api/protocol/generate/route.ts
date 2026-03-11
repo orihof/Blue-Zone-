@@ -24,7 +24,7 @@ import {
   type CompetitionResult,
   type TimingSlot,
 } from "@/lib/nutrient-competition";
-import { shouldSuppressProduct } from "@/lib/adverse-events";
+import { getSuppressedProductIds } from "@/lib/adverse-events";
 import {
   getBaselineContext,
   getBaselineNarrativeContext,
@@ -264,18 +264,20 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     ? (compPayload.supplementSchedule as Array<Record<string, unknown>>)
     : [];
   if (aeSchedule.length > 0) {
-    const aeFiltered = (await Promise.all(
-      aeSchedule.map(async (item) => {
-        const productId = typeof item.product_id === "string" ? item.product_id : null;
-        if (!productId) return item;
-        const suppressed = await shouldSuppressProduct(productId, session.user.id);
-        if (suppressed) {
-          suppressedProducts.push(String(item.supplement ?? item.name ?? productId));
-          return null;
-        }
-        return item;
-      }),
-    )).filter((x): x is Record<string, unknown> => x !== null);
+    // Collect all product IDs, fetch suppression status in one query
+    const allProductIds = aeSchedule
+      .map((item) => (typeof item.product_id === "string" ? item.product_id : null))
+      .filter((id): id is string => id !== null);
+    const suppressedIds = await getSuppressedProductIds(session.user.id, allProductIds);
+
+    const aeFiltered = aeSchedule.filter((item) => {
+      const productId = typeof item.product_id === "string" ? item.product_id : null;
+      if (productId && suppressedIds.has(productId)) {
+        suppressedProducts.push(String(item.supplement ?? item.name ?? productId));
+        return false;
+      }
+      return true;
+    });
     compPayload.supplementSchedule = aeFiltered;
   }
   if (suppressedProducts.length > 0) {

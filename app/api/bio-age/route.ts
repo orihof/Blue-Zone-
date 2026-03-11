@@ -22,9 +22,9 @@ export async function GET() {
       ${COLS.BIO_AGE_DRIVERS}
     `)
     .eq(COLS.ID, session.user.id)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code !== "PGRST116") {
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

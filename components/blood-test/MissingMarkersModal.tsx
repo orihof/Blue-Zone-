@@ -2,20 +2,32 @@
 "use client";
 
 import { useState } from "react";
-import { X, ChevronDown, ChevronUp, Download, ArrowRight } from "lucide-react";
+import { X, ChevronDown, ChevronUp, Download } from "lucide-react";
 import type { DetectionResult } from "@/lib/blood-test/detect-missing-markers";
 import { CATEGORY_META, type BiomarkerCategory } from "@/lib/blood-test/biomarker-registry";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
-const BG_CARD   = "#111118";
-const BG_INNER  = "rgba(255,255,255,0.04)";
-const BORDER    = "rgba(255,255,255,0.08)";
-const BORDER_HI = "rgba(255,255,255,0.12)";
-const TEXT      = "#F1F5F9";
-const MUTED     = "#64748B";
-const GRAD      = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
-const FONT_UI   = "var(--font-ui,'Inter',sans-serif)";
+const BG_CARD   = "#07070E";
+const BG_INNER  = "#0E0E1A";
+const BORDER    = "rgba(255,255,255,0.05)";
+const BORDER_HI = "rgba(255,255,255,0.1)";
+const TEXT      = "#FFFFFF";
+const MUTED     = "#475569";
+const TEXT_MUTED = "#334155";
+const GRAD      = "linear-gradient(135deg,#3B82F6 0%,#8B5CF6 100%)";
+const FONT_UI   = "var(--font-ui,'Syne',sans-serif)";
 const FONT_MONO = "var(--font-mono,'JetBrains Mono',monospace)";
+
+// Hex accent per category — used for the animated pulsing dot
+const CATEGORY_HEX: Record<BiomarkerCategory, string> = {
+  metabolic:      "#14B8A6",
+  cardiovascular: "#EF4444",
+  hormonal:       "#8B5CF6",
+  micronutrients: "#F59E0B",
+  inflammation:   "#F97316",
+  thyroid:        "#3B82F6",
+  kidney_liver:   "#10B981",
+};
 
 export interface MissingMarkersModalProps {
   isOpen:          boolean;
@@ -30,7 +42,6 @@ export function MissingMarkersModal({
   onContinue,
   detectionResult,
 }: MissingMarkersModalProps) {
-  // Categories with essential markers open by default
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     () => new Set(
       Object.entries(detectionResult.missingByCategory)
@@ -63,9 +74,11 @@ export function MissingMarkersModal({
 
   if (!isOpen) return null;
 
-  const { completenessScore, missingEssential, missingByCategory } = detectionResult;
+  const { completenessScore, missingEssential, missingRecommended, missingByCategory } = detectionResult;
+  const uploadedCount     = detectionResult.detectedMarkers.length;
+  const totalMissingCount = missingEssential.length + missingRecommended.length;
 
-  // Sort categories: those with essential markers first
+  // Sort categories: essential-bearing categories first
   const categoryEntries = (Object.entries(missingByCategory) as [BiomarkerCategory, typeof missingEssential][])
     .filter(([, markers]) => markers?.length)
     .sort(([, a], [, b]) => {
@@ -74,8 +87,8 @@ export function MissingMarkersModal({
       return bE - aE;
     });
 
-  // SVG ring progress
-  const RADIUS = 18;
+  // SVG ring — amber→red gradient
+  const RADIUS = 22;
   const CIRCUM = 2 * Math.PI * RADIUS;
   const dash   = CIRCUM * (1 - completenessScore / 100);
 
@@ -94,287 +107,302 @@ export function MissingMarkersModal({
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
+      <style>{`
+        @keyframes missingPulse {
+          0%,100% { transform: scale(1); opacity: 0.3; }
+          50%      { transform: scale(1.8); opacity: 0; }
+        }
+      `}</style>
+
       {/* ── PANEL ── */}
       <div
         style={{
-          width:          "100%",
-          maxWidth:       520,
-          background:     BG_CARD,
-          border:         `1px solid ${BORDER}`,
-          borderRadius:   "24px 24px 0 0",
-          boxShadow:      "0 -8px 48px rgba(0,0,0,0.6)",
-          maxHeight:      "90vh",
-          display:        "flex",
-          flexDirection:  "column",
-          overflow:       "hidden",
-          fontFamily:     FONT_UI,
+          width:         "100%",
+          maxWidth:      520,
+          background:    BG_CARD,
+          border:        `1px solid ${BORDER_HI}`,
+          borderRadius:  "24px 24px 0 0",
+          boxShadow:     "0 -8px 48px rgba(0,0,0,0.6)",
+          maxHeight:     "90vh",
+          display:       "flex",
+          flexDirection: "column",
+          overflow:      "hidden",
+          fontFamily:    FONT_UI,
         }}
       >
         {/* ── HEADER ── */}
         <div
           style={{
-            display:        "flex",
-            alignItems:     "flex-start",
-            justifyContent: "space-between",
-            padding:        "24px 24px 18px",
+            background:     BG_INNER,
             borderBottom:   `1px solid ${BORDER}`,
+            padding:        "24px 24px 20px",
             flexShrink:     0,
           }}
         >
-          {/* Completeness ring + title */}
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-            {/* SVG ring */}
-            <div style={{ position: "relative", width: 48, height: 48, flexShrink: 0, marginTop: 2 }}>
-              <svg width="48" height="48" style={{ transform: "rotate(-90deg)" }}>
-                <circle cx="24" cy="24" r={RADIUS} stroke="rgba(255,255,255,0.08)" strokeWidth="3.5" fill="none" />
-                <circle
-                  cx="24" cy="24" r={RADIUS}
-                  stroke="#7C3AED" strokeWidth="3.5" fill="none"
-                  strokeLinecap="round"
-                  strokeDasharray={CIRCUM}
-                  strokeDashoffset={dash}
-                  style={{ transition: "stroke-dashoffset 1s ease" }}
-                />
-              </svg>
-              <div style={{
-                position:   "absolute", inset: 0,
-                display:    "flex", alignItems: "center", justifyContent: "center",
+          {/* Title row — close on left, ring on right */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+            <div>
+              <p style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: "0.18em",
+                color: "#EF4444", textTransform: "uppercase", marginBottom: 6,
+                fontFamily: FONT_UI,
               }}>
-                <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: TEXT, fontWeight: 500 }}>
-                  {completenessScore}%
+                ⚠ Incomplete Blood Panel
+              </p>
+              <h2 style={{ color: TEXT, fontSize: 20, fontWeight: 800, margin: 0, lineHeight: 1.2, fontFamily: FONT_UI }}>
+                {totalMissingCount} biomarkers missing<br />
+                <span style={{ fontSize: 13, fontWeight: 400, color: MUTED }}>
+                  from your protocol
                 </span>
-              </div>
+              </h2>
             </div>
 
-            <div>
-              <h2 style={{ color: TEXT, fontSize: 15, fontWeight: 500, margin: 0, lineHeight: 1.3 }}>
-                Improve Your Personalized Protocol
-              </h2>
-              <p style={{ color: MUTED, fontSize: 12, margin: "4px 0 0" }}>
-                {missingEssential.length} key marker{missingEssential.length !== 1 ? "s" : ""} missing
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              {/* Close button */}
+              <button
+                onClick={onClose}
+                style={{
+                  width: 28, height: 28, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.04)", border: `1px solid ${BORDER}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", color: MUTED, marginBottom: 8,
+                }}
+              >
+                <X size={12} />
+              </button>
+
+              {/* Completeness ring */}
+              <div style={{ position: "relative", width: 56, height: 56 }}>
+                <svg width="56" height="56" viewBox="0 0 56 56" style={{ transform: "rotate(-90deg)" }}>
+                  <defs>
+                    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%"   stopColor="#F59E0B" />
+                      <stop offset="100%" stopColor="#EF4444" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="28" cy="28" r={RADIUS} stroke="rgba(255,255,255,0.06)" strokeWidth="4" fill="none" />
+                  <circle
+                    cx="28" cy="28" r={RADIUS}
+                    stroke="url(#ringGrad)" strokeWidth="4" fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={CIRCUM}
+                    strokeDashoffset={dash}
+                    style={{ transition: "stroke-dashoffset 1s ease" }}
+                  />
+                </svg>
+                <div style={{
+                  position: "absolute", inset: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: TEXT, fontWeight: 600 }}>
+                    {completenessScore}%
+                  </span>
+                </div>
+              </div>
+              <p style={{ fontSize: 8, color: TEXT_MUTED, fontWeight: 600, letterSpacing: "0.08em", fontFamily: FONT_UI }}>
+                COMPLETE
               </p>
             </div>
           </div>
 
-          {/* Close */}
-          <button
-            onClick={onClose}
-            style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: BG_INNER, border: `1px solid ${BORDER}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: MUTED, flexShrink: 0,
-            }}
-          >
-            <X size={14} />
-          </button>
+          {/* Uploaded / missing counts */}
+          <div style={{ display: "flex", gap: 16 }}>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: "#10B981" }}>
+              ✓ {uploadedCount} uploaded
+            </span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: "#EF4444" }}>
+              ✕ {totalMissingCount} missing
+            </span>
+          </div>
         </div>
 
         {/* ── SCROLLABLE BODY ── */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Explanation card */}
-          <div style={{
-            background:   "rgba(124,58,237,0.08)",
-            border:       "1px solid rgba(124,58,237,0.18)",
-            borderRadius: 16,
-            padding:      "14px 16px",
-          }}>
-            <p style={{ color: "#CBD5E1", fontSize: 13, lineHeight: 1.6, margin: 0 }}>
-              Your uploaded blood test is missing several biomarkers that help us generate a more precise optimization protocol.
-            </p>
-            <p style={{ color: MUTED, fontSize: 13, lineHeight: 1.6, margin: "8px 0 0" }}>
-              <span style={{ color: "#2DD4BF", fontWeight: 500 }}>We can still generate your protocol</span>
-              {" "}— but adding these markers to your next blood test would significantly improve the accuracy of your recommendations.
-            </p>
-          </div>
-
-          {/* Section divider */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ color: MUTED, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>
-              Recommended additions
-            </span>
-            <div style={{ flex: 1, height: 1, background: BORDER }} />
-          </div>
-
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Category accordion */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {categoryEntries.map(([category, markers]) => {
-              const meta      = CATEGORY_META[category];
-              const isOpen    = expandedCategories.has(category);
-              const essential = markers.filter((m) => m.tier === "essential");
+          {categoryEntries.map(([category, markers]) => {
+            const meta      = CATEGORY_META[category];
+            const isOpen    = expandedCategories.has(category);
+            const essential = markers.filter((m) => m.tier === "essential");
+            const accent    = CATEGORY_HEX[category];
 
-              return (
-                <div
-                  key={category}
+            return (
+              <div
+                key={category}
+                style={{
+                  background:   BG_INNER,
+                  border:       `1px solid ${isOpen ? BORDER_HI : BORDER}`,
+                  borderRadius: 16,
+                  overflow:     "hidden",
+                  transition:   "border-color 0.2s",
+                }}
+              >
+                {/* Category header */}
+                <button
+                  onClick={() => toggleCategory(category)}
                   style={{
-                    background:   BG_INNER,
-                    border:       `1px solid ${BORDER}`,
-                    borderRadius: 16,
-                    overflow:     "hidden",
+                    width:      "100%",
+                    display:    "flex",
+                    alignItems: "center",
+                    gap:        12,
+                    padding:    "14px 16px",
+                    textAlign:  "left",
+                    background: isOpen ? `${accent}06` : "none",
+                    border:     "none",
+                    cursor:     "pointer",
+                    color:      TEXT,
+                    fontFamily: FONT_UI,
+                    transition: "background 0.2s",
                   }}
                 >
-                  {/* Category header */}
-                  <button
-                    onClick={() => toggleCategory(category)}
-                    style={{
-                      width:      "100%",
-                      display:    "flex",
-                      alignItems: "center",
-                      gap:        12,
-                      padding:    "14px 16px",
-                      textAlign:  "left",
-                      background: "none",
-                      border:     "none",
-                      cursor:     "pointer",
-                      color:      TEXT,
-                      fontFamily: FONT_UI,
-                    }}
-                  >
-                    <span style={{ fontSize: 18, flexShrink: 0 }}>{meta.icon}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: TEXT }}>{meta.label}</span>
-                        {essential.length > 0 && (
-                          <span style={{
-                            fontSize:     10, color: "#F59E0B",
-                            background:   "rgba(245,158,11,0.12)",
-                            border:       "1px solid rgba(245,158,11,0.2)",
-                            borderRadius: 99, padding: "2px 7px",
-                          }}>
-                            {essential.length} key
-                          </span>
-                        )}
-                      </div>
-                      <p style={{ color: MUTED, fontSize: 11, margin: "2px 0 0" }}>
-                        {markers.length} marker{markers.length !== 1 ? "s" : ""} · {meta.description}
-                      </p>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{meta.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 2 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: TEXT, fontFamily: FONT_UI }}>{meta.label}</span>
+                      {essential.length > 0 && (
+                        <span style={{
+                          fontSize: 10, color: "#F59E0B",
+                          background: "rgba(245,158,11,0.12)",
+                          border: "1px solid rgba(245,158,11,0.2)",
+                          borderRadius: 99, padding: "2px 7px",
+                          fontFamily: FONT_MONO,
+                        }}>
+                          {essential.length} key
+                        </span>
+                      )}
                     </div>
-                    {isOpen
-                      ? <ChevronUp size={14} color={MUTED} style={{ flexShrink: 0 }} />
-                      : <ChevronDown size={14} color={MUTED} style={{ flexShrink: 0 }} />
-                    }
-                  </button>
+                    <p style={{ color: MUTED, fontSize: 11, margin: 0 }}>
+                      {markers.length} marker{markers.length !== 1 ? "s" : ""} · {meta.description}
+                    </p>
+                  </div>
+                  {isOpen
+                    ? <ChevronUp size={14} color={MUTED} style={{ flexShrink: 0 }} />
+                    : <ChevronDown size={14} color={MUTED} style={{ flexShrink: 0 }} />
+                  }
+                </button>
 
-                  {/* Expanded marker list */}
-                  {isOpen && (
-                    <div style={{ borderTop: `1px solid ${BORDER}` }}>
-                      {markers.map((marker, idx) => (
-                        <div
-                          key={marker.id}
-                          style={{
-                            display:    "flex",
-                            gap:        12,
-                            padding:    "12px 16px",
-                            borderTop:  idx > 0 ? `1px solid ${BORDER}` : undefined,
-                          }}
-                        >
-                          {/* Dot */}
-                          <div style={{ flexShrink: 0, paddingTop: 6 }}>
-                            <div style={{
-                              width: 6, height: 6, borderRadius: "50%",
-                              background: marker.tier === "essential" ? "#F59E0B" : MUTED,
-                            }} />
-                          </div>
-                          <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                              <span style={{ fontSize: 13, fontWeight: 500, color: "#E2E8F0" }}>{marker.name}</span>
-                              {marker.tier === "essential" && (
-                                <span style={{ fontSize: 10, color: "rgba(245,158,11,0.7)" }}>Essential</span>
-                              )}
-                            </div>
-                            <p style={{ color: MUTED, fontSize: 11, lineHeight: 1.55, margin: 0 }}>
-                              {marker.whyItMatters}
-                            </p>
-                          </div>
+                {/* Expanded marker list */}
+                {isOpen && (
+                  <div style={{ borderTop: `1px solid ${BORDER}` }}>
+                    {markers.map((marker, idx) => (
+                      <div
+                        key={marker.id}
+                        style={{
+                          display:   "flex",
+                          gap:       12,
+                          padding:   "12px 16px",
+                          borderTop: idx > 0 ? `1px solid ${BORDER}` : undefined,
+                        }}
+                      >
+                        {/* Animated pulsing ring dot */}
+                        <div style={{ flexShrink: 0, paddingTop: 5, position: "relative", width: 10, height: 10 }}>
+                          <div style={{
+                            position: "absolute", inset: 0, borderRadius: "50%",
+                            background: accent, opacity: 0.3,
+                            animation: "missingPulse 2s ease-in-out infinite",
+                          }} />
+                          <div style={{
+                            position: "absolute", inset: 2, borderRadius: "50%",
+                            background: accent, opacity: 0.6,
+                          }} />
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
 
-          {/* Doctor letter prompt */}
-          <div style={{
-            display:      "flex",
-            alignItems:   "flex-start",
-            gap:          12,
-            background:   BG_INNER,
-            border:       `1px solid ${BORDER_HI}`,
-            borderRadius: 16,
-            padding:      "14px 16px",
-          }}>
-            <span style={{ fontSize: 18, flexShrink: 0 }}>📋</span>
-            <div>
-              <p style={{ color: "#E2E8F0", fontSize: 13, fontWeight: 500, margin: 0 }}>Share with your doctor</p>
-              <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.55, margin: "4px 0 0" }}>
-                Download a ready-to-send PDF listing exactly which tests to request at your next appointment.
-              </p>
-            </div>
-          </div>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.85)", fontFamily: FONT_UI }}>
+                              {marker.name}
+                            </span>
+                            {marker.tier === "essential" && (
+                              <span style={{
+                                fontSize: 9, color: "#F59E0B",
+                                background: "rgba(245,158,11,0.1)",
+                                border: "1px solid rgba(245,158,11,0.2)",
+                                borderRadius: 99, padding: "2px 6px",
+                                fontFamily: FONT_MONO,
+                              }}>Essential</span>
+                            )}
+                          </div>
+                          <p style={{ color: MUTED, fontSize: 11, lineHeight: 1.55, margin: 0 }}>
+                            {marker.whyItMatters}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {/* ── FIXED FOOTER ── */}
+        {/* ── FIXED FOOTER — Download is PRIMARY, Continue is ghost ── */}
         <div style={{
-          padding:    "16px 24px 24px",
-          borderTop:  `1px solid ${BORDER}`,
-          flexShrink: 0,
-          display:    "flex",
+          padding:       "16px 24px 24px",
+          borderTop:     `1px solid ${BORDER}`,
+          flexShrink:    0,
+          display:       "flex",
           flexDirection: "column",
-          gap:        10,
+          gap:           10,
         }}>
-          {/* Primary CTA */}
+          {/* PRIMARY: Download */}
           <button
-            onClick={onContinue}
-            style={{
-              width:        "100%",
-              background:   GRAD,
-              color:        "#fff",
-              fontFamily:   FONT_UI,
-              fontSize:     14,
-              fontWeight:   500,
-              padding:      "15px 20px",
-              borderRadius: 14,
-              border:       "none",
-              cursor:       "pointer",
-              display:      "flex",
-              alignItems:   "center",
-              justifyContent: "center",
-              gap:          8,
-            }}
-          >
-            Continue With Current Results
-            <ArrowRight size={15} />
-          </button>
-
-          {/* Secondary: download PDF */}
-          <button
+            type="button"
             onClick={handleDownload}
             disabled={downloading}
             style={{
-              width:        "100%",
-              background:   "none",
-              color:        downloading ? MUTED : "#CBD5E1",
-              fontFamily:   FONT_UI,
-              fontSize:     13,
-              fontWeight:   400,
-              padding:      "13px 20px",
-              borderRadius: 14,
-              border:       `1px solid ${BORDER_HI}`,
-              cursor:       downloading ? "not-allowed" : "pointer",
-              display:      "flex",
-              alignItems:   "center",
+              width:          "100%",
+              background:     downloading ? "rgba(59,130,246,0.4)" : GRAD,
+              color:          "#fff",
+              fontFamily:     FONT_UI,
+              fontSize:       14,
+              fontWeight:     700,
+              padding:        "15px 20px",
+              borderRadius:   14,
+              border:         "none",
+              cursor:         downloading ? "not-allowed" : "pointer",
+              display:        "flex",
+              alignItems:     "center",
               justifyContent: "center",
-              gap:          8,
-              opacity:      downloading ? 0.6 : 1,
-              transition:   "opacity .2s",
+              gap:            8,
+              boxShadow:      downloading ? "none" : "0 0 32px rgba(139,92,246,0.2), 0 4px 16px rgba(59,130,246,0.15)",
+              transition:     "all 0.2s",
+              letterSpacing:  "0.01em",
             }}
           >
-            <Download size={14} />
-            {downloading ? "Generating PDF…" : "Download Recommended Blood Panel"}
+            <Download size={15} />
+            {downloading ? "Generating PDF…" : "↓ Download Recommended Blood Panel"}
           </button>
+
+          {/* SECONDARY: Continue with completeness % — ghost, framed as compromise */}
+          <button
+            type="button"
+            onClick={onContinue}
+            style={{
+              width:          "100%",
+              background:     "transparent",
+              color:          MUTED,
+              fontFamily:     FONT_UI,
+              fontSize:       13,
+              fontWeight:     600,
+              padding:        "13px 20px",
+              borderRadius:   14,
+              border:         `1px solid ${BORDER_HI}`,
+              cursor:         "pointer",
+            }}
+          >
+            Continue with {completenessScore}% complete data →
+          </button>
+
+          {/* Trust micro-copy */}
+          <p style={{
+            textAlign:  "center",
+            fontSize:   11,
+            fontFamily: FONT_UI,
+            color:      TEXT_MUTED,
+            lineHeight: 1.5,
+            margin:     "-4px 0 0",
+          }}>
+            Your protocol will update automatically when missing markers are added.
+          </p>
         </div>
       </div>
     </div>

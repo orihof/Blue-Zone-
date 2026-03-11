@@ -175,7 +175,58 @@ export async function getAdverseEventPrompts(
   return (data ?? []) as unknown as AdverseEventPrompt[];
 }
 
-// ─── 4. shouldSuppressProduct ─────────────────────────────────────────────────
+// ─── 4a. getSuppressedProductIds ──────────────────────────────────────────────
+
+/**
+ * Batch version of shouldSuppressProduct.
+ * Fetches ALL adverse event reports for a user across the given product IDs
+ * in one query, then applies suppression logic in-memory.
+ * Returns a Set of product IDs that should be suppressed.
+ */
+export async function getSuppressedProductIds(
+  userId:     string,
+  productIds: string[],
+): Promise<Set<string>> {
+  if (productIds.length === 0) return new Set();
+
+  const db = getAdminClient();
+  const { data, error } = await db
+    .from(TABLES.ADVERSE_EVENT_REPORTS)
+    .select("product_id, severity, reported_at")
+    .eq("user_id", userId)
+    .in("product_id", productIds);
+
+  if (error) {
+    throw new Error(`Failed to batch-check product suppression: ${error.message}`);
+  }
+
+  const rows = (data ?? []) as Array<{ product_id: string; severity: string; reported_at: string }>;
+  const cutoff30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  type AERow = { product_id: string; severity: string; reported_at: string };
+
+  // Group by product_id, then apply the same rules as shouldSuppressProduct
+  const byProduct: Record<string, AERow[]> = {};
+  for (const row of rows as AERow[]) {
+    if (!byProduct[row.product_id]) byProduct[row.product_id] = [];
+    byProduct[row.product_id].push(row);
+  }
+
+  const suppressed = new Set<string>();
+  for (const productId of Object.keys(byProduct)) {
+    const reports = byProduct[productId];
+    if (reports.some((r: AERow) => r.severity === "significant")) {
+      suppressed.add(productId);
+      continue;
+    }
+    const recentCount = reports.filter((r: AERow) => new Date(r.reported_at) >= cutoff30d).length;
+    if (recentCount >= 3) suppressed.add(productId);
+  }
+
+  return suppressed;
+}
+
+// ─── 4b. shouldSuppressProduct ────────────────────────────────────────────────
 
 /**
  * Returns true if a product should be suppressed from recommendations for this user:

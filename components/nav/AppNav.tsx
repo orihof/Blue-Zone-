@@ -58,7 +58,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: null,
     items: [
       { href: "/app/profile",      icon: UserCircle, label: "My Profile" },
-      { href: "/settings/privacy", icon: Shield,     label: "Privacy & Data" },
+      { href: "/app/settings/privacy", icon: Shield,     label: "Privacy & Data" },
     ],
   },
 ];

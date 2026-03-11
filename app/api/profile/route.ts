@@ -30,10 +30,10 @@ export async function GET() {
     await Promise.all([
       supabase.from(TABLES.PROFILES)
         .select("name, tagline, location, prs, avatar_url, primary_goal, profile_nudge_dismissed")
-        .eq(COLS.ID, userId).single(),
+        .eq(COLS.ID, userId).maybeSingle(),
       supabase.from(TABLES.USERS)
         .select("email, created_at, onboarding_goals, image")
-        .eq(COLS.ID, userId).single(),
+        .eq(COLS.ID, userId).maybeSingle(),
       supabase.from(TABLES.SPORTS_PROTOCOLS)
         .select("id, competition_type, budget_tier, created_at")
         .eq(COLS.USER_ID, userId).eq(COLS.STATUS, "ready")

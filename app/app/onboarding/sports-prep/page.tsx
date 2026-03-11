@@ -1,12 +1,16 @@
 /// app/app/onboarding/sports-prep/page.tsx
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { type SportsPrepFormData, getBudgetTier, BUDGET_TIERS, RACE_DISTANCES, RACE_DISTANCE_LABELS } from "@/lib/db/sports-payload";
 import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
 import SamsungHealthHelpModal from "@/components/upload/SamsungHealthHelpModal";
+import { MissingMarkersModal } from "@/components/blood-test/MissingMarkersModal";
+import { BloodPanelModal } from "@/components/onboarding/BloodPanelModal";
+import { detectMissingMarkers, type DetectionResult } from "@/lib/blood-test/detect-missing-markers";
+import type { IngestResult } from "@/lib/types/health";
 
 const PERF_GRAD = "linear-gradient(135deg,#7C3AED,#06B6D4)";
 const T         = { text: "#F1F5F9", muted: "#64748B" };
@@ -329,13 +333,26 @@ function Step3({ form, update }: { form: SportsPrepFormData; update: (p: Partial
 }
 
 // ── Step 4 — Blood Test Upload ─────────────────────────────────────────────────
-function Step4BT({ uploaded, onUpload }: { uploaded: boolean; onUpload: (v: boolean) => void }) {
+function Step4BT({ uploaded, onUpload, eventName }: { uploaded: boolean; onUpload: (v: boolean) => void; eventName?: string }) {
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">(
     uploaded ? "success" : "idle"
   );
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [drag,     setDrag]     = useState(false);
+  const [fileName,         setFileName]         = useState<string | null>(null);
+  const [drag,             setDrag]             = useState(false);
+  const [detectionResult,  setDetectionResult]  = useState<DetectionResult | null>(null);
+  const [showMissingModal, setShowMissingModal] = useState(false);
+  // Show the recommended blood panel on first visit (if not already uploaded)
+  const [showPanelModal,   setShowPanelModal]   = useState(!uploaded);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handlePanelDownload() {
+    try {
+      // Pass a full "all markers missing" detection result so the PDF lists the complete panel
+      const fullDetection = detectMissingMarkers({});
+      const { generateDoctorLetterPDF } = await import("@/lib/blood-test/generate-doctor-letter");
+      await generateDoctorLetterPDF(fullDetection);
+    } catch { /* PDF generation is best-effort */ }
+  }
 
   async function handleFile(file: File) {
     setUploadState("uploading");
@@ -353,8 +370,32 @@ function Step4BT({ uploaded, onUpload }: { uploaded: boolean; onUpload: (v: bool
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType: file.type }] }),
       });
+
+      // OCR + missing-marker detection
+      let markerMap: Record<string, number> = {};
+      try {
+        const ingestRes = await fetch("/api/ingest", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ storagePath, mimeType: file.type, fileName: file.name }),
+        });
+        if (ingestRes.ok) {
+          const ingestData = await ingestRes.json() as IngestResult;
+          markerMap = Object.fromEntries(
+            ingestData.normalizedBiomarkers.map((b) => [b.name, b.value]),
+          );
+        }
+      } catch { /* non-fatal — empty map triggers modal */ }
+
+      const detection = detectMissingMarkers(markerMap);
       setUploadState("success");
-      onUpload(true);
+
+      if (detection.shouldShowModal) {
+        setDetectionResult(detection);
+        setShowMissingModal(true);
+        // onUpload(true) is deferred until the user dismisses the modal
+      } else {
+        onUpload(true);
+      }
     } catch {
       setUploadState("error");
     }
@@ -423,6 +464,27 @@ function Step4BT({ uploaded, onUpload }: { uploaded: boolean; onUpload: (v: bool
           ))}
         </div>
       </div>
+
+      {/* Recommended panel modal — shown on first visit before upload */}
+      {showPanelModal && (
+        <BloodPanelModal
+          eventName={eventName}
+          onDownload={handlePanelDownload}
+          onContinue={() => setShowPanelModal(false)}
+          onSkip={() => setShowPanelModal(false)}
+          onClose={() => setShowPanelModal(false)}
+        />
+      )}
+
+      {/* Missing markers modal — shown after upload when panel is incomplete */}
+      {detectionResult && (
+        <MissingMarkersModal
+          isOpen={showMissingModal}
+          onClose={() => { setShowMissingModal(false); onUpload(true); }}
+          onContinue={() => { setShowMissingModal(false); onUpload(true); }}
+          detectionResult={detectionResult}
+        />
+      )}
     </div>
   );
 }
@@ -792,7 +854,7 @@ function LoadingScreen({ form, onComplete, onError, preWarmedId }: {
 const STEP_LABELS = ["Competition", "Event Details", "Constraints", "Blood Test", "Wearables", "Budget"];
 const TOTAL_STEPS = 6;
 
-export default function SportsPrepPage() {
+function SportsPrepInner() {
   const router      = useRouter();
   const searchParams = useSearchParams();
   const fromOnboarding = searchParams.get("from") === "onboarding";
@@ -942,7 +1004,13 @@ export default function SportsPrepPage() {
         {step === 0 && <Step1 form={form} update={update} />}
         {step === 1 && <Step2 form={form} update={update} />}
         {step === 2 && <Step3 form={form} update={update} />}
-        {step === 3 && <Step4BT uploaded={bloodTestUploaded} onUpload={setBloodTestUploaded} />}
+        {step === 3 && (
+          <Step4BT
+            uploaded={bloodTestUploaded}
+            onUpload={setBloodTestUploaded}
+            eventName={COMPETITION_TYPES.find((c) => c.id === form.competitionType)?.label}
+          />
+        )}
         {step === 4 && <Step4W  connected={wearablesConnected} onConnect={setWearablesConnected} />}
         {step === 5 && <Step4   form={form} update={update} />}
       </div>
@@ -972,5 +1040,18 @@ export default function SportsPrepPage() {
         );
       })()}
     </div>
+  );
+}
+
+export default function SportsPrepPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "var(--bz-midnight,#06080F)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(124,58,237,.2)", borderTopColor: "#7C3AED", animation: "spin 1s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <SportsPrepInner />
+    </Suspense>
   );
 }

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     .eq(COLS.STATUS, "ready")
     .order(COLS.CREATED_AT, { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   // Compute week number relative to protocol start (or 1)
   let weekNumber = 1;

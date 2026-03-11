@@ -19,9 +19,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(signIn);
   }
 
-  // Consent check — only for authenticated users on /app/* routes
-  // Exclude: /app/consent (consent page itself), /onboarding/*, /app/onboarding/* (onboarding flow)
-  const needsConsentCheck =
+  // Guard check — onboarding + consent — only for authenticated users on /app/* routes.
+  // Excluded: /app/consent, /app/onboarding/*, /onboarding/* (these are part of the flow itself).
+  const needsGuardCheck =
     !!token &&
     token.sub !== undefined &&
     pathname.startsWith("/app") &&
@@ -29,34 +29,34 @@ export async function middleware(req: NextRequest) {
     !pathname.startsWith("/app/onboarding") &&
     !pathname.startsWith("/onboarding");
 
-  if (needsConsentCheck) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-
-    // Use the Supabase REST API directly — plain fetch works on the Edge runtime
-    const consentRes = await fetch(
-      `${supabaseUrl}/rest/v1/consent_records?user_id=eq.${encodeURIComponent(token.sub!)}` +
-      `&is_current=eq.true&select=id&limit=1`,
-      {
+  if (needsGuardCheck) {
+    try {
+      const guardSecret = process.env.INTERNAL_GUARD_SECRET ?? "";
+      const guardUrl    = new URL("/api/auth/guard", req.url);
+      const guardRes    = await fetch(guardUrl, {
         headers: {
-          "apikey":        serviceKey,
-          "Authorization": `Bearer ${serviceKey}`,
-          "Accept":        "application/json",
+          "x-guard-secret": guardSecret,
+          "x-user-id":      token.sub!,
         },
-      },
-    );
+      });
 
-    const rows = await consentRes.json() as unknown;
-    const hasConsent = Array.isArray(rows) && (rows as Array<unknown>).length > 0;
-
-    if (!hasConsent) {
-      const consentUrl = new URL("/onboarding/consent", req.url);
-      consentUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(consentUrl);
+      if (guardRes.ok) {
+        const { redirect } = await guardRes.json() as { redirect: string | null };
+        if (redirect) {
+          const dest = new URL(redirect, req.url);
+          // Thread callbackUrl for the consent redirect only
+          if (redirect === "/onboarding/consent") {
+            dest.searchParams.set("callbackUrl", pathname);
+          }
+          return NextResponse.redirect(dest);
+        }
+      }
+    } catch {
+      // Fail open: if guard check fails, allow the request through
     }
   }
 
-  // Forward pathname so layout.tsx can read it (needed for onboarding guard)
+  // Forward pathname so server components can read it if needed
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-pathname", pathname);
   return NextResponse.next({ request: { headers: requestHeaders } });
