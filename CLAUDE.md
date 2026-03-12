@@ -85,3 +85,5 @@ Generation API routes: insert row with `status: "processing"` → generate → u
 @CLAUDE_FRONTEND.md
 @CLAUDE_ENGINEERING.md
 @CLAUDE_REVENUE.md
+@CLAUDE_SCIENCE.md
+@import SECURITY.md
