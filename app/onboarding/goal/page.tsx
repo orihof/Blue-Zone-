@@ -70,7 +70,7 @@ export default function GoalPage() {
       return;
     }
 
-    setTimeout(() => router.push("/app/onboarding/upload"), 300);
+    setTimeout(() => router.push("/app/onboarding"), 300);
   }
 
   return (
@@ -190,7 +190,7 @@ export default function GoalPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ onboarding_step: "data" }),
           });
-          router.push("/app/onboarding/upload");
+          router.push("/app/onboarding");
         }}
         style={{
           background: "none", border: "none",

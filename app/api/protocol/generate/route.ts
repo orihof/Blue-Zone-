@@ -109,6 +109,16 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   const pregnancyDisclaimer = getMandatoryPregnancyDisclaimer(pregnancyStatus);
   // ── End pregnancy safety context ─────────────────────────────────────────
 
+  // ── Fetch user health profile (medications + conditions) ──────────────────
+  const { data: profileRow } = await supabase
+    .from(TABLES.PROFILES)
+    .select(`${COLS.MEDICATIONS}, ${COLS.CONDITIONS}`)
+    .eq(COLS.ID, session.user.id)
+    .maybeSingle();
+  const profileMedications  = (profileRow?.medications  as string[] | null) ?? [];
+  const profileConditions   = (profileRow?.conditions   as string[] | null) ?? [];
+  // ── End health profile ───────────────────────────────────────────────────
+
   // ----------------------------------------------------------------
   // Fetch biomarkers + wearable data linked to the uploadId (if any)
   // ----------------------------------------------------------------
@@ -187,7 +197,12 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     targetAge:         Number(targetAge),
     goals:             goals as string[],
     budget:            budget as "low" | "medium" | "high",
-    preferences:       { ...(preferences ?? {}), ...(pregnancyContext ? { pregnancyContext } : {}) },
+    preferences:       {
+      ...(preferences ?? {}),
+      ...(pregnancyContext ? { pregnancyContext } : {}),
+      ...(profileMedications.length  > 0 ? { medications:       profileMedications  } : {}),
+      ...(profileConditions.length   > 0 ? { healthConditions:  profileConditions   } : {}),
+    },
     plan:              (plan as "free" | "pro" | "clinic"),
   };
 

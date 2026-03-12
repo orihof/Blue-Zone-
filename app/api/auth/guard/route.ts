@@ -21,15 +21,10 @@ export async function GET(req: NextRequest) {
 
   const db = getAdminClient();
 
-  const [profileRes, userRes, consentRes] = await Promise.all([
+  const [profileRes, consentRes] = await Promise.all([
     db
       .from(TABLES.PROFILES)
       .select("onboarding_step")
-      .eq("id", userId)
-      .maybeSingle(),
-    db
-      .from(TABLES.USERS)
-      .select("onboarding_goals")
       .eq("id", userId)
       .maybeSingle(),
     db
@@ -41,28 +36,16 @@ export async function GET(req: NextRequest) {
   ]);
 
   const profile    = profileRes.data;
-  const userRow    = userRes.data;
   const hasConsent = (consentRes.data?.length ?? 0) > 0;
+  const step       = (profile?.onboarding_step as string | null) ?? null;
 
-  const step     = (profile?.onboarding_step as string | null) ?? null;
-  const hasGoals = Array.isArray(userRow?.onboarding_goals) &&
-                   (userRow!.onboarding_goals as unknown[]).length > 0;
+  // Fully onboarded: profile has step="data" AND user has given consent.
+  // All other states (no profile, step="name"/"goal", no consent) are routed
+  // to the onboarding orchestrator which handles all steps including consent.
+  const isFullyOnboarded = step === "data" && hasConsent;
 
-  // ── Onboarding guards ────────────────────────────────────────────────────────
-  if (step === "name" || (!profile && !hasGoals)) {
-    return NextResponse.json({ redirect: "/onboarding/name" });
-  }
-  if (step === "goal") {
-    return NextResponse.json({ redirect: "/onboarding/goal" });
-  }
-  if (!hasGoals && step !== "data") {
-    return NextResponse.json({ redirect: "/app/biomarkers" });
-  }
-
-  // ── Consent guard ────────────────────────────────────────────────────────────
-  const onboardingComplete = hasGoals && step !== "name" && step !== "goal";
-  if (onboardingComplete && !hasConsent) {
-    return NextResponse.json({ redirect: "/onboarding/consent" });
+  if (!isFullyOnboarded) {
+    return NextResponse.json({ redirect: "/app/onboarding" });
   }
 
   return NextResponse.json({ redirect: null });

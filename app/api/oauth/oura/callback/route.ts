@@ -21,14 +21,14 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get("error");
 
   if (error || !code) {
-    return NextResponse.redirect(new URL("/app/onboarding?step=2&oura=error", req.url));
+    return NextResponse.redirect(new URL("/app/onboarding?step=5&oura=error", req.url));
   }
 
   try {
     const decoded = JSON.parse(Buffer.from(state ?? "", "base64url").toString());
     if (decoded.userId !== session.user.id) throw new Error("State mismatch");
   } catch {
-    return NextResponse.redirect(new URL("/app/onboarding?step=2&oura=error", req.url));
+    return NextResponse.redirect(new URL("/app/onboarding?step=5&oura=error", req.url));
   }
 
   const clientId     = process.env.OURA_CLIENT_ID!;
@@ -122,9 +122,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.redirect(new URL("/app/onboarding?step=2&oura=connected", req.url));
+    return NextResponse.redirect(new URL("/app/onboarding?step=5&oura=connected", req.url));
   } catch (err) {
     console.error("[Oura callback error]", err);
-    return NextResponse.redirect(new URL("/app/onboarding?step=2&oura=error", req.url));
+    return NextResponse.redirect(new URL("/app/onboarding?step=5&oura=error", req.url));
   }
 }

@@ -105,7 +105,15 @@ Target Biological Age: ${profile.targetAge} years
 Goals: ${profile.goals.join(", ")}
 Budget: ${profile.budget}
 Preferences: ${JSON.stringify(profile.preferences)}
-Plan: ${profile.plan}
+Plan: ${profile.plan}${
+  Array.isArray(profile.preferences.healthConditions) && (profile.preferences.healthConditions as string[]).length > 0
+    ? `\nKnown health conditions: ${(profile.preferences.healthConditions as string[]).join(", ")}`
+    : ""
+}${
+  Array.isArray(profile.preferences.medications) && (profile.preferences.medications as string[]).length > 0
+    ? `\nCurrent medications: ${(profile.preferences.medications as string[]).join(", ")} — account for interactions and contraindications`
+    : ""
+}
 
 === BIOMARKER RESULTS (${biomarkers.length} total, ${outOfRange.length} out of range) ===
 ${formatBiomarkers(biomarkers)}

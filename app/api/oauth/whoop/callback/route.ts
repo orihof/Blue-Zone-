@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const error = searchParams.get("error");
 
   if (error || !code) {
-    return NextResponse.redirect(new URL("/app/onboarding?step=2&whoop=error", req.url));
+    return NextResponse.redirect(new URL("/app/onboarding?step=5&whoop=error", req.url));
   }
 
   // Verify state (basic CSRF check)
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const decoded = JSON.parse(Buffer.from(state ?? "", "base64url").toString());
     if (decoded.userId !== session.user.id) throw new Error("State mismatch");
   } catch {
-    return NextResponse.redirect(new URL("/app/onboarding?step=2&whoop=error", req.url));
+    return NextResponse.redirect(new URL("/app/onboarding?step=5&whoop=error", req.url));
   }
 
   const clientId     = process.env.WHOOP_CLIENT_ID!;
@@ -131,9 +131,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return NextResponse.redirect(new URL("/app/onboarding?step=2&whoop=connected", req.url));
+    return NextResponse.redirect(new URL("/app/onboarding?step=5&whoop=connected", req.url));
   } catch (err) {
     console.error("[WHOOP callback error]", err);
-    return NextResponse.redirect(new URL("/app/onboarding?step=2&whoop=error", req.url));
+    return NextResponse.redirect(new URL("/app/onboarding?step=5&whoop=error", req.url));
   }
 }

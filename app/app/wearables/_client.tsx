@@ -71,9 +71,11 @@ export interface WearablesClientProps {
   connected:     WearableConn[];
   isFirstUpload: boolean;
   lastUploadAt:  string | null;
+  /** When provided (onboarding mode), "Continue" calls this instead of navigating away. */
+  onNext?:       () => void;
 }
 
-export function WearablesClient({ connected, isFirstUpload, lastUploadAt }: WearablesClientProps) {
+export function WearablesClient({ connected, isFirstUpload, lastUploadAt, onNext }: WearablesClientProps) {
   const router = useRouter();
 
   const [appleProgress,   setAppleProgress]   = useState<UploadProgress>(DEFAULT_PROGRESS);
@@ -285,9 +287,11 @@ export function WearablesClient({ connected, isFirstUpload, lastUploadAt }: Wear
 
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
-        <Link href="/app/biomarkers" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: T.muted, textDecoration: "none", fontFamily: FONT, marginBottom: 20 }}>
-          ← Back to Biomarkers
-        </Link>
+        {!onNext && (
+          <Link href="/app/biomarkers" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: T.muted, textDecoration: "none", fontFamily: FONT, marginBottom: 20 }}>
+            ← Back to Biomarkers
+          </Link>
+        )}
         <div style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: FONT, textTransform: "uppercase", marginBottom: 8 }}>Wearable Devices</div>
         <h1 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: "clamp(22px,3vw,34px)", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 8 }}>
           <span style={GT}>Connect your</span>{" "}<span style={{ color: T.text }}>devices.</span>
@@ -463,7 +467,7 @@ export function WearablesClient({ connected, isFirstUpload, lastUploadAt }: Wear
       {/* Fixed bottom: Continue to Goals */}
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "16px 20px 28px", background: "linear-gradient(to top,#0A0A0F 60%,transparent)", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, zIndex: 40 }}>
         <button
-          onClick={() => canContinue && router.push("/app/onboarding/event-fork")}
+          onClick={() => canContinue && (onNext ? onNext() : router.push("/app/onboarding/event-fork"))}
           style={{
             width: "100%", maxWidth: 520, padding: "15px 20px", borderRadius: 16, border: "none",
             background:  canContinue ? GRAD : "rgba(255,255,255,0.06)",
@@ -475,7 +479,7 @@ export function WearablesClient({ connected, isFirstUpload, lastUploadAt }: Wear
             transform:   justUnlocked ? "scale(1.02)" : "scale(1)",
           }}
         >
-          Continue to Goals →
+          {onNext ? "Continue →" : "Continue to Goals →"}
         </button>
 
         {!canContinue && (

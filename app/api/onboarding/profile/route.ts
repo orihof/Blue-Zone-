@@ -33,9 +33,14 @@ export async function PATCH(req: Request) {
     updated_at: new Date().toISOString(),
   };
 
-  if (typeof body.name === "string")            patch[COLS.NAME]           = body.name.trim();
-  if (typeof body.primary_goal === "string")    patch[COLS.PRIMARY_GOAL]   = body.primary_goal;
-  if (typeof body.onboarding_step === "string") patch[COLS.ONBOARDING_STEP] = body.onboarding_step;
+  if (typeof body.name === "string")            patch[COLS.NAME]             = body.name.trim();
+  if (typeof body.primary_goal === "string")    patch[COLS.PRIMARY_GOAL]     = body.primary_goal;
+  if (typeof body.onboarding_step === "string") patch[COLS.ONBOARDING_STEP]  = body.onboarding_step;
+  if (typeof body.age === "number")             patch[COLS.AGE]              = body.age;
+  if (typeof body.gender === "string")          patch[COLS.GENDER]           = body.gender;
+  if (Array.isArray(body.current_injuries))     patch[COLS.CURRENT_INJURIES] = body.current_injuries;
+  if (Array.isArray(body.medications))          patch[COLS.MEDICATIONS]      = body.medications;
+  if (Array.isArray(body.health_conditions))    patch[COLS.CONDITIONS]       = body.health_conditions;
 
   await getAdminClient()
     .from(TABLES.PROFILES)
