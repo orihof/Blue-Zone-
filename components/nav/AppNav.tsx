@@ -12,9 +12,8 @@ import {
 } from "lucide-react";
 import { ShareBottomSheet } from "@/components/share/ShareBottomSheet";
 
-const GRAD      = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
-const PERF_GRAD = "linear-gradient(135deg,#7C3AED 0%,#06B6D4 100%)";
-const T         = { muted: "#64748B", text: "#F1F5F9" };
+const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
+const T    = { muted: "#64748B", text: "#F1F5F9" };
 const ACTIVE_BG = "rgba(99,102,241,0.15)";
 
 interface NavItem {
@@ -63,16 +62,17 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// Bottom nav: My Data | Protocol | [center Check-in] | Dashboard | Products
-const BOTTOM_TABS: (NavItem | null)[] = [
+// Bottom nav: My Data | Check-in | [center Protocol FAB] | Dashboard | Products
+const PROTOCOL_ITEM: NavItem = { href: "/app/results", icon: Sparkles, label: "Protocol" };
+const CHECKIN_NAV:   NavItem = { href: "/app/checkin",  icon: ClipboardCheck, label: "Check-in" };
+
+const BOTTOM_TABS: (NavItem | "fab")[] = [
   NAV_GROUPS[0].items[0],  // My Data
-  NAV_GROUPS[0].items[1],  // My Protocol
-  null,                     // center slot → Check-in
+  CHECKIN_NAV,             // Check-in (standard slot)
+  "fab",                    // center slot → Protocol FAB
   NAV_GROUPS[0].items[2],  // Dashboard
   NAV_GROUPS[2].items[0],  // Products
 ];
-
-const CHECKIN_ITEM = NAV_GROUPS[1].items[2]; // /app/checkin
 
 // ── Checkin status hook ─────────────────────────────────────────────────────
 function useCheckinDone(): boolean {
@@ -385,46 +385,53 @@ function MobileNav({ user }: AppNavProps) {
       <ShareBottomSheet isOpen={shareOpen} onClose={() => setShareOpen(false)} />
 
       {/* Bottom tab bar */}
-      <nav className="md:hidden" style={{
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
-        display: "flex", alignItems: "flex-end",
-        minHeight: 64,
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        background: "rgba(6,8,15,0.92)",
-        backdropFilter: "blur(20px)",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        boxShadow: "0 -8px 32px rgba(0,0,0,0.45)",
-      }}>
+      <nav
+        className="md:hidden"
+        aria-label="Main navigation"
+        style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
+          display: "flex", alignItems: "flex-end",
+          minHeight: 64,
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          background: "rgba(6,8,15,0.92)",
+          backdropFilter: "blur(20px)",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          boxShadow: "0 -8px 32px rgba(0,0,0,0.45)",
+        }}
+      >
         {BOTTOM_TABS.map((it) => {
-          // Center slot → Check-in
-          if (it === null) {
-            const checkActive = pathname === CHECKIN_ITEM.href || pathname.startsWith(CHECKIN_ITEM.href + "/");
-            if (!checkinDone) {
-              // Raised FAB — check-in due
-              return (
-                <div key="checkin-fab" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: 10 }}>
-                  <Link href="/app/checkin" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 52, height: 52, borderRadius: "50%", background: PERF_GRAD, border: "2.5px solid rgba(13,17,23,1)", boxShadow: "0 -4px 20px rgba(99,102,241,0.55)", marginBottom: 0, marginTop: -18, textDecoration: "none" }}>
-                    <ClipboardCheck size={22} color="#fff" />
-                  </Link>
-                  <span style={{ fontSize: 9, color: "#22D3EE", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 3, letterSpacing: "0.06em" }}>Check-in</span>
-                </div>
-              );
-            }
-            // Done → normal tab
+          // Center slot → Protocol FAB
+          if (it === "fab") {
+            const fabActive = pathname === PROTOCOL_ITEM.href || pathname.startsWith(PROTOCOL_ITEM.href + "/");
             return (
-              <Link key="checkin-done" href="/app/checkin" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: 10, gap: 2, color: checkActive ? "#A5B4FC" : T.muted, textDecoration: "none" }}>
-                <ClipboardCheck size={18} color={checkActive ? "#A5B4FC" : T.muted} style={{ transform: checkActive ? "scale(1.1)" : "scale(1)", transition: "transform .2s" }} />
-                <span style={{ fontSize: 9, letterSpacing: "0.06em", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>Check-in</span>
-              </Link>
+              <div key="protocol-fab" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: 10 }}>
+                <Link
+                  href={PROTOCOL_ITEM.href}
+                  aria-current={fabActive ? "page" : undefined}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%)", border: "2.5px solid rgba(13,17,23,1)", boxShadow: "0 -4px 20px rgba(99,102,241,0.55)", marginBottom: 0, marginTop: -18, textDecoration: "none" }}
+                >
+                  <Sparkles size={22} color="#fff" />
+                </Link>
+                <span style={{ fontSize: 9, color: fabActive ? "#A5B4FC" : "#C4B5FD", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 3, letterSpacing: "0.06em" }}>Protocol</span>
+              </div>
             );
           }
 
           const active = pathname === it.href || pathname.startsWith(it.href + "/");
           const Icon   = it.icon;
+          const isCheckin = it.href === "/app/checkin";
           return (
-            <Link key={it.href} href={it.href} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: 10, gap: 2, color: active ? "#A5B4FC" : T.muted, textDecoration: "none" }}>
+            <Link
+              key={it.href}
+              href={it.href}
+              aria-current={active ? "page" : undefined}
+              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: 10, gap: 2, color: active ? "#A5B4FC" : T.muted, textDecoration: "none", position: "relative" }}
+            >
               <Icon size={18} color={active ? "#A5B4FC" : T.muted} style={{ transform: active ? "scale(1.1)" : "scale(1)", transition: "transform .2s" }} />
               <span style={{ fontSize: 9, letterSpacing: "0.06em", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{it.label}</span>
+              {isCheckin && !checkinDone && (
+                <span style={{ position: "absolute", top: -2, right: "calc(50% - 14px)", width: 6, height: 6, borderRadius: "50%", background: "#22D3EE" }} />
+              )}
             </Link>
           );
         })}

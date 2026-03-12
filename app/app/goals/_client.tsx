@@ -15,52 +15,76 @@ const SERIF = "var(--font-serif,'Syne',sans-serif)";
 // ── Goal definitions ───────────────────────────────────────────────────────────
 const GOALS = [
   {
-    id:          "weight_loss",
-    label:       "Weight Loss",
-    description: "Optimize body composition & fat metabolism",
-    icon:        "🔥",
-    badge:       "Most popular" as const,
-    badgeStyle:  "amber" as const,
+    id:           "weight_loss",
+    label:        "Weight Loss",
+    description:  "Optimize body composition & fat metabolism",
+    icon:         "🔥",
+    badge:        "Most popular" as const,
+    badgeStyle:   "amber" as const,
+    prepCategory: "weight_loss",
   },
   {
-    id:          "physical_performance",
-    label:       "Physical Performance",
-    description: "Build strength, endurance & athletic output",
-    icon:        "💪",
-    badge:       null,
-    badgeStyle:  null,
+    id:           "physical_performance",
+    label:        "Physical Performance",
+    description:  "Build strength, endurance & athletic output",
+    icon:         "💪",
+    badge:        null,
+    badgeStyle:   null,
+    prepCategory: "performance",
   },
   {
-    id:          "sleep",
-    label:       "Sleep",
-    description: "Improve sleep quality, depth & recovery",
-    icon:        "🌙",
-    badge:       "Most popular" as const,
-    badgeStyle:  "amber" as const,
+    id:           "sleep",
+    label:        "Sleep",
+    description:  "Improve sleep quality, depth & recovery",
+    icon:         "🌙",
+    badge:        "Most popular" as const,
+    badgeStyle:   "amber" as const,
+    prepCategory: "sleep",
   },
   {
-    id:          "sharper_thinking",
-    label:       "Sharper Thinking",
-    description: "Enhance focus, memory & cognitive performance",
-    icon:        "🧠",
-    badge:       null,
-    badgeStyle:  null,
+    id:           "sharper_thinking",
+    label:        "Sharper Thinking",
+    description:  "Enhance focus, memory & cognitive performance",
+    icon:         "🧠",
+    badge:        null,
+    badgeStyle:   null,
+    prepCategory: "cognition",
   },
   {
-    id:          "longevity",
-    label:       "Longevity",
-    description: "Slow biological aging & extend healthspan",
-    icon:        "✨",
-    badge:       null,
-    badgeStyle:  null,
+    id:           "longevity",
+    label:        "Longevity",
+    description:  "Slow biological aging & extend healthspan",
+    icon:         "✨",
+    badge:        null,
+    badgeStyle:   null,
+    prepCategory: "anti_aging",
   },
   {
-    id:          "hormone_health",
-    label:       "Hormone Health",
-    description: "Balance testosterone, cortisol & energy systems",
-    icon:        "⚡",
-    badge:       null,
-    badgeStyle:  null,
+    id:           "hormone_health",
+    label:        "Hormone Health",
+    description:  "Balance testosterone, cortisol & energy systems",
+    icon:         "⚡",
+    badge:        null,
+    badgeStyle:   null,
+    prepCategory: "sexual_health",
+  },
+  {
+    id:           "mood",
+    label:        "Mood",
+    description:  "Emotional wellbeing & stress resilience",
+    icon:         "☀️",
+    badge:        null,
+    badgeStyle:   null,
+    prepCategory: "mood",
+  },
+  {
+    id:           "hair_loss",
+    label:        "Hair Loss",
+    description:  "Support follicle health & reduce shedding",
+    icon:         "💆",
+    badge:        null,
+    badgeStyle:   null,
+    prepCategory: "hair",
   },
 ] as const;
 
@@ -74,6 +98,8 @@ const GOAL_MAP: Record<GoalId, Goal> = {
   sharper_thinking:     "focus",
   longevity:            "longevity",
   hormone_health:       "hormones",
+  mood:                 "energy",
+  hair_loss:            "energy",
 };
 
 // ── FlickerText ────────────────────────────────────────────────────────────────
@@ -181,14 +207,16 @@ function GenerationScreen({ primaryGoal, onComplete }: { primaryGoal: GoalId; on
 
 // ── Goal Card ─────────────────────────────────────────────────────────────────
 function GoalCard({
-  g, isSelected, dimmed, onClick,
+  g, isSelected, dimmed, onClick, onPrepPack,
 }: {
-  g: typeof GOALS[number];
+  g:          typeof GOALS[number];
   isSelected: boolean;
   dimmed:     boolean;
   onClick:    () => void;
+  onPrepPack: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [packHovered, setPackHovered] = useState(false);
 
   const bg     = isSelected ? "rgba(99,102,241,.14)" : hovered && !dimmed ? "rgba(255,255,255,.055)" : "rgba(255,255,255,.03)";
   const border = isSelected
@@ -199,47 +227,71 @@ function GoalCard({
     : hovered && !dimmed ? "0 4px 16px rgba(99,102,241,.1)" : "none";
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={dimmed}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%", minHeight: 160, padding: "22px 20px", borderRadius: 16, textAlign: "left",
-        cursor:     dimmed ? "not-allowed" : "pointer",
-        opacity:    dimmed ? 0.3 : 1,
-        transition: "all .2s",
-        background: bg,
-        border,
-        boxShadow:  shadow,
-        transform:  isSelected ? "scale(1.02)" : hovered && !dimmed ? "translateY(-1px)" : "none",
-        position:   "relative", overflow: "hidden",
-        outline:    "none",
-      }}
-    >
-      {/* Social proof badge */}
-      {g.badge && (
-        <div style={{
-          position: "absolute", top: 10, left: 10, fontSize: 9, fontWeight: 500, letterSpacing: ".04em",
-          color: g.badgeStyle === "amber" ? "#FCD34D" : "#C4B5FD",
-          background: g.badgeStyle === "amber" ? "rgba(245,158,11,.13)" : "rgba(124,58,237,.13)",
-          border: g.badgeStyle === "amber" ? "1px solid rgba(245,158,11,.3)" : "1px solid rgba(124,58,237,.3)",
-          borderRadius: 100, padding: "2px 8px", fontFamily: FONT,
-        }}>
-          {g.badgeStyle === "amber" ? "🔥 " : ""}{g.badge}
-        </div>
-      )}
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={dimmed}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          width: "100%", minHeight: 160, padding: "22px 20px 44px", borderRadius: 16, textAlign: "left",
+          cursor:     dimmed ? "not-allowed" : "pointer",
+          opacity:    dimmed ? 0.3 : 1,
+          transition: "all .2s",
+          background: bg,
+          border,
+          boxShadow:  shadow,
+          transform:  isSelected ? "scale(1.02)" : hovered && !dimmed ? "translateY(-1px)" : "none",
+          position:   "relative", overflow: "hidden",
+          outline:    "none",
+        }}
+      >
+        {/* Social proof badge */}
+        {g.badge && (
+          <div style={{
+            position: "absolute", top: 10, left: 10, fontSize: 9, fontWeight: 500, letterSpacing: ".04em",
+            color: g.badgeStyle === "amber" ? "#FCD34D" : "#C4B5FD",
+            background: g.badgeStyle === "amber" ? "rgba(245,158,11,.13)" : "rgba(124,58,237,.13)",
+            border: g.badgeStyle === "amber" ? "1px solid rgba(245,158,11,.3)" : "1px solid rgba(124,58,237,.3)",
+            borderRadius: 100, padding: "2px 8px", fontFamily: FONT,
+          }}>
+            {g.badgeStyle === "amber" ? "🔥 " : ""}{g.badge}
+          </div>
+        )}
 
-      {/* Selected checkmark */}
-      {isSelected && (
-        <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700 }}>✓</div>
-      )}
+        {/* Selected checkmark */}
+        {isSelected && (
+          <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700 }}>✓</div>
+        )}
 
-      <div style={{ fontSize: 28, marginBottom: 10, marginTop: g.badge ? 18 : 0 }}>{g.icon}</div>
-      <div style={{ fontFamily: SERIF, fontWeight: 400, fontSize: 15, color: isSelected ? "#C4B5FD" : T.text, marginBottom: 5, letterSpacing: "-.01em" }}>{g.label}</div>
-      <div style={{ fontSize: 11, color: T.muted, fontFamily: FONT, lineHeight: 1.55 }}>{g.description}</div>
-    </button>
+        <div style={{ fontSize: 28, marginBottom: 10, marginTop: g.badge ? 18 : 0 }}>{g.icon}</div>
+        <div style={{ fontFamily: SERIF, fontWeight: 400, fontSize: 15, color: isSelected ? "#C4B5FD" : T.text, marginBottom: 5, letterSpacing: "-.01em" }}>{g.label}</div>
+        <div style={{ fontSize: 11, color: T.muted, fontFamily: FONT, lineHeight: 1.55 }}>{g.description}</div>
+      </button>
+
+      {/* Get Prep Pack button */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onPrepPack(); }}
+        onMouseEnter={() => setPackHovered(true)}
+        onMouseLeave={() => setPackHovered(false)}
+        style={{
+          position: "absolute", bottom: 10, left: 10, right: 10,
+          padding: "5px 10px", borderRadius: 8, fontSize: 10, fontFamily: FONT,
+          fontWeight: 500, letterSpacing: ".02em",
+          cursor: "pointer", outline: "none",
+          background: packHovered ? "rgba(99,102,241,.12)" : "transparent",
+          border: `1px solid ${packHovered ? "rgba(99,102,241,.5)" : "rgba(99,102,241,.25)"}`,
+          color: packHovered ? "#A5B4FC" : "#818CF8",
+          transition: "all .15s",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}
+      >
+        <span>Get Prep Pack</span>
+        <span>→</span>
+      </button>
+    </div>
   );
 }
 
@@ -305,6 +357,7 @@ export function GoalsClient() {
               isSelected={selectedGoal === g.id}
               dimmed={isAdvancing && selectedGoal !== g.id}
               onClick={() => handleGoalSelect(g.id)}
+              onPrepPack={() => router.push(`/app/onboarding/goal-prep?category=${g.prepCategory}`)}
             />
           ))}
         </div>

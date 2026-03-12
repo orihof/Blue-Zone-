@@ -231,6 +231,15 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes heroFadeIn {
+  from { opacity: 0; transform: translateY(0.5rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-hero-fade-in {
+  animation: heroFadeIn 300ms ease-out both;
+}
+
 /* ════════════════════════════════════════════════════
    BASE
 ════════════════════════════════════════════════════ */

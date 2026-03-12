@@ -1,7 +1,7 @@
 /// components/results/ResultsPage.tsx
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RecommendationCard } from "@/components/RecommendationCard";
 import type { CardAdoptionState } from "@/components/RecommendationCard";
@@ -13,83 +13,15 @@ import { CriticalValueGate }     from "@/app/components/CriticalValueGate";
 import { PregnancySafetyBanner } from "@/app/components/PregnancySafetyBanner";
 import { NutrientConflictPanel } from "@/app/components/NutrientConflictPanel";
 import { OutcomeArcWidget }      from "@/app/components/OutcomeArcWidget";
+import ProtocolTabs              from "@/components/protocol/ProtocolTabs";
+import ProtocolSessionHero      from "@/components/protocol/ProtocolSessionHero";
+import ProtocolMeta             from "@/components/protocol/ProtocolMeta";
+import ProtocolRecommendationCard from "@/components/protocol/RecommendationCard";
+import RecommendationTabs       from "@/components/protocol/RecommendationTabs";
+import { useProtocolPhase }     from "@/hooks/useProtocolPhase";
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const T = { text: "#F1F5F9", muted: "#64748B" };
-
-// ── Check-in banner ────────────────────────────────────────────────────────
-const MOODS = [
-  { emoji: "😴", key: "low",       label: "Low" },
-  { emoji: "😐", key: "okay",      label: "Okay" },
-  { emoji: "⚡", key: "energized", label: "Energized" },
-] as const;
-
-function CheckInBanner() {
-  const [done, setDone] = useState(false);
-  const [mood, setMood] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    const today = new Date().toDateString();
-    if (localStorage.getItem("bz_checkin_date") === today) {
-      setDone(true);
-      setMood(localStorage.getItem("bz_checkin_mood"));
-    }
-  }, []);
-
-  async function handleMood(key: string, emoji: string) {
-    if (busy || done) return;
-    setBusy(true);
-    const today = new Date().toDateString();
-    localStorage.setItem("bz_checkin_date", today);
-    localStorage.setItem("bz_checkin_mood", emoji);
-    setMood(emoji);
-    setDone(true);
-    window.dispatchEvent(new CustomEvent("bz-checkin-done"));
-    try {
-      await fetch("/api/checkin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ energy: key }),
-      });
-    } catch { /* silent */ }
-    setBusy(false);
-  }
-
-  if (done) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(16,185,129,.07)", border: "1px solid rgba(16,185,129,.18)", borderRadius: 12, padding: "12px 18px", marginBottom: 20 }}>
-        <span style={{ fontSize: 18 }}>{mood ?? "✓"}</span>
-        <div>
-          <div style={{ fontSize: 13, color: "#34D399", fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300 }}>Today&apos;s check-in complete</div>
-          <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>See you tomorrow — keep going.</div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ background: "rgba(245,158,11,.06)", border: "1px solid rgba(245,158,11,.28)", borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-        <div>
-          <div style={{ fontSize: 12, color: "#FCD34D", fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, marginBottom: 2 }}>Today&apos;s Check-in</div>
-          <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>How&apos;s your energy today?</div>
-        </div>
-        <div style={{ display: "flex", gap: 7 }}>
-          {MOODS.map(({ emoji, key, label }) => (
-            <button key={key} onClick={() => handleMood(key, emoji)} disabled={busy}
-              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 10, padding: "8px 14px", cursor: busy ? "wait" : "pointer", transition: "all .15s" }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(245,158,11,.5)")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,.1)")}>
-              <span style={{ fontSize: 18 }}>{emoji}</span>
-              <span style={{ fontSize: 10, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Health domain mapping (item 17) ───────────────────────────────────────
 const DOMAIN_MAP: Record<string, string> = {
@@ -148,12 +80,17 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
 
   const primaryTab = (searchParams.get("tab") as PrimaryTab) ?? "daily";
 
-  const [statuses, setStatuses]   = useState<Record<string, CardAdoptionState>>({});
-  const [filterTab, setFilterTab] = useState<TabFilter>("all");
-  const [showAll, setShowAll]     = useState(false);
+  const [statuses, setStatuses]       = useState<Record<string, CardAdoptionState>>({});
+  const [filterTab, setFilterTab]     = useState<TabFilter>("all");
+  const [showAll, setShowAll]         = useState(false);
+  const [checkinDone, setCheckinDone] = useState(false);
+  const { phase, advancePhase }      = useProtocolPhase();
+  const firstCardRef                 = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setShowAll(localStorage.getItem("bz_has_adopted") === "true");
+    const today = new Date().toDateString();
+    if (localStorage.getItem("bz_checkin_date") === today) setCheckinDone(true);
   }, []);
 
   const allRecs: RecItem[] = [
@@ -176,7 +113,7 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
   }, [adopted]);
 
   function getStatus(id: string): CardAdoptionState { return statuses[id] ?? "pending"; }
-  function handleAdopt(id: string)  { setStatuses((p) => ({ ...p, [id]: "adopted" })); }
+  function handleAdopt(id: string)  { setStatuses((p) => ({ ...p, [id]: "adopted" })); advancePhase(); }
   function handleReject(id: string) { setStatuses((p) => ({ ...p, [id]: "rejected" })); }
   function handleReset(id: string)  { setStatuses((p) => { const n = { ...p }; delete n[id]; return n; }); }
 
@@ -193,8 +130,6 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
     router.replace(`?${params.toString()}`, { scroll: false });
     setFilterTab("all");
   }
-
-  const createdDate = new Date(protocol.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   // Content splits
   const dailySupplements  = filterRecs(payload.recommendations.supplements);
@@ -233,8 +168,28 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
       {/* Full-screen critical value gate — renders null when no active events */}
       <CriticalValueGate />
 
-      {/* Check-in banner */}
-      <CheckInBanner />
+      {/* Check-in hero */}
+      <ProtocolSessionHero
+        checkInState={checkinDone ? "complete" : "pending"}
+        topRecommendation={{
+          title: payload.recommendations.supplements[0]?.title ?? "",
+          detectedSignal: payload.recommendations.supplements[0]?.rationaleBullets[0] ?? "",
+          category: "supplement",
+        }}
+        onCheckInSubmit={async (energy) => {
+          await fetch("/api/checkin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ energy }),
+          });
+        }}
+        onStartRecommendation={() => {}}
+        onCheckInComplete={() => {
+          setCheckinDone(true);
+          localStorage.setItem("bz_checkin_date", new Date().toDateString());
+          window.dispatchEvent(new CustomEvent("bz-checkin-done"));
+        }}
+      />
 
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
@@ -242,14 +197,10 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
         <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(22px,3vw,32px)", color: T.text, marginBottom: 5, letterSpacing: "-.02em" }}>
           Your Optimization Protocol
         </h2>
-        <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 4 }}>
-          Generated {createdDate} · Age {protocol.selected_age} · {protocol.budget} budget
-          {protocol.mode === "demo" && " · Demo"}
-        </p>
-        {/* Social proof (item 22) */}
-        <p style={{ fontSize: 12, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 8 }}>
-          👥 Users with a similar biomarker profile report improvements in energy and sleep within 3–4 weeks.
-        </p>
+        <ProtocolMeta
+          generatedAt={new Date(protocol.created_at)}
+          focusAreas={topDomains}
+        />
         {/* Health narrative (item 17) */}
         {topDomains.length > 0 && (
           <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, lineHeight: 1.65, borderLeft: "2px solid rgba(99,102,241,.2)", paddingLeft: 10 }}>
@@ -272,32 +223,31 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
         </div>
       )}
 
-      {/* Analysis complete banner */}
-      <div className="fu" style={{ background: "linear-gradient(135deg,rgba(16,185,129,.07),rgba(59,130,246,.07))", border: "1px solid rgba(16,185,129,.18)", borderRadius: 14, padding: "18px 22px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(16,185,129,.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>✓</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 15, color: "#34D399", marginBottom: 2 }}>
-            Analysis Complete — Personalized Protocol Ready
+      {/* Analysis complete banner — hidden once phase 2 reached */}
+      {phase === 1 && (
+        <div className="fu" style={{ background: "linear-gradient(135deg,rgba(16,185,129,.07),rgba(59,130,246,.07))", border: "1px solid rgba(16,185,129,.18)", borderRadius: 14, padding: "18px 22px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(16,185,129,.14)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>✓</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 15, color: "#34D399", marginBottom: 2 }}>
+              Analysis Complete — Personalized Protocol Ready
+            </div>
+            <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
+              {allRecs.length} evidence-based recommendations generated from your unique biomarker profile.
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
-            {allRecs.length} evidence-based recommendations generated from your unique biomarker profile.
-          </div>
-        </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          {adopted === 0 ? (
+          <button
+            type="button"
+            onClick={() => firstCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })}
+            style={{ textAlign: "right", flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 100, background: "rgba(16,185,129,.12)", border: "1px solid rgba(16,185,129,.3)" }}>
               <span style={{ fontSize: 13, color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, whiteSpace: "nowrap" as const }}>
-                {allRecs.length} recommendations ready — start with 1 today →
+                See your starting point →
               </span>
             </div>
-          ) : (
-            <>
-              <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 26, background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>{pct}%</div>
-              <div style={{ fontSize: 10, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>adopted</div>
-            </>
-          )}
+          </button>
         </div>
-      </div>
+      )}
 
       {/* Priority insight (item 14) */}
       {priorityInsight && (
@@ -308,34 +258,26 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
       )}
 
       {/* ── Primary tabs (item 19) ── */}
-      <div style={{ display: "flex", gap: 3, marginBottom: 8, background: "rgba(255,255,255,0.03)", padding: 4, borderRadius: 13, width: "fit-content" }}>
-        {([["daily", "Daily Protocol"], ["setup", "Optimize Your Setup"]] as [PrimaryTab, string][]).map(([k, l]) => (
-          <button key={k}
-            onClick={() => setPrimaryTab(k)}
-            style={{
-              padding: "10px 18px", borderRadius: 10, fontSize: 13,
-              fontWeight: k === primaryTab ? 400 : 300,
-              cursor: "pointer", border: "none", transition: "all .18s",
-              fontFamily: "var(--font-ui,'Inter',sans-serif)",
-              background: k === primaryTab ? "rgba(99,102,241,0.16)" : "transparent",
-              color: k === primaryTab ? "#A5B4FC" : "#64748B",
-            }}>
-            {l}
-          </button>
-        ))}
-      </div>
+      <ProtocolTabs
+        activeTab={primaryTab === "setup" ? "sources" : "protocol"}
+        onTabChange={(tab) => setPrimaryTab(tab === "sources" ? "setup" : "daily")}
+        hasWearableConnected={payload.recommendations.home.length > 0}
+        hasBloodTestUploaded={protocol.mode !== "demo"}
+      />
 
       {/* ── Secondary filter tabs ── */}
-      <div style={{ display: "flex", gap: 3, marginBottom: 18, background: "rgba(255,255,255,0.025)", padding: 3, borderRadius: 11, width: "fit-content" }}>
-        {([
-          ["all",      `All (${tabBase.length})`],
-          ["pending",  `Pending (${tabPending})`],
-          ["adopted",  `Adopted (${tabAdopted})`],
-          ["rejected", `Dismissed (${tabRejected})`],
-        ] as [TabFilter, string][]).map(([k, l]) => (
-          <button key={k} className={`tab ${filterTab === k ? "on" : "off"}`} onClick={() => setFilterTab(k)}>{l}</button>
-        ))}
-      </div>
+      <RecommendationTabs
+        total={tabBase.length}
+        pending={tabPending}
+        adopted={tabAdopted}
+        deferred={tabRejected}
+        activeTab={filterTab === "rejected" ? "deferred" : filterTab === "adopted" ? "adopted" : "all"}
+        onTabChange={(tab) => {
+          if (tab === "deferred") setFilterTab("rejected");
+          else if (tab === "adopted") setFilterTab("adopted");
+          else setFilterTab("all");
+        }}
+      />
 
       {/* ── Chain adoption momentum bar (item 24) ── */}
       {adopted > 0 && coreCount > 0 && (
@@ -368,14 +310,45 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
               <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 18, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>
                 Supplement Protocol
               </h3>
-              {visibleSupplements.map((item, i) => (
-                <RecommendationCard key={item.id} item={item}
-                  priority={i === 0 ? "high" : i <= 1 ? "medium" : "low"}
-                  adoptionState={getStatus(item.id)}
-                  onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
-              ))}
-              {/* "See all" toggle */}
-              {hiddenCount > 0 && (
+              {visibleSupplements.map((item, i) => {
+                const isFirst = i === 0;
+                const isLocked = phase === 1 && !isFirst;
+                return (
+                  <div
+                    key={item.id}
+                    ref={isFirst ? firstCardRef : undefined}
+                    className={isLocked ? "pointer-events-none opacity-40 blur-[1px]" : ""}
+                  >
+                    <RecommendationCard item={item}
+                      priority={isFirst ? "high" : i <= 1 ? "medium" : "low"}
+                      adoptionState={getStatus(item.id)}
+                      onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
+                  </div>
+                );
+              })}
+
+              {/* Phase 1 divider */}
+              {phase === 1 && visibleSupplements.length > 1 && (
+                <p className="py-4 text-center text-xs text-[#94A3B8]">
+                  {visibleSupplements.length - 1} more recommendation{visibleSupplements.length - 1 > 1 ? "s" : ""} · Complete step 1 first
+                </p>
+              )}
+
+              {/* Show all link — phase 1 override */}
+              {phase === 1 && allRecs.length > 1 && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={advancePhase}
+                    className="text-xs text-[#94A3B8] transition-colors hover:text-white"
+                  >
+                    Show all {allRecs.length} recommendations
+                  </button>
+                </div>
+              )}
+
+              {/* "See all" toggle — phase 2 collapsed supplements */}
+              {phase === 2 && hiddenCount > 0 && (
                 <button className="ghost"
                   onClick={() => setShowAll(true)}
                   style={{ width: "100%", marginTop: 6, textAlign: "center" as const, padding: "11px", fontSize: 13 }}>
@@ -393,9 +366,11 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
             <div style={{ marginBottom: 24 }}>
               <h3 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 18, color: T.text, marginBottom: 12, letterSpacing: "-.01em" }}>Nutrition Interventions</h3>
               {dailyNutrition.map((item) => (
-                <RecommendationCard key={item.id} item={item} priority="medium"
-                  adoptionState={getStatus(item.id)}
-                  onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
+                <div key={item.id} className={phase === 1 ? "pointer-events-none opacity-40 blur-[1px]" : ""}>
+                  <RecommendationCard item={item} priority="medium"
+                    adoptionState={getStatus(item.id)}
+                    onAdopt={handleAdopt} onReject={handleReject} onReset={handleReset} />
+                </div>
               ))}
               {dailyNutrition.length === 0 && (
                 <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, padding: "12px 0" }}>No nutrition items match this filter.</p>
@@ -489,15 +464,8 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
         <OutcomeArcWidget />
       </div>
 
-      {/* Stack safety */}
-      {payload.stackSafetyNotes?.length > 0 && (
-        <div style={{ background: "rgba(245,158,11,.06)", border: "1px solid rgba(245,158,11,.20)", borderRadius: 14, padding: "14px 18px", marginBottom: 20 }}>
-          <div style={{ fontSize: 12, fontWeight: 400, color: "#FCD34D", marginBottom: 6, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>⚡ Stack Safety Notes</div>
-          {payload.stackSafetyNotes.map((note, i) => (
-            <div key={i} style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, marginBottom: 3 }}>{note}</div>
-          ))}
-        </div>
-      )}
+      {/* Stack safety notes removed — safety notes now inline per RecommendationCard
+         and a ProtocolDisclaimer banner handles the general disclaimer */}
 
       {/* Protocol update notice */}
       {(adopted > 0 || rejected > 0) && (
