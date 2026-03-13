@@ -72,8 +72,8 @@ export async function upsertBaseline(
   userId:     string,
   markerName: string,
   value:      number,
-  _unit:      string,   // reserved for future unit normalisation
-  _source:    string,   // reserved for future source tagging
+  _unit:      string,   // eslint-disable-line @typescript-eslint/no-unused-vars -- reserved for future unit normalisation
+  _source:    string,   // eslint-disable-line @typescript-eslint/no-unused-vars -- reserved for future source tagging
 ): Promise<PersonalBaseline> {
   const db    = getAdminClient();
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD

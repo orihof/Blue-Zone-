@@ -15,6 +15,7 @@ export const maxDuration = 30;
 // Generates (and persists) a fresh outcome summary for the user.
 // ----------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const GET = requireConsent(1)(async (_req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

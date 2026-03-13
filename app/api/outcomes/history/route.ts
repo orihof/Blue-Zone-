@@ -15,6 +15,7 @@ export const runtime = "nodejs";
 // ordered by computed_at DESC.
 // ----------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const GET = requireConsent(1)(async (_req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

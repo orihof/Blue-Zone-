@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { Syne, Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { checkEnv } from "@/lib/env-check";
+
+// Validate required env vars at server startup — throws immediately if any are missing.
+checkEnv();
 
 // Display / Headline — Syne 300: editorial, weightless, luxury-magazine aesthetic
 // Rule: No bold headlines. Size and spacing carry the premium — not weight.
@@ -9,7 +14,7 @@ import { Providers } from "@/components/Providers";
 const syne = Syne({
   subsets: ["latin"],
   weight: ["400", "500"],
-  variable: "--font-serif",
+  variable: "--font-syne",
   display: "swap",
 });
 
@@ -26,7 +31,7 @@ const instrumentSerif = Instrument_Serif({
 const inter = Inter({
   subsets: ["latin"],
   weight: ["300", "400", "500"],
-  variable: "--font-ui",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -48,11 +53,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className="dark"
+      className={`${syne.variable} ${inter.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} dark`}
       suppressHydrationWarning
     >
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta name="theme-color" content="#07080e" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body
-        className={`${syne.variable} ${inter.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} antialiased`}
+        className="antialiased"
         style={{ background: "var(--void)", color: "var(--stellar)" }}
       >
         {/* Living background — fixed aurora gradients, imperceptibly breathe */}
@@ -65,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div style={{ position: "relative", zIndex: 1 }}>
           <Providers>{children}</Providers>
         </div>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

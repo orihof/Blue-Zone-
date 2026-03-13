@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 // Returns all PDF exports for the authenticated user with fresh signed URLs.
 // ----------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const GET = requireConsent(1)(async (_req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

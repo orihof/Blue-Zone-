@@ -1,0 +1,13 @@
+{
+  "name": "Blue Zone",
+  "short_name": "Blue Zone",
+  "description": "Longevity intelligence for athletes and biohackers",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#07080e",
+  "theme_color": "#07080e",
+  "icons": [
+    { "src": "/icons/bz-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/bz-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

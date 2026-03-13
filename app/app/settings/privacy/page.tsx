@@ -3,7 +3,26 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import type { ConsentRecord } from "@/lib/consent/ConsentService";
+
+// Inline type definition — avoids importing from server-only ConsentService module
+// which can cause silent client bundler failures in Next.js 14.
+interface ConsentRecord {
+  id:                   string;
+  user_id:              string;
+  tier1_service:        boolean;
+  tier2_research:       boolean;
+  tier2_research_types: string[];
+  tier3_commercial:     boolean;
+  tier3_partners:       { partnerId: string; partnerName: string; consentedAt: string }[];
+  consent_version:      string;
+  ip_address:           string | null;
+  user_agent:           string | null;
+  consent_method:       string;
+  is_current:           boolean;
+  created_at:           string;
+  policy_version:       string;
+  terms_version:        string;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -125,7 +144,9 @@ export default function PrivacyPage() {
     }
   }, []);
 
-  useEffect(() => { void fetchConsent(); }, [fetchConsent]);
+  useEffect(() => {
+    void fetchConsent();
+  }, [fetchConsent]);
 
   // ── Apply consent change ──────────────────────────────────────────────────
   async function applyChange(field: "tier2_research" | "tier3_commercial", value: boolean) {

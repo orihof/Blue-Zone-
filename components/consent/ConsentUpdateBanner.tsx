@@ -92,7 +92,7 @@ export function ConsentUpdateBanner() {
           </span>
         )}
         <Link
-          href="/settings/privacy"
+          href="/app/settings/privacy"
           target="_blank"
           rel="noopener noreferrer"
           style={{ fontSize: 13, color: "#7EB8F7", textDecoration: "none", fontFamily: "var(--font-ui,'Inter',sans-serif)", whiteSpace: "nowrap" }}

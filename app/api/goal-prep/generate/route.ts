@@ -107,7 +107,7 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
   let competitionResults:  CompetitionResult[] = [];
   let timingSchedule:      TimingSlot[]        = [];
   let criticalConflicts:   CompetitionResult[] = [];
-  let suppressedProducts:  string[]            = [];
+  const suppressedProducts:  string[]            = [];
 
   // ── 2. Fetch health data + call Claude (awaited — serverless can't fire-and-forget) ──
   try {

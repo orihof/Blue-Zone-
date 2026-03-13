@@ -38,7 +38,7 @@
   --subtle:       #1E293B;
 
   /* Void Palette */
-  --void:        #030508;
+  --void:        #07080e;
   --abyss:       #070D18;
   --deep:        #0C1525;
   --elevated:    #111E32;
@@ -125,6 +125,18 @@
   --input:                  220 65% 11%;
   --ring:                   210 100% 50%;
   --radius:                 0.75rem;
+
+  /* ── Typography tokens ── */
+  --font-heading: var(--font-syne);
+  --font-body:    var(--font-inter);
+  --font-code:    var(--font-mono);
+
+  /* Backwards-compat aliases — existing globals.css references to
+     --font-serif and --font-ui continue to resolve correctly */
+  --font-serif: var(--font-syne);
+  --font-ui:    var(--font-inter);
+
+  color-scheme: dark;
 }
 
 .dark {

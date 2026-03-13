@@ -10,7 +10,6 @@ import type { CriticalValueEvent } from "@/lib/types/health";
 const GRAD    = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const SYNE    = "var(--font-serif,'Syne',sans-serif)";
 const BG      = "rgba(6,8,15,0.92)";
-const CARD    = "#111827";
 const CARD2   = "#0D1117";
 const TEXT    = "#F1F5F9";
 const MUTED   = "#64748B";

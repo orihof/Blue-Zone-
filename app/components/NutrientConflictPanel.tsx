@@ -2,7 +2,17 @@
 "use client";
 
 import { useState } from "react";
-import type { CompetitionResult } from "@/lib/nutrient-competition";
+// Inline type — do not import from lib/nutrient-competition (server-only module)
+type CompetitionResult = {
+  nutrient_a:              string;
+  nutrient_b:              string;
+  competition_type:        string;
+  clinical_significance:   "low" | "moderate" | "high" | "critical";
+  action:                  "schedule_apart" | "suggest_addition" | "flag_lab" | "suggest_pairing" | "log_silent";
+  timing_separation_hours?: number;
+  user_message:            string;
+  mitigation_strategy:     string;
+};
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 

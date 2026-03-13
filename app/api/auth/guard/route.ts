@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   // Fully onboarded: profile has step="data" AND user has given consent.
   // All other states (no profile, step="name"/"goal", no consent) are routed
   // to the onboarding orchestrator which handles all steps including consent.
-  const isFullyOnboarded = step === "data" && hasConsent;
+  const isFullyOnboarded = (step === "data" || step === "done") && hasConsent;
 
   if (!isFullyOnboarded) {
     return NextResponse.json({ redirect: "/app/onboarding" });

@@ -364,7 +364,7 @@ function MobileNav({ user }: AppNavProps) {
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <Settings size={14} color={T.muted} /> Settings
                 </Link>
-                <Link href="/settings/privacy" onClick={() => setDrawerOpen(false)}
+                <Link href="/app/settings/privacy" onClick={() => setDrawerOpen(false)}
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <Shield size={14} color={T.muted} /> Privacy & Data
                 </Link>

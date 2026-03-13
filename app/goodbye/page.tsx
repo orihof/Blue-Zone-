@@ -23,7 +23,7 @@ export default function GoodbyePage() {
 
       {/* Headline */}
       <h1 style={{ fontSize: "clamp(24px,4vw,34px)", fontWeight: 300, color: "#F1F5F9", fontFamily: "var(--font-serif,'Syne',sans-serif)", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 14, maxWidth: 380 }}>
-        We're sad to see you go.
+        We&apos;re sad to see you go.
       </h1>
 
       {/* Confirmation copy */}
@@ -39,7 +39,7 @@ export default function GoodbyePage() {
 
       {/* Soft re-engagement */}
       <p style={{ fontSize: 13, color: "#334155", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 20 }}>
-        If you ever want to come back, we'll be here.
+        If you ever want to come back, we&apos;ll be here.
       </p>
 
       <Link

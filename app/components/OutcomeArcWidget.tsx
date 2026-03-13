@@ -2,7 +2,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { OutcomeSummary, OutcomeMilestone } from "@/lib/outcome-tracker";
+// Inline types — do not import from lib/outcome-tracker (server-only module)
+type MilestoneStatus = "achieved" | "in_progress" | "not_started";
+interface MilestoneResult {
+  milestone_id:   string;
+  milestone_name: string;
+  status:         MilestoneStatus;
+  progress_pct:   number;
+  achieved_at?:   string;
+}
+interface OutcomeSummary {
+  protocol_snapshot_id: string;
+  markers_improved:     string[];
+  markers_declined:     string[];
+  markers_stable:       string[];
+  milestones_achieved:  MilestoneResult[];
+  overall_trajectory:   "positive" | "mixed" | "negative" | "insufficient_data";
+  narrative:            string;
+}
+interface OutcomeMilestone {
+  id:              string;
+  user_id:         string;
+  marker_name:     string;
+  milestone_name:  string;
+  baseline_value:  number;
+  target_value:    number;
+  target_unit:     string;
+  target_date?:    string;
+  progress_pct:    number;
+  status:          MilestoneStatus;
+  achieved_at?:    string;
+  created_at:      string;
+}
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 

@@ -309,6 +309,7 @@ interface MissingBiomarkersModalProps {
 
 export function MissingBiomarkersModal({
   isOpen,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onClose,
   onContinue,
   onDownload,

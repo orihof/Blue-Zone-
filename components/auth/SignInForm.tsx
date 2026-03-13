@@ -14,7 +14,12 @@ export default function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
 
   async function handleGoogle() {
     setLoading(true);
-    await signIn("google", { callbackUrl: "/app/dashboard" });
+    try {
+      await signIn("google", { callbackUrl: "/app/dashboard" });
+    } catch {
+      setLoading(false);
+      toast.error("Google sign-in failed. Please try again.");
+    }
   }
 
   async function handleMagicLink(e: React.FormEvent) {
@@ -42,6 +47,7 @@ export default function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
 
         {hasGoogle && (
           <button
+            type="button"
             onClick={handleGoogle}
             disabled={loading}
             style={{ width: "100%", padding: "11px 16px", background: loading ? "rgba(255,255,255,0.85)" : "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, color: "#1F2937", fontSize: 14, cursor: loading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 20, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500, transition: "all .18s", boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }}

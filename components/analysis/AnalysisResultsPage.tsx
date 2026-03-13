@@ -18,8 +18,6 @@ import type {
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
 const T  = { text: "#F1F5F9", muted: "#64748B", border: "rgba(255,255,255,.07)" };
-const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
-
 const GRADE_C: Record<string, string> = {
   A: "#10B981", B: "#3B82F6", C: "#F59E0B", D: "#F97316", F: "#EF4444",
 };

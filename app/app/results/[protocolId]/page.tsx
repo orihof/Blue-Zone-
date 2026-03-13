@@ -42,7 +42,9 @@ export default async function ResultsServerPage({ params }: PageProps) {
     .eq(COLS.USER_ID, session.user.id)
     .maybeSingle();
 
-  if (error || !data) notFound();
+  if (error || !data) {
+    notFound();
+  }
 
   const protocol = data as Protocol;
 

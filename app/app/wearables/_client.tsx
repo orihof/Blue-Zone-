@@ -11,6 +11,7 @@ import { UploadProgressBar, DEFAULT_PROGRESS } from "@/components/wearables/Uplo
 import type { UploadProgress }         from "@/components/wearables/UploadProgressBar";
 import { getImportScenario, EVENT_TRIGGERS } from "@/lib/wearables/import-scenarios";
 import type { ImportScenario }         from "@/lib/wearables/import-scenarios";
+import { friendlyUploadError, formatFileSize, LARGE_FILE_THRESHOLD } from "@/lib/uploads/errors";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
@@ -50,6 +51,18 @@ const WEARABLES = [
     id: "garmin",  name: "Garmin",         icon: "🏃",
     desc: "Steps, VO₂ max, heart rate zones & more",
     metrics: ["VO₂ Max", "Steps", "HR Zones"],
+    type: "soon" as const, oauthHref: null,
+  },
+  {
+    id: "strava",  name: "Strava",         icon: "🟠",
+    desc: "Activities, pace, power data & heart rate",
+    metrics: ["Activities", "Pace", "Power", "Heart Rate"],
+    type: "soon" as const, oauthHref: null,
+  },
+  {
+    id: "polar",   name: "Polar",          icon: "❄️",
+    desc: "Heart rate, training load, recovery & sleep",
+    metrics: ["Heart Rate", "Training Load", "Recovery", "Sleep"],
     type: "soon" as const, oauthHref: null,
   },
   {
@@ -144,13 +157,23 @@ export function WearablesClient({ connected, isFirstUpload, lastUploadAt, onNext
 
   // ── Apple Health — XHR for real progress ─────────────────────────────────
   async function handleAppleUpload(file: File) {
+    const mimeType = file.type || "application/zip";
     setAppleProgress({ phase: "uploading", percent: 0, fileName: file.name, uploadedAt: null });
+
+    // Large-file info toast (non-blocking)
+    if (file.size > LARGE_FILE_THRESHOLD) {
+      toast.info(`Large file detected (~${formatFileSize(file.size)}) — upload may take a moment.`);
+    }
+
     try {
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body:   JSON.stringify({ files: [{ name: file.name, size: file.size, type: file.type }] }),
+        body:   JSON.stringify({ files: [{ name: file.name, size: file.size, type: mimeType }] }),
       });
-      if (!signRes.ok) throw new Error("Failed to get upload URL");
+      if (!signRes.ok) {
+        const body = await signRes.json().catch(() => ({ error: "Failed to get upload URL" }));
+        throw new Error(body.error ?? `Server error (${signRes.status})`);
+      }
       const { files: signed } = await signRes.json() as { files: { signedUrl: string; storagePath: string }[] };
       const { signedUrl, storagePath } = signed[0];
 
@@ -161,10 +184,16 @@ export function WearablesClient({ connected, isFirstUpload, lastUploadAt, onNext
             setAppleProgress((p) => ({ ...p, percent: Math.round((e.loaded / e.total) * 100) }));
           }
         });
-        xhr.addEventListener("load",  () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
-        xhr.addEventListener("error", () => reject(new Error("Network error")));
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(friendlyUploadError(xhr.responseText || `Upload failed (HTTP ${xhr.status})`)));
+          }
+        });
+        xhr.addEventListener("error", () => reject(new Error("Network error — check your connection and try again.")));
         xhr.open("PUT", signedUrl);
-        xhr.setRequestHeader("Content-Type", file.type || "application/zip");
+        xhr.setRequestHeader("Content-Type", mimeType);
         xhr.send(file);
       });
 
@@ -172,9 +201,16 @@ export function WearablesClient({ connected, isFirstUpload, lastUploadAt, onNext
 
       const commitRes = await fetch("/api/uploads/commit", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body:   JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType: file.type }] }),
+        body:   JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType }] }),
       });
       if (!commitRes.ok) throw new Error("Failed to save upload");
+
+      // Register a wearable_connections row so the upload persists across page loads
+      await fetch("/api/wearables/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "apple_health" }),
+      }).catch(() => { /* non-fatal */ });
 
       setAppleProgress({ phase: "complete", percent: 100, fileName: file.name, uploadedAt: new Date() });
       recordUploadEvent("apple_health", currentScenario(), selectedTrigger ?? undefined);
@@ -198,6 +234,13 @@ export function WearablesClient({ connected, isFirstUpload, lastUploadAt, onNext
         body:   JSON.stringify(summary),
       });
       if (!res.ok) throw new Error("Failed to save Samsung Health data");
+
+      // Register a wearable_connections row so the upload persists across page loads
+      await fetch("/api/wearables/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "samsung_health" }),
+      }).catch(() => { /* non-fatal */ });
 
       setSamsungProgress({ phase: "complete", percent: 100, fileName: file.name, uploadedAt: new Date() });
       recordUploadEvent("samsung_health", currentScenario(), selectedTrigger ?? undefined);

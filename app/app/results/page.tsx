@@ -1,5 +1,5 @@
 /// app/app/results/page.tsx
-// Redirect to the user's latest ready protocol, or to dial if none exists.
+// Redirect to the user's latest ready protocol, or to onboarding if none exists.
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -13,16 +13,17 @@ export default async function ResultsRedirectPage() {
   const db = getAdminClient();
   const { data: protocol } = await db
     .from(TABLES.PROTOCOLS)
-    .select("id")
+    .select("id, status")
     .eq(COLS.USER_ID, session.user.id)
     .eq(COLS.STATUS, "ready")
     .order(COLS.CREATED_AT, { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (protocol?.id) {
     redirect(`/app/results/${protocol.id}`);
-  } else {
-    redirect("/app/onboarding/dial");
   }
+
+  // No ready protocol — send user to onboarding
+  redirect("/app/onboarding");
 }

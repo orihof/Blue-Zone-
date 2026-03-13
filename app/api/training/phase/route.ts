@@ -4,7 +4,7 @@ import { authOptions }        from "@/lib/auth";
 import { getAdminClient }     from "@/lib/supabase/admin";
 import { TABLES, COLS }       from "@/lib/db/schema";
 import { getEffectiveTrainingPhase } from "@/lib/training-phase-detector";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireConsent }     from "@/middleware/requireConsent";
 
 export const runtime = "nodejs";
@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 // Returns the user's effective training phase and its raw sources.
 // ----------------------------------------------------------------
 
-export const GET = requireConsent(1)(async (_req: NextRequest) => {
+export const GET = requireConsent(1)(async () => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

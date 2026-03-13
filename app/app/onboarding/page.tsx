@@ -1,6 +1,6 @@
 /// app/app/onboarding/page.tsx
 // Multi-step onboarding orchestrator.
-// Steps: 0 Privacy → 1 Welcome → 2 Goals → 3 Profile → 4 Upload → 5 Connect → 6 Analysis
+// Steps: 0 Welcome → 1 Data Sharing → 2 Goals → 3 Profile → 4 Upload → 5 Connect → 6 Analysis
 // Handles OAuth redirect-backs via ?step=N&whoop=connected / ?step=N&oura=connected.
 "use client";
 
@@ -16,12 +16,14 @@ const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const GT   = { background: GRAD, WebkitBackgroundClip: "text" as const, WebkitTextFillColor: "transparent" as const, backgroundClip: "text" as const };
 const T    = { text: "#F1F5F9", muted: "#64748B" };
 
-const STEP_LABELS = ["Privacy", "Welcome", "Goals", "Profile", "Upload", "Connect", "Analysis"];
+const STEP_LABELS = ["Welcome", "Data Sharing", "Goals", "Profile", "Upload", "Connect", "Analysis"];
 
 // ── Storage helpers (survive OAuth redirects) ─────────────────────────────────
 const SS_KEY = "bz_onboarding_v2";
 interface SavedState {
+  name: string;
   goals: Goal[];
+  primaryGoal: string;
   age: number;
   gender: string;
   currentInjuries: string[];
@@ -38,20 +40,77 @@ function saveSaved(s: SavedState) {
   try { sessionStorage.setItem(SS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }
 
-// ── Step 0: Privacy / consent ─────────────────────────────────────────────────
-function ConsentStep({ onNext }: { onNext: () => void }) {
-  return <ConsentOnboardingModal onComplete={onNext} />;
+// ── Goal card definitions ─────────────────────────────────────────────────────
+interface GoalCard {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  goals: Goal[];
+  accent: string;
+  accentBorder: string;
 }
 
-// ── Step 1: Welcome ───────────────────────────────────────────────────────────
-function WelcomeStep({ onNext }: { onNext: () => void }) {
-  const ITEMS: [string, string][] = [
-    ["🎯", "Choose your primary health goals"],
-    ["📋", "Share your health profile"],
-    ["🧬", "Upload blood test data"],
-    ["⌚", "Connect your wearables"],
-    ["⚗️", "Generate your personalised protocol"],
-  ];
+const GOAL_CARDS: GoalCard[] = [
+  {
+    id:          "sports_competition",
+    label:       "Prepare for a sports competition",
+    description: "Phase-based protocol built around your race date, sport & injury profile",
+    icon:        "🏆",
+    goals:       ["energy", "strength", "recovery"],
+    accent:      "rgba(124,58,237,.12)",
+    accentBorder: "rgba(124,58,237,.40)",
+  },
+  {
+    id:          "longevity",
+    label:       "Optimize my longevity",
+    description: "Slow your biological clock with evidence-based protocols across all health pillars",
+    icon:        "⬡",
+    goals:       ["longevity"],
+    accent:      "rgba(59,130,246,.10)",
+    accentBorder: "rgba(59,130,246,.35)",
+  },
+  {
+    id:          "performance",
+    label:       "Peak performance & energy",
+    description: "Maximize daily energy, strength output, and recovery between sessions",
+    icon:        "⚡",
+    goals:       ["energy", "strength", "recovery"],
+    accent:      "rgba(16,185,129,.10)",
+    accentBorder: "rgba(16,185,129,.35)",
+  },
+  {
+    id:          "health",
+    label:       "Health & wellness",
+    description: "Better sleep, sharper focus, balanced hormones — the foundations that drive everything else",
+    icon:        "🌙",
+    goals:       ["sleep", "focus", "hormones"],
+    accent:      "rgba(99,102,241,.10)",
+    accentBorder: "rgba(99,102,241,.35)",
+  },
+];
+
+// ── Step 0: Welcome with name input ──────────────────────────────────────────
+function WelcomeStep({ name, setName, onNext }: { name: string; setName: (n: string) => void; onNext: () => void }) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleContinue() {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await fetch("/api/onboarding/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), onboarding_step: "name" }),
+      });
+      onNext();
+    } catch {
+      toast.error("Failed to save — please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center" }}>
       <div style={{ width: 64, height: 64, borderRadius: 18, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 28px", boxShadow: "0 0 40px rgba(99,102,241,.35)" }}>
@@ -61,18 +120,39 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         <span style={{ color: T.text }}>Welcome to</span>{" "}<span style={GT}>Blue Zone</span>
       </h1>
       <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.75, maxWidth: 380, margin: "0 auto 36px", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
-        In the next few minutes, you&apos;ll share your goals, health data, and wearable connections. We&apos;ll build a protocol grounded in your biology — not generic advice.
+        Your longevity intelligence platform. In the next few minutes, we&apos;ll build a protocol grounded in your biology — not generic advice.
       </p>
-      <div className="card" style={{ padding: "8px 24px", marginBottom: 32, textAlign: "left" }}>
-        {ITEMS.map(([icon, label], i) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: i < ITEMS.length - 1 ? "1px solid rgba(255,255,255,.04)" : "none" }}>
-            <span style={{ fontSize: 18, width: 24, textAlign: "center" }}>{icon}</span>
-            <span style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{label}</span>
-          </div>
-        ))}
+
+      {/* Name input */}
+      <div className="card" style={{ padding: "24px 28px", marginBottom: 28, textAlign: "left" }}>
+        <label style={{ display: "block", fontSize: 10, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 10 }}>
+          What should we call you?
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleContinue(); } }}
+          placeholder="Your first name"
+          autoFocus
+          style={{
+            width: "100%",
+            background: "rgba(255,255,255,.04)",
+            border: "1px solid rgba(255,255,255,.12)",
+            borderRadius: 10,
+            padding: "14px 16px",
+            fontSize: 16,
+            color: T.text,
+            fontFamily: "var(--font-ui,'Inter',sans-serif)",
+            fontWeight: 300,
+            outline: "none",
+            transition: "border-color .15s",
+          }}
+        />
       </div>
-      <button className="cta" style={{ width: "100%" }} onClick={onNext}>
-        Let&apos;s begin →
+
+      <button className="cta" style={{ width: "100%" }} onClick={handleContinue} disabled={!name.trim() || saving}>
+        {saving ? "Saving..." : "Let\u2019s begin →"}
       </button>
       <p style={{ fontSize: 11, color: T.muted, marginTop: 10, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
         Takes about 5 minutes
@@ -81,69 +161,154 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   );
 }
 
-// ── Step 2: Goals ─────────────────────────────────────────────────────────────
-const GOAL_OPTIONS: { value: Goal; label: string; icon: string }[] = [
-  { value: "energy",    label: "Energy",    icon: "⚡" },
-  { value: "sleep",     label: "Sleep",     icon: "🌙" },
-  { value: "focus",     label: "Focus",     icon: "🎯" },
-  { value: "strength",  label: "Strength",  icon: "💪" },
-  { value: "fat_loss",  label: "Fat Loss",  icon: "🔥" },
-  { value: "recovery",  label: "Recovery",  icon: "🔄" },
-  { value: "hormones",  label: "Hormones",  icon: "◉" },
-  { value: "longevity", label: "Longevity", icon: "⬡" },
-];
+// ── Step 1: Data Sharing / consent ───────────────────────────────────────────
+function ConsentStep({ onNext }: { onNext: () => void }) {
+  return <ConsentOnboardingModal onComplete={onNext} />;
+}
 
-function GoalsStep({ goals, setGoals, onNext, onSportsPrep }: { goals: Goal[]; setGoals: (g: Goal[]) => void; onNext: () => void; onSportsPrep: () => void }) {
+// ── Step 2: Goals (4 cards, single-select) ───────────────────────────────────
+function GoalsStep({
+  selectedGoal,
+  onSelect,
+  onNext,
+  onSportsPrep,
+}: {
+  selectedGoal: string;
+  onSelect: (id: string) => void;
+  onNext: () => void;
+  onSportsPrep: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  async function handleContinue() {
+    if (!selectedGoal) return;
+    setSaving(true);
+    try {
+      await fetch("/api/onboarding/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ primary_goal: selectedGoal, onboarding_step: "goal" }),
+      });
+      onNext();
+    } catch {
+      toast.error("Failed to save — please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <div style={{ maxWidth: 520, margin: "0 auto" }}>
-      <div style={{ textAlign: "center", marginBottom: 28 }}>
-        <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: "clamp(20px,3vw,32px)", ...GT, letterSpacing: "-.02em", marginBottom: 8 }}>
-          What are you optimising for?
+    <div style={{ maxWidth: 540, margin: "0 auto" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: "clamp(22px,3.5vw,34px)", ...GT, letterSpacing: "-.02em", marginBottom: 10 }}>
+          What&apos;s your primary objective?
         </h2>
         <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-          Select all that apply — we&apos;ll weight your protocol accordingly.
+          Choose one — this shapes everything downstream.
         </p>
       </div>
-      <div className="card" style={{ padding: "20px 24px", marginBottom: 12 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-          {GOAL_OPTIONS.map((g) => {
-            const active = goals.includes(g.value);
-            return (
-              <button
-                key={g.value}
-                onClick={() => setGoals(active ? goals.filter((x) => x !== g.value) : [...goals, g.value])}
-                style={{ padding: "12px 4px", borderRadius: 10, textAlign: "center", background: active ? "rgba(99,102,241,.15)" : "rgba(255,255,255,.03)", border: `1px solid ${active ? "rgba(99,102,241,.45)" : "rgba(255,255,255,.07)"}`, cursor: "pointer", transition: "all .15s" }}
-              >
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{g.icon}</div>
-                <div style={{ fontSize: 10, color: active ? "#A5B4FC" : T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{g.label}</div>
-              </button>
-            );
-          })}
-        </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
+        {GOAL_CARDS.map((card, i) => {
+          const isSelected = selectedGoal === card.id;
+          const isSports = card.id === "sports_competition";
+
+          return (
+            <button
+              key={card.id}
+              onClick={() => {
+                if (isSports) {
+                  onSportsPrep();
+                } else {
+                  onSelect(card.id);
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: "20px 24px",
+                borderRadius: 16,
+                textAlign: "left",
+                cursor: "pointer",
+                background: isSelected
+                  ? card.accent
+                  : i === 0
+                    ? "rgba(124,58,237,.04)"
+                    : "rgba(255,255,255,.02)",
+                border: `1.5px solid ${
+                  isSelected
+                    ? card.accentBorder
+                    : i === 0
+                      ? "rgba(124,58,237,.18)"
+                      : "rgba(255,255,255,.06)"
+                }`,
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                transition: "all .2s ease",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {/* Selection indicator */}
+              <div style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                border: `2px solid ${isSelected ? card.accentBorder : "rgba(255,255,255,.15)"}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                background: isSelected ? card.accent : "transparent",
+                transition: "all .2s",
+              }}>
+                {isSelected && (
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: card.accentBorder }} />
+                )}
+              </div>
+
+              <div style={{ fontSize: 28, flexShrink: 0 }}>{card.icon}</div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: 14,
+                  color: isSelected ? T.text : i === 0 ? "#C4B5FD" : T.text,
+                  fontFamily: "var(--font-ui,'Inter',sans-serif)",
+                  fontWeight: 500,
+                  marginBottom: 3,
+                }}>
+                  {card.label}
+                </div>
+                <div style={{
+                  fontSize: 12,
+                  color: T.muted,
+                  fontFamily: "var(--font-ui,'Inter',sans-serif)",
+                  fontWeight: 300,
+                  lineHeight: 1.5,
+                }}>
+                  {card.description}
+                </div>
+              </div>
+
+              {isSports && (
+                <span style={{ fontSize: 13, color: "#A5B4FC", flexShrink: 0 }}>→</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Sports event special route */}
       <button
-        onClick={onSportsPrep}
-        style={{ width: "100%", padding: "16px 20px", borderRadius: 14, textAlign: "left", cursor: "pointer", background: "rgba(124,58,237,.06)", border: "1px solid rgba(124,58,237,.22)", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", transition: "all .15s" }}
+        className="cta"
+        style={{ width: "100%" }}
+        onClick={handleContinue}
+        disabled={!selectedGoal || saving}
       >
-        <div>
-          <div style={{ fontSize: 13, color: "#C4B5FD", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 500, marginBottom: 3 }}>
-            🏆 Prepare for an upcoming sports event
-          </div>
-          <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-            Phase-based protocol built around your race date, sport &amp; injury profile
-          </div>
-        </div>
-        <span style={{ fontSize: 13, color: "#A5B4FC", flexShrink: 0, marginLeft: 16 }}>→</span>
+        {saving ? "Saving..." : "Continue →"}
       </button>
-
-      <button className="cta" style={{ width: "100%" }} onClick={onNext} disabled={goals.length === 0}>
-        Continue →
-      </button>
-      {goals.length === 0 && (
+      {!selectedGoal && (
         <p style={{ fontSize: 11, color: T.muted, textAlign: "center", marginTop: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-          Select at least one goal to continue
+          Select a goal to continue
         </p>
       )}
     </div>
@@ -403,7 +568,7 @@ function PersonalDataStep({
       </div>
 
       <button className="cta" style={{ width: "100%" }} onClick={handleNext} disabled={saving || !gender}>
-        {saving ? "Saving…" : "Continue →"}
+        {saving ? "Saving\u2026" : "Continue →"}
       </button>
       {!gender && (
         <p style={{ fontSize: 11, color: T.muted, textAlign: "center", marginTop: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
@@ -415,7 +580,7 @@ function PersonalDataStep({
 }
 
 // ── Step 4: Upload blood tests ────────────────────────────────────────────────
-const STATUS_STEPS = ["Reading file…", "Extracting biomarkers…", "Normalizing values…", "Preparing analysis…"];
+const STATUS_STEPS = ["Reading file\u2026", "Extracting biomarkers\u2026", "Normalizing values\u2026", "Preparing analysis\u2026"];
 
 function UploadStep({ onDone }: { onDone: (data: { storagePath: string; fileName: string }) => void }) {
   const [drag, setDrag]           = useState(false);
@@ -563,7 +728,7 @@ function ProcessingStep({
   onDone,
 }: {
   profile: { age: number; goals: Goal[]; budget: BudgetTier; preferences: Preferences };
-  onDone: (protocolId: string) => void;
+  onDone: (protocolId: string) => void | Promise<void>;
 }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [visibleSteps, setVisibleSteps] = useState<number[]>([0]);
@@ -612,7 +777,7 @@ function ProcessingStep({
         if (intervalRef.current) clearInterval(intervalRef.current);
         setCurrentStep(PROC_STEPS.length - 1);
         setVisibleSteps(PROC_STEPS.map((_, i) => i));
-        setTimeout(() => onDone(protocolId), 1200);
+        setTimeout(() => void onDone(protocolId), 1200);
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : "Protocol generation failed");
       }
@@ -665,7 +830,9 @@ function OnboardingInner() {
   const [step, setStep] = useState(initialStep);
 
   // Form state
-  const [goals,            setGoals]            = useState<Goal[]>(["energy", "sleep"] as Goal[]);
+  const [userName,         setUserName]         = useState("");
+  const [primaryGoal,      setPrimaryGoal]      = useState("");
+  const [goals,            setGoals]            = useState<Goal[]>([]);
   const [age,              setAge]              = useState(35);
   const [gender,           setGender]           = useState("");
   const [currentInjuries,  setCurrentInjuries]  = useState<string[]>([]);
@@ -680,11 +847,27 @@ function OnboardingInner() {
     whoop: whoopStatus === "connected",
     oura:  ouraStatus  === "connected",
   });
+  const [extraConnected, setExtraConnected] = useState<string[]>([]);
+
+  // Fetch existing wearable connections on mount
+  useEffect(() => {
+    fetch("/api/wearables/status")
+      .then((r) => r.ok ? r.json() : { connections: [] })
+      .then((data: { connections: { provider: string }[] }) => {
+        const providers = data.connections.map((c) => c.provider);
+        if (providers.includes("whoop")) setConnected((p) => ({ ...p, whoop: true }));
+        if (providers.includes("oura"))  setConnected((p) => ({ ...p, oura: true }));
+        setExtraConnected(providers.filter((p) => p !== "whoop" && p !== "oura"));
+      })
+      .catch(() => { /* non-fatal */ });
+  }, []);
 
   // Restore sessionStorage on mount (survives OAuth redirects)
   useEffect(() => {
     const saved = loadSaved();
     if (saved) {
+      if (saved.name) setUserName(saved.name);
+      if (saved.primaryGoal) setPrimaryGoal(saved.primaryGoal);
       setGoals(saved.goals);
       setAge(saved.age);
       setGender(saved.gender);
@@ -699,8 +882,8 @@ function OnboardingInner() {
 
   // Persist to sessionStorage
   useEffect(() => {
-    saveSaved({ goals, age, gender, currentInjuries, healthConditions, medications, budget, preferences, uploadData });
-  }, [goals, age, gender, currentInjuries, healthConditions, medications, budget, preferences, uploadData]);
+    saveSaved({ name: userName, primaryGoal, goals, age, gender, currentInjuries, healthConditions, medications, budget, preferences, uploadData });
+  }, [userName, primaryGoal, goals, age, gender, currentInjuries, healthConditions, medications, budget, preferences, uploadData]);
 
   // Show toast on OAuth result
   useEffect(() => {
@@ -710,6 +893,13 @@ function OnboardingInner() {
     if (ouraStatus  === "error")     { toast.error("Oura connection failed — try again."); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [whoopStatus, ouraStatus]);
+
+  // When a goal card is selected, derive the Goal[] values for protocol generation
+  function handleGoalSelect(cardId: string) {
+    setPrimaryGoal(cardId);
+    const card = GOAL_CARDS.find((c) => c.id === cardId);
+    if (card) setGoals(card.goals);
+  }
 
   // Persist profile + mark onboarding_step="data" after step 3
   async function handlePersonalDataNext() {
@@ -732,6 +922,7 @@ function OnboardingInner() {
   const wearableConnections = [
     ...(connected.whoop ? [{ provider: "whoop", connectedAt: new Date().toISOString() }] : []),
     ...(connected.oura  ? [{ provider: "oura",  connectedAt: new Date().toISOString() }] : []),
+    ...extraConnected.map((p) => ({ provider: p, connectedAt: new Date().toISOString() })),
   ];
 
   const progressPct = (step / (STEP_LABELS.length - 1)) * 100;
@@ -761,11 +952,12 @@ function OnboardingInner() {
 
       {/* Step content */}
       <div style={{ padding: "40px 20px 120px" }}>
-        {step === 0 && <ConsentStep onNext={() => setStep(1)} />}
-        {step === 1 && <WelcomeStep onNext={() => setStep(2)} />}
+        {step === 0 && <WelcomeStep name={userName} setName={setUserName} onNext={() => setStep(1)} />}
+        {step === 1 && <ConsentStep onNext={() => setStep(2)} />}
         {step === 2 && (
           <GoalsStep
-            goals={goals} setGoals={setGoals}
+            selectedGoal={primaryGoal}
+            onSelect={handleGoalSelect}
             onNext={() => setStep(3)}
             onSportsPrep={() => router.push("/app/onboarding/sports-prep")}
           />
@@ -796,7 +988,13 @@ function OnboardingInner() {
         {step === 6 && (
           <ProcessingStep
             profile={{ age, goals, budget, preferences }}
-            onDone={(protocolId) => {
+            onDone={async (protocolId) => {
+              // Mark onboarding fully complete
+              await fetch("/api/onboarding/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ onboarding_step: "done" }),
+              }).catch(() => { /* non-fatal */ });
               sessionStorage.removeItem(SS_KEY);
               router.push(`/app/results/${protocolId}`);
             }}

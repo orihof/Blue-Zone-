@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import SamsungHealthHelpModal from "@/components/upload/SamsungHealthHelpModal";
 import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
+import { friendlyUploadError, formatFileSize, LARGE_FILE_THRESHOLD } from "@/lib/uploads/errors";
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const GT   = { background: GRAD, WebkitBackgroundClip: "text" as const, WebkitTextFillColor: "transparent" as const, backgroundClip: "text" as const };
@@ -74,6 +75,12 @@ function UploadSection({ initialDone, onDone }: { initialDone: boolean; onDone: 
 
   const startUpload = useCallback(async (f: File) => {
     setFile(f); setUploading(true); setPct(0);
+
+    // Large-file info toast (non-blocking)
+    if (f.size > LARGE_FILE_THRESHOLD) {
+      toast.info(`Large file detected (~${formatFileSize(f.size)}) — upload may take a moment.`);
+    }
+
     try {
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -90,8 +97,14 @@ function UploadSection({ initialDone, onDone }: { initialDone: boolean; onDone: 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.upload.onprogress = (e) => { if (e.lengthComputable) setPct(Math.round((e.loaded / e.total) * 85)); };
-        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
-        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(friendlyUploadError(xhr.responseText || `Upload failed (HTTP ${xhr.status})`)));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Network error — check your connection and try again."));
         xhr.open("PUT", signedUrl);
         xhr.setRequestHeader("Content-Type", f.type || "application/octet-stream");
         xhr.send(f);
@@ -186,6 +199,8 @@ const WEARABLE_CARDS = [
   { id: "apple",   name: "Apple Health",   icon: "🍎", desc: "Export from Health app",           oauthHref: null },
   { id: "samsung", name: "Samsung Health", icon: "📱", desc: "Steps, sleep, heart rate (CSV)",   oauthHref: null },
   { id: "garmin",  name: "Garmin",         icon: "🏃", desc: "Steps, VO₂ max, HR zones",        oauthHref: null, soon: true },
+  { id: "strava",  name: "Strava",         icon: "🟠", desc: "Activities, pace, power & HR",    oauthHref: null, soon: true },
+  { id: "polar",   name: "Polar",          icon: "❄️", desc: "Heart rate, training load & recovery", oauthHref: null, soon: true },
   { id: "cgm",     name: "CGM",            icon: "🩸", desc: "Continuous glucose monitoring",    oauthHref: null, soon: true },
   { id: "manual",  name: "Manual Entry",   icon: "✏️", desc: "Enter measurements by hand",      oauthHref: null, soon: true },
 ];
@@ -218,6 +233,14 @@ function WearablesSection({
         body: JSON.stringify(summary),
       });
       if (!res.ok) throw new Error("Failed to save Samsung Health data");
+
+      // Register connection + mark step complete
+      await fetch("/api/wearables/connect", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "samsung_health" }),
+      }).catch(() => {});
+      setDone(true);
+      onDone();
       toast.success("Samsung Health data imported!");
       setShModal(false);
     } catch (err: unknown) {
@@ -230,19 +253,41 @@ function WearablesSection({
 
   async function handleAppleUpload(file: File) {
     setAppleBusy(true);
+    const mimeType = file.type || "application/zip";
+
+    // Large-file info toast (non-blocking)
+    if (file.size > LARGE_FILE_THRESHOLD) {
+      toast.info(`Large file detected (~${formatFileSize(file.size)}) — upload may take a moment.`);
+    }
+
     try {
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: [{ name: file.name, size: file.size, type: file.type }] }),
+        body: JSON.stringify({ files: [{ name: file.name, size: file.size, type: mimeType }] }),
       });
-      if (!signRes.ok) throw new Error("Failed to get upload URL");
+      if (!signRes.ok) {
+        const body = await signRes.json().catch(() => ({ error: "Failed to get upload URL" }));
+        throw new Error(body.error ?? `Server error (${signRes.status})`);
+      }
       const { files: signed } = await signRes.json();
       const { signedUrl, storagePath } = signed[0] as { signedUrl: string; storagePath: string };
-      await fetch(signedUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+      const uploadRes = await fetch(signedUrl, { method: "PUT", body: file, headers: { "Content-Type": mimeType } });
+      if (!uploadRes.ok) {
+        const raw = await uploadRes.text().catch(() => "");
+        throw new Error(friendlyUploadError(raw || `Upload failed (HTTP ${uploadRes.status})`));
+      }
       await fetch("/api/uploads/commit", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType: file.type }] }),
+        body: JSON.stringify({ files: [{ storagePath, fileName: file.name, fileSize: file.size, mimeType }] }),
       });
+
+      // Register connection + mark step complete
+      await fetch("/api/wearables/connect", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "apple_health" }),
+      }).catch(() => {});
+      setDone(true);
+      onDone();
       toast.success("Apple Health data uploaded!");
       setAhModal(false);
     } catch (err: unknown) {
@@ -453,7 +498,11 @@ function SetupInner({
         </button>
         {!bothDone && (
           <p style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-            Complete or skip both steps above to continue
+            {!step1Done && !step2Done
+              ? "Complete or skip both steps above to continue"
+              : !step1Done
+              ? "Upload or skip the blood test to continue"
+              : "Connect a wearable or skip to continue"}
           </p>
         )}
       </div>

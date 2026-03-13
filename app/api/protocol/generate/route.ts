@@ -21,8 +21,6 @@ import {
   generateTimingSchedule,
   getCompetitionNarrativeContext,
   type ProtocolProduct,
-  type CompetitionResult,
-  type TimingSlot,
 } from "@/lib/nutrient-competition";
 import { getSuppressedProductIds } from "@/lib/adverse-events";
 import {

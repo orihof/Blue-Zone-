@@ -8,7 +8,17 @@ import type { CardAdoptionState } from "@/components/RecommendationCard";
 import type { RecItem, ClinicItem } from "@/lib/db/payload";
 import type { ProtocolPayload } from "@/lib/db/payload";
 import type { Goal, BudgetTier, Preferences } from "@/lib/recommendations/generate";
-import type { CompetitionResult } from "@/lib/nutrient-competition";
+// Inline type — do not import from lib/nutrient-competition (server-only module)
+export type CompetitionResult = {
+  nutrient_a:              string;
+  nutrient_b:              string;
+  competition_type:        string;
+  clinical_significance:   "low" | "moderate" | "high" | "critical";
+  action:                  "schedule_apart" | "suggest_addition" | "flag_lab" | "suggest_pairing" | "log_silent";
+  timing_separation_hours?: number;
+  user_message:            string;
+  mitigation_strategy:     string;
+};
 import { CriticalValueGate }     from "@/app/components/CriticalValueGate";
 import { PregnancySafetyBanner } from "@/app/components/PregnancySafetyBanner";
 import { NutrientConflictPanel } from "@/app/components/NutrientConflictPanel";
@@ -16,7 +26,6 @@ import { OutcomeArcWidget }      from "@/app/components/OutcomeArcWidget";
 import ProtocolTabs              from "@/components/protocol/ProtocolTabs";
 import ProtocolSessionHero      from "@/components/protocol/ProtocolSessionHero";
 import ProtocolMeta             from "@/components/protocol/ProtocolMeta";
-import ProtocolRecommendationCard from "@/components/protocol/RecommendationCard";
 import RecommendationTabs       from "@/components/protocol/RecommendationTabs";
 import { useProtocolPhase }     from "@/hooks/useProtocolPhase";
 

@@ -30,6 +30,18 @@ export async function createServerSupabaseClient() {
   );
 }
 
+/**
+ * ⚠ SERVER-ONLY — DO NOT IMPORT IN 'use client' COMPONENTS
+ * Contains SUPABASE_SERVICE_ROLE_KEY which bypasses ALL RLS policies.
+ * Use only for: system_errors logging, notification rate limiting.
+ * If you see this imported in a client component, that is a security vulnerability.
+ */
+export const supabaseServiceRole = createAdminClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
+
 // Service-role client — bypasses RLS for admin operations in Route Handlers
 // NEVER expose this client or its key to the browser
 export function createServiceRoleClient() {
