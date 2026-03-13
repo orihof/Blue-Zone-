@@ -18,6 +18,5 @@ export async function runPipelineStub(userId: string): Promise<void> {
   await supabase.from('protocols').upsert({
     user_id: userId,
     status: 'failed',
-    content: null,
   });
 }

@@ -19,28 +19,31 @@ export async function runMockPipeline(userId: string): Promise<void> {
 
   await new Promise(resolve => setTimeout(resolve, MOCK_DELAY));
 
-  await supabase.from('protocols').upsert({
-    user_id: userId,
-    status: 'ready',
-    content: {
-      generated_at: new Date().toISOString(),
-      goal,
-      summary: `[MOCK] Placeholder protocol for goal: ${goal}`,
-      domains: {
-        nutrition: { recommendations: ['[MOCK] Nutrition recommendation'], priority: 'high' },
-        exercise: { recommendations: ['[MOCK] Exercise recommendation'], priority: 'high' },
-        sleep: { recommendations: ['[MOCK] Sleep recommendation'], priority: 'medium' },
-        supplements: { recommendations: ['[MOCK] Supplements recommendation'], priority: 'medium' },
-        biomarkers: { recommendations: ['[MOCK] Biomarkers recommendation'], priority: 'medium' },
-        recovery: { recommendations: ['[MOCK] Recovery recommendation'], priority: 'low' },
-        longevity: { recommendations: ['[MOCK] Longevity recommendation'], priority: 'low' },
-        mental_performance: { recommendations: ['[MOCK] Mental performance recommendation'], priority: 'low' },
-      },
-      safety_flags: {
-        pregnancy_safe_mode: false,
-        pregnancy_question_declined: false,
-        use_sex_neutral_ranges: false,
-      },
+  const parsedOutput = {
+    generated_at: new Date().toISOString(),
+    goal,
+    summary: `[MOCK] Placeholder protocol for goal: ${goal}`,
+    domains: {
+      nutrition: { recommendations: ['[MOCK] Nutrition recommendation'], priority: 'high' },
+      exercise: { recommendations: ['[MOCK] Exercise recommendation'], priority: 'high' },
+      sleep: { recommendations: ['[MOCK] Sleep recommendation'], priority: 'medium' },
+      supplements: { recommendations: ['[MOCK] Supplements recommendation'], priority: 'medium' },
+      biomarkers: { recommendations: ['[MOCK] Biomarkers recommendation'], priority: 'medium' },
+      recovery: { recommendations: ['[MOCK] Recovery recommendation'], priority: 'low' },
+      longevity: { recommendations: ['[MOCK] Longevity recommendation'], priority: 'low' },
+      mental_performance: { recommendations: ['[MOCK] Mental performance recommendation'], priority: 'low' },
     },
+    safety_flags: {
+      pregnancy_safe_mode: false,
+      pregnancy_question_declined: false,
+      use_sex_neutral_ranges: false,
+    },
+  };
+
+  await supabase.from('protocol_outputs').insert({
+    user_id: userId,
+    model: 'claude-sonnet-4-6',
+    raw_response: JSON.stringify(parsedOutput),
+    parsed_output: parsedOutput,
   });
 }
