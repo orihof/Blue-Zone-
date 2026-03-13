@@ -17,6 +17,7 @@ const REQUIRED_ENV_VARS = [
   "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
   "RESEND_API_KEY",
   "RESEND_FROM_EMAIL",
+  "INTERNAL_GUARD_SECRET",
 ] as const;
 
 export function checkEnv(): void {
