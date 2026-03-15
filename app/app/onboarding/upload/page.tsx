@@ -3,6 +3,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
 import { MissingMarkersModal } from "@/components/blood-test/MissingMarkersModal";
@@ -109,7 +110,6 @@ export default function UploadPage() {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [ahState,       setAhState]       = useState<AHState>("idle");
   const [ahFile,        setAhFile]        = useState<File | null>(null);
-  const [ahPct,         setAhPct]         = useState(0);
   const [ahParseStep,   setAhParseStep]   = useState(0); // 0 = not started, 1–4 = step index
   const [ahError,       setAhError]       = useState<string | null>(null);
   const [ahWarning,     setAhWarning]     = useState<string | null>(null);
@@ -214,7 +214,6 @@ export default function UploadPage() {
     setAhError(null);
     setAhWarning(null);
     setAhState("uploading");
-    setAhPct(0);
     setAhParseStep(0);
     console.log("[analytics] apple_health_upload_started", { fileSize: f.size, fileName: f.name });
 
@@ -234,15 +233,11 @@ export default function UploadPage() {
       if (!signedFiles?.[0]) throw new Error("No signed URL returned");
       const { storagePath, token } = signedFiles[0];
 
-      // Upload via Supabase SDK (handles auth headers) — fake progress 0–95%
-      let ahFakePct = 0;
-      const ahTick = setInterval(() => { ahFakePct = Math.min(ahFakePct + 3, 95); setAhPct(ahFakePct); }, 200);
+      // Upload via Supabase SDK (handles auth headers) — indeterminate bar shown in UI
       const { error: ahUploadError } = await supabasePublic.storage
         .from(BUCKETS.HEALTH_FILES)
         .uploadToSignedUrl(storagePath, token, f, { contentType: ahFileType, upsert: true });
-      clearInterval(ahTick);
       if (ahUploadError) throw new Error(ahUploadError.message);
-      setAhPct(100);
 
       const commitRes = await fetch("/api/uploads/commit", {
         method: "POST",
@@ -454,18 +449,21 @@ export default function UploadPage() {
           </>
         )}
 
-        {/* Uploading: show progress bar */}
+        {/* Uploading: indeterminate shimmer */}
         {ahState === "uploading" && (
           <div>
             <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: T.text, marginBottom: 10 }}>
               {ahFile?.name ?? "export.zip"}
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: T.muted, marginBottom: 4, fontFamily: "var(--font-mono,'JetBrains Mono',monospace)" }}>
-              <span>Uploading…</span>
-              <span>{ahPct}%</span>
+            <div style={{ fontSize: 11, color: T.muted, marginBottom: 8, fontFamily: "var(--font-mono,'JetBrains Mono',monospace)" }}>
+              Uploading…
             </div>
             <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${ahPct}%`, background: GRAD, borderRadius: 4, transition: "width 0.3s ease" }} />
+              <motion.div
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                style={{ height: "100%", width: "50%", background: "linear-gradient(90deg, var(--ion-blue, #008AFF), var(--biolum, #00FFB3))", borderRadius: 4 }}
+              />
             </div>
           </div>
         )}

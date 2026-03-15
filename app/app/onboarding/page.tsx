@@ -6,6 +6,8 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { toast } from "sonner";
 import type { Goal, BudgetTier, Preferences } from "@/lib/recommendations/generate";
 import { ConsentOnboardingModal } from "@/components/consent/ConsentOnboardingModal";
@@ -580,18 +582,35 @@ function PersonalDataStep({
 }
 
 // ── Step 4: Upload blood tests ────────────────────────────────────────────────
-const STATUS_STEPS = ["Reading file\u2026", "Extracting biomarkers\u2026", "Normalizing values\u2026", "Preparing analysis\u2026"];
+type UploadPhase = "idle" | "uploading" | "success" | "error";
+
+function fmtBytes(bytes: number) {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function UploadStep({ onDone }: { onDone: (data: { storagePath: string; fileName: string }) => void }) {
-  const [drag, setDrag]           = useState(false);
-  const [file, setFile]           = useState<File | null>(null);
-  const [pct,  setPct]            = useState(0);
-  const [uploading, setUploading] = useState(false);
+  const [drag,        setDrag]        = useState(false);
+  const [phase,       setPhase]       = useState<UploadPhase>("idle");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [errorMsg,    setErrorMsg]    = useState("");
+  const [sizeWarning, setSizeWarning] = useState("");
 
-  const statusText = pct < 30 ? STATUS_STEPS[0] : pct < 60 ? STATUS_STEPS[1] : pct < 85 ? STATUS_STEPS[2] : STATUS_STEPS[3];
+  const handleFile = useCallback(async (f: File) => {
+    setSizeWarning("");
+    setErrorMsg("");
 
-  const startUpload = useCallback(async (f: File) => {
-    setFile(f); setUploading(true); setPct(0);
+    if (!f.name.toLowerCase().endsWith(".pdf") && f.type !== "application/pdf") {
+      setErrorMsg("Only PDF files are accepted. Please upload a PDF lab report.");
+      return;
+    }
+    if (f.size > 50 * 1024 * 1024) {
+      setSizeWarning(`This file is ${fmtBytes(f.size)} — files over 50 MB may take a while.`);
+    }
+
+    setUploadedFile(f);
+    setPhase("uploading");
+
     try {
       const signRes = await fetch("/api/uploads/sign", {
         method: "POST",
@@ -600,7 +619,7 @@ function UploadStep({ onDone }: { onDone: (data: { storagePath: string; fileName
       });
       if (!signRes.ok) {
         const e = await signRes.json().catch(() => ({}));
-        throw new Error((e as Record<string,string>).error ?? "Failed to get upload URL");
+        throw new Error((e as Record<string, string>).error ?? "Failed to get upload URL");
       }
       const { files: signedFiles } = await signRes.json() as { files: { signedUrl: string; storagePath: string }[] };
       if (!signedFiles?.[0]) throw new Error("No signed URL returned");
@@ -608,7 +627,6 @@ function UploadStep({ onDone }: { onDone: (data: { storagePath: string; fileName
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.upload.onprogress = (e) => { if (e.lengthComputable) setPct(Math.round((e.loaded / e.total) * 85)); };
         xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
         xhr.onerror = () => reject(new Error("Upload failed"));
         xhr.open("PUT", signedUrl);
@@ -616,19 +634,26 @@ function UploadStep({ onDone }: { onDone: (data: { storagePath: string; fileName
         xhr.send(f);
       });
 
-      setPct(95);
       await fetch("/api/uploads/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ files: [{ storagePath, fileName: f.name, fileSize: f.size, mimeType: f.type }] }),
       });
-      setPct(100);
-      setTimeout(() => onDone({ storagePath, fileName: f.name }), 500);
+
+      setPhase("success");
+      setTimeout(() => onDone({ storagePath, fileName: f.name }), 800);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
-      setUploading(false); setPct(0); setFile(null);
+      setErrorMsg(err instanceof Error ? err.message : "Upload failed. Please try again.");
+      setPhase("error");
     }
   }, [onDone]);
+
+  function resetToIdle() {
+    setPhase("idle");
+    setUploadedFile(null);
+    setSizeWarning("");
+    setErrorMsg("");
+  }
 
   return (
     <div style={{ maxWidth: 540, margin: "0 auto" }}>
@@ -641,40 +666,92 @@ function UploadStep({ onDone }: { onDone: (data: { storagePath: string; fileName
         </p>
       </div>
 
-      <div className="card" style={{ padding: 8 }}>
-        {!uploading ? (
-          <div
-            className={`upload-zone${drag ? " drag" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) startUpload(f); }}
-            onClick={() => document.getElementById("bz-file")?.click()}
-          >
-            <input id="bz-file" type="file" accept=".pdf,.csv,.json,.xml" style={{ display: "none" }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) startUpload(f); }} />
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
-            <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 18, color: T.text, marginBottom: 6 }}>Drop your lab report here</div>
-            <div style={{ fontSize: 12, color: T.muted, marginBottom: 20, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-              PDF, CSV, JSON, XML · Blood tests, DEXA, hormones, VO₂ max
-            </div>
-            <button className="cta cta-sm" style={{ pointerEvents: "none" }}>Browse Files</button>
-          </div>
-        ) : (
-          <div style={{ padding: "40px 36px", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 14, color: T.text, marginBottom: 5 }}>
-              {file?.name ?? "lab-report.pdf"}
-            </div>
-            <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: T.muted, marginBottom: 16 }}>
-              {pct < 100 ? statusText : "✓ Upload complete"}
-            </div>
-            <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", marginBottom: 6 }}>
-              <div className="progress-bar-fill" style={{ width: `${Math.min(pct, 100)}%` }} />
-            </div>
-            <div style={{ fontSize: 10, color: "#334155", fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", textAlign: "right" }}>
-              {Math.round(Math.min(pct, 100))}%
-            </div>
-          </div>
-        )}
+      <div className="card" style={{ padding: 8, overflow: "hidden" }}>
+        <AnimatePresence mode="wait">
+
+          {phase === "idle" && (
+            <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <div
+                className={`upload-zone${drag ? " drag" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+                onDragLeave={() => setDrag(false)}
+                onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                onClick={() => document.getElementById("bz-file-onboarding")?.click()}
+              >
+                <input id="bz-file-onboarding" type="file" accept=".pdf" style={{ display: "none" }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+                <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
+                <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 18, color: T.text, marginBottom: 6 }}>
+                  Drop your lab report here
+                </div>
+                <div style={{ fontSize: 12, color: T.muted, marginBottom: 20, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                  PDF only · Blood tests, DEXA, hormones, VO₂ max
+                </div>
+                <button className="cta cta-sm" style={{ pointerEvents: "none" }}>Browse Files</button>
+              </div>
+              {errorMsg && (
+                <p style={{ margin: "10px 12px 4px", fontSize: 12, color: "hsl(var(--destructive))", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                  {errorMsg}
+                </p>
+              )}
+            </motion.div>
+          )}
+
+          {phase === "uploading" && (
+            <motion.div key="uploading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+              style={{ padding: "40px 36px", textAlign: "center" }}>
+              <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 14, color: T.text, marginBottom: 4 }}>
+                {uploadedFile?.name}
+              </div>
+              {sizeWarning && (
+                <p style={{ fontSize: 11, color: "hsl(var(--destructive))", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 8 }}>
+                  {sizeWarning}
+                </p>
+              )}
+              <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: T.muted, marginBottom: 16 }}>
+                Uploading…
+              </div>
+              <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden" }}>
+                <motion.div
+                  animate={{ x: ["-100%", "200%"] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                  style={{ height: "100%", width: "50%", background: "linear-gradient(90deg, var(--ion-blue, #008AFF), var(--biolum, #00FFB3))", borderRadius: 4 }}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {phase === "success" && (
+            <motion.div key="success" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+              style={{ padding: "32px 36px", textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 8, color: "#00b894" }}>✓</div>
+              <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 15, color: "#00b894", marginBottom: 4 }}>
+                Upload complete
+              </div>
+              <div style={{ fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 2 }}>
+                {uploadedFile?.name}
+              </div>
+              <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", marginBottom: 20 }}>
+                {uploadedFile ? fmtBytes(uploadedFile.size) : ""}
+              </div>
+              <button onClick={resetToIdle}
+                style={{ fontSize: 11, color: T.muted, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", textDecoration: "underline" }}>
+                Re-upload
+              </button>
+            </motion.div>
+          )}
+
+          {phase === "error" && (
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+              style={{ padding: "32px 36px", textAlign: "center" }}>
+              <div style={{ fontSize: 12, color: "hsl(var(--destructive))", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 16 }}>
+                {errorMsg}
+              </div>
+              <button onClick={resetToIdle} className="cta cta-sm">Try again</button>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
       </div>
 
       <div style={{ marginTop: 16, textAlign: "center" }}>
@@ -925,10 +1002,38 @@ function OnboardingInner() {
     ...extraConnected.map((p) => ({ provider: p, connectedAt: new Date().toISOString() })),
   ];
 
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(overlayRef);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    const nav = document.querySelector("nav");
+    if (nav) nav.setAttribute("aria-hidden", "true");
+    return () => {
+      document.body.style.overflow = "";
+      if (nav) nav.removeAttribute("aria-hidden");
+    };
+  }, []);
+
+  function handleSkip() {
+    router.push("/app/dashboard");
+  }
+
   const progressPct = (step / (STEP_LABELS.length - 1)) * 100;
 
   return (
-    <div style={{ minHeight: "100vh", position: "relative" }}>
+    <AnimatePresence>
+      <motion.div
+        ref={overlayRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Profile setup"
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.98 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+        style={{ position: "fixed", inset: 0, zIndex: 9999, background: "var(--void, #07080e)", overflowY: "auto" }}
+      >
       {/* Step progress bar */}
       <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(6,8,15,.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,.05)", padding: "14px 24px" }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
@@ -974,9 +1079,9 @@ function OnboardingInner() {
             onNext={handlePersonalDataNext}
           />
         )}
-        {step === 4 && (
+        <div style={{ display: step === 4 ? "block" : "none" }}>
           <UploadStep onDone={(data) => { setUploadData(data); setStep(5); }} />
-        )}
+        </div>
         {step === 5 && (
           <WearablesClient
             connected={wearableConnections}
@@ -1001,7 +1106,16 @@ function OnboardingInner() {
           />
         )}
       </div>
-    </div>
+      <button
+        onClick={handleSkip}
+        style={{ position: "fixed", bottom: "1.5rem", right: "1.5rem", background: "none", border: "none", cursor: "pointer", color: "var(--t3, #343960)", fontSize: "0.75rem", fontFamily: "var(--font-ui,'Inter',sans-serif)", padding: "4px 8px", lineHeight: 1.5, letterSpacing: ".02em", opacity: 0.85 }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.85"; }}
+      >
+        Skip for now →
+      </button>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
