@@ -281,23 +281,37 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     }
     // ── End training phase context ─────────────────────────────────────────────
 
-    await supabase
-      .from(TABLES.SPORTS_PROTOCOLS)
-      .update({
-        [COLS.STATUS]:                "ready",
-        [COLS.PAYLOAD]:               payload,
-        [COLS.PROTOCOL_GENERATED_AT]: new Date().toISOString(),
-      })
-      .eq(COLS.ID, sportsPrepId);
+    await Promise.all([
+      supabase
+        .from(TABLES.SPORTS_PROTOCOLS)
+        .update({
+          [COLS.STATUS]:                "ready",
+          [COLS.PAYLOAD]:               payload,
+          [COLS.PROTOCOL_GENERATED_AT]: new Date().toISOString(),
+        })
+        .eq(COLS.ID, sportsPrepId),
+    
+      supabase
+        .from(TABLES.PROFILES)
+        .update({ onboarding_step: "done" })
+        .eq("id", userId),
+    ]);
 
     console.log("[analytics] sports_prep_saved", { userId, sportsPrepId, tier: body.budgetTier });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[sports-prep/generate] generation error:", msg);
-    await supabase
-      .from(TABLES.SPORTS_PROTOCOLS)
-      .update({ [COLS.STATUS]: "failed", [COLS.ERROR_MESSAGE]: msg })
-      .eq(COLS.ID, sportsPrepId);
+    await Promise.all([
+      supabase
+        .from(TABLES.SPORTS_PROTOCOLS)
+        .update({ [COLS.STATUS]: "failed", [COLS.ERROR_MESSAGE]: msg })
+        .eq(COLS.ID, sportsPrepId),
+
+      supabase
+        .from(TABLES.PROFILES)
+        .update({ onboarding_step: "done" })
+        .eq("id", userId),
+    ]);
   }
 
   // ── 3. Return sportsPrepId — status is now "ready" or "failed" in DB ──────────

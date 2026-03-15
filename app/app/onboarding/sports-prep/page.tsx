@@ -730,11 +730,11 @@ function LoopingEllipsis() {
   return <span style={{ color: "#A78BFA" }}>{dots}</span>;
 }
 
-function LoadingScreen({ form, onComplete, onError, preWarmedId }: {
+function LoadingScreen({ form, onComplete, onError, preWarmPromise }: {
   form: SportsPrepFormData;
   onComplete: (id: string) => void;
   onError: (e: string) => void;
-  preWarmedId?: string;
+  preWarmPromise?: Promise<string | null>;
 }) {
   const [currentStep, setCurrentStep] = useState(0);
   const startedRef = useRef(false);
@@ -783,12 +783,7 @@ function LoadingScreen({ form, onComplete, onError, preWarmedId }: {
       }, POLL_INTERVAL_MS);
     }
 
-    if (preWarmedId) {
-      // Pre-warm hit — Claude is already running, skip the POST entirely
-      console.log("[sports-prep] pre-warm hit, skipping POST for id:", preWarmedId);
-      startPolling(preWarmedId);
-    } else {
-      // Normal flow — POST first, then poll
+    function firePost() {
       fetch("/api/sports-prep/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -805,8 +800,22 @@ function LoadingScreen({ form, onComplete, onError, preWarmedId }: {
         .catch((err) => onError(err instanceof Error ? err.message : "Something went wrong"));
     }
 
+    if (preWarmPromise) {
+      // Pre-warm is in-flight or already resolved — await it instead of firing a second POST
+      preWarmPromise.then((id) => {
+        if (id) {
+          console.log("[sports-prep] pre-warm hit, skipping POST for id:", id);
+          startPolling(id);
+        } else {
+          firePost();
+        }
+      });
+    } else {
+      firePost();
+    }
+
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [form, onComplete, onError, preWarmedId]);
+  }, [form, onComplete, onError, preWarmPromise]);
 
   return (
     <div style={{ minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -866,7 +875,7 @@ function SportsPrepInner() {
   const [wearablesConnected, setWearablesConnected] = useState<string[]>([]);
 
   // Pre-warm refs — store the result of the early generate call
-  const preWarmRef         = useRef<{ sportsPrepId: string; budgetTier: number } | null>(null);
+  const preWarmRef         = useRef<{ promise: Promise<string | null>; budgetTier: number } | null>(null);
   const lastPreWarmTierRef = useRef<number | null>(null);
 
   // Restore from sessionStorage
@@ -896,25 +905,27 @@ function SportsPrepInner() {
     if (lastPreWarmTierRef.current === form.budgetTier) return;
 
     lastPreWarmTierRef.current = form.budgetTier;
-    preWarmRef.current = null; // invalidate any result from a previous tier
 
     const snapshot      = { ...form };
     const capturedTier  = form.budgetTier;
 
-    fetch("/api/sports-prep/generate", {
+    const promise: Promise<string | null> = fetch("/api/sports-prep/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(snapshot),
     })
       .then(async (r) => {
-        if (!r.ok) return; // silent — LoadingScreen will fire its own POST if needed
+        if (!r.ok) return null;
         const data = await r.json() as { sportsPrepId?: string };
         if (data.sportsPrepId && lastPreWarmTierRef.current === capturedTier) {
-          preWarmRef.current = { sportsPrepId: data.sportsPrepId, budgetTier: capturedTier };
           console.log("[sports-prep] pre-warm ready, id:", data.sportsPrepId);
+          return data.sportsPrepId;
         }
+        return null;
       })
-      .catch(() => {}); // silent
+      .catch(() => null);
+
+    preWarmRef.current = { promise, budgetTier: capturedTier };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, form.budgetTier]);
 
@@ -957,12 +968,12 @@ function SportsPrepInner() {
   }, []);
 
   if (loading) {
-    const preWarmedId = preWarmRef.current?.budgetTier === form.budgetTier
-      ? preWarmRef.current?.sportsPrepId
+    const preWarmPromise = preWarmRef.current?.budgetTier === form.budgetTier
+      ? preWarmRef.current?.promise
       : undefined;
     return (
       <div style={{ minHeight: "100vh", background: "#06080F", position: "relative" }}>
-        <LoadingScreen form={form} onComplete={handleComplete} onError={handleError} preWarmedId={preWarmedId} />
+        <LoadingScreen form={form} onComplete={handleComplete} onError={handleError} preWarmPromise={preWarmPromise} />
         {error && (
           <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 12, padding: "14px 20px", display: "flex", gap: 12, alignItems: "center", zIndex: 200 }}>
             <span style={{ fontSize: 13, color: "#FCA5A5", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{error}</span>

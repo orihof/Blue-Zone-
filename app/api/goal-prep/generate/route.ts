@@ -238,23 +238,37 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     }
     // ── End adverse event suppression ────────────────────────────────────────
 
-    await supabase
-      .from(TABLES.GOAL_PROTOCOLS)
-      .update({
-        [COLS.STATUS]:                "ready",
-        [COLS.PAYLOAD]:               payload,
-        [COLS.PROTOCOL_GENERATED_AT]: new Date().toISOString(),
-      })
-      .eq(COLS.ID, goalPrepId);
+    await Promise.all([
+      supabase
+        .from(TABLES.GOAL_PROTOCOLS)
+        .update({
+          [COLS.STATUS]:                "ready",
+          [COLS.PAYLOAD]:               payload,
+          [COLS.PROTOCOL_GENERATED_AT]: new Date().toISOString(),
+        })
+        .eq(COLS.ID, goalPrepId),
+    
+      supabase
+        .from(TABLES.PROFILES)
+        .update({ onboarding_step: "done" })
+        .eq("id", userId),
+    ]);
 
     console.log("[analytics] goal_prep_saved", { userId, goalPrepId, category: body.category, tier: body.budgetTier });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[goal-prep/generate] generation error:", msg);
-    await supabase
-      .from(TABLES.GOAL_PROTOCOLS)
-      .update({ [COLS.STATUS]: "failed", [COLS.ERROR_MESSAGE]: msg })
-      .eq(COLS.ID, goalPrepId);
+    await Promise.all([
+      supabase
+        .from(TABLES.GOAL_PROTOCOLS)
+        .update({ [COLS.STATUS]: "failed", [COLS.ERROR_MESSAGE]: msg })
+        .eq(COLS.ID, goalPrepId),
+    
+      supabase
+        .from(TABLES.PROFILES)
+        .update({ onboarding_step: "done" })
+        .eq("id", userId),
+    ]);
   }
 
   // ── 3. Return goalPrepId — status is "ready" or "failed" in DB ────────────
