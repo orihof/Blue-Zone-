@@ -125,7 +125,7 @@ export class ConsentService {
       .from("consent_records")
       .insert(newRecord)
       .select("id")
-      .single();
+      .maybeSingle();
 
     if (insertErr) {
       console.error("[ConsentService] recordConsent insert", insertErr.message);

@@ -1,16 +1,20 @@
 /// lib/consent/sendConsentConfirmationEmail.ts
 // Server-only — never import from client components
 import { createHash } from "crypto";
-import { Resend } from "resend";
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { ConsentRecord } from "./ConsentService";
 
 const FROM = process.env.EMAIL_FROM ?? "privacy@bluezone.app";
 
-function getResend(): Resend | null {
+let _Resend: typeof import("resend").Resend | null = null;
+
+async function getResend() {
   const key = process.env.RESEND_API_KEY;
   if (!key) return null;
-  return new Resend(key);
+  if (!_Resend) {
+    _Resend = (await import("resend")).Resend;
+  }
+  return new _Resend(key);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -175,7 +179,7 @@ export async function sendConsentConfirmationEmail(
   const changes = describeDiff(previous, newConsent);
   const html    = buildHtml(changes, newConsent);
 
-  const client = getResend();
+  const client = await getResend();
   if (!client) {
     // RESEND_API_KEY not configured — skip email silently
     return;
