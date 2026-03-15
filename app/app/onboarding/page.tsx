@@ -1024,6 +1024,7 @@ function OnboardingInner() {
   return (
     <AnimatePresence>
       <motion.div
+        key="onboarding-overlay"
         ref={overlayRef}
         role="dialog"
         aria-modal="true"
