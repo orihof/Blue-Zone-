@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { type SportsPrepFormData, getBudgetTier, BUDGET_TIERS, RACE_DISTANCES, RACE_DISTANCE_LABELS } from "@/lib/db/sports-payload";
@@ -449,6 +450,15 @@ function Step4BT({ uploaded, onUpload, eventName }: { uploaded: boolean; onUploa
           <p style={{ fontSize: 14, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 4 }}>
             {uploadState === "uploading" ? `Uploading ${fileName}…` : "Drop your blood test here or tap to browse"}
           </p>
+          {uploadState === "uploading" && (
+            <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", margin: "8px auto 4px", width: "80%" }}>
+              <motion.div
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                style={{ height: "100%", width: "50%", background: "linear-gradient(90deg, var(--ion-blue, #008AFF), var(--biolum, #00FFB3))", borderRadius: 4 }}
+              />
+            </div>
+          )}
           <p style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>PDF, PNG, JPG, or CSV</p>
           {uploadState === "error" && (
             <p style={{ fontSize: 11, color: "#F87171", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 8 }}>
@@ -618,6 +628,16 @@ function Step4W({ connected, onConnect }: { connected: string[]; onConnect: (ids
           );
         })}
       </div>
+
+      {(appleUploading || samsungUploading) && (
+        <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", marginTop: 8 }}>
+          <motion.div
+            animate={{ x: ["-100%", "200%"] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+            style={{ height: "100%", width: "50%", background: "linear-gradient(90deg, var(--ion-blue, #008AFF), var(--biolum, #00FFB3))", borderRadius: 4 }}
+          />
+        </div>
+      )}
 
       {connected.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(16,185,129,.06)", border: "1px solid rgba(16,185,129,.2)" }}>
