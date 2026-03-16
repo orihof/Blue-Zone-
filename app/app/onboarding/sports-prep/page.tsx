@@ -686,10 +686,10 @@ function Step4({ form, update }: { form: SportsPrepFormData; update: (p: Partial
       {/* Tier breakdown */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 8 }}>
         {BUDGET_TIERS.map((t) => (
-          <div key={t.tier} style={{ padding: "12px 14px", borderRadius: 10, background: t.tier === tier ? "rgba(124,58,237,.1)" : "rgba(255,255,255,.02)", border: `1px solid ${t.tier === tier ? "rgba(124,58,237,.35)" : "rgba(255,255,255,.06)"}`, transition: "all .2s" }}>
+          <button key={t.tier} onClick={() => handleSlider(Math.round((t.min + t.max) / 2))} style={{ padding: "12px 14px", borderRadius: 10, background: t.tier === tier ? "rgba(124,58,237,.1)" : "rgba(255,255,255,.02)", border: `1px solid ${t.tier === tier ? "rgba(124,58,237,.35)" : "rgba(255,255,255,.06)"}`, transition: "all .2s", cursor: "pointer", textAlign: "left" }}>
             <div style={{ fontSize: 10, color: t.tier === tier ? "#A78BFA" : T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, marginBottom: 3 }}>Tier {t.tier}</div>
             <div style={{ fontSize: 11, color: t.tier === tier ? T.text : T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>{t.range}</div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
