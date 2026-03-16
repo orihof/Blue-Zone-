@@ -32,6 +32,17 @@ import { shouldSuppressProduct } from "@/lib/adverse-events";
 export const runtime     = "nodejs";
 export const maxDuration = 120;
 
+function sanitizeClaudeError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("rate_limit_error") || msg.includes("429")) {
+    return "Our AI is currently busy. Please wait a moment and try again.";
+  }
+  if (msg.includes("overloaded_error") || msg.includes("529")) {
+    return "Our AI is currently busy. Please try again in a few minutes.";
+  }
+  return "Something went wrong generating your protocol. Please try again.";
+}
+
 export const POST = requireConsent(1)(async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -261,7 +272,7 @@ export const POST = requireConsent(1)(async (req: NextRequest) => {
     await Promise.all([
       supabase
         .from(TABLES.GOAL_PROTOCOLS)
-        .update({ [COLS.STATUS]: "failed", [COLS.ERROR_MESSAGE]: msg })
+        .update({ [COLS.STATUS]: "failed", [COLS.ERROR_MESSAGE]: sanitizeClaudeError(err) })
         .eq(COLS.ID, goalPrepId),
     
       supabase
