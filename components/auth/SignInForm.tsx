@@ -19,19 +19,23 @@ export default function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
 
   useEffect(() => {
     if (status === "authenticated") {
-      const callbackUrl = searchParams.get("callbackUrl") ?? "/app/dashboard";
+      const raw = searchParams.get("callbackUrl") ?? "/app/dashboard";
+      const callbackUrl = raw.startsWith("/") ? raw : "/app/dashboard";
       // Use replace so this page is removed from history
       router.replace(callbackUrl);
     }
   }, [status, router, searchParams]);
 
-  // Show nothing while redirecting authenticated users
+  // Show nothing while session is loading or redirecting authenticated users
+  if (status === "loading") return null;
   if (status === "authenticated") return null;
 
   async function handleGoogle() {
     setLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/app/dashboard" });
+      const raw = searchParams.get("callbackUrl") ?? "/app/dashboard";
+      const callbackUrl = raw.startsWith("/") ? raw : "/app/dashboard";
+      await signIn("google", { callbackUrl });
     } catch {
       setLoading(false);
       toast.error("Google sign-in failed. Please try again.");
