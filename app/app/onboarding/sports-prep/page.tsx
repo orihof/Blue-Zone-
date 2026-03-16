@@ -871,6 +871,7 @@ function SportsPrepInner() {
   const [form, setForm]   = useState<SportsPrepFormData>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [failureCount, setFailureCount] = useState(0);
   const [bloodTestUploaded,  setBloodTestUploaded]  = useState(false);
   const [wearablesConnected, setWearablesConnected] = useState<string[]>([]);
 
@@ -962,9 +963,14 @@ function SportsPrepInner() {
   }, [router]);
 
   const handleError = useCallback((msg: string) => {
+    const isRawApiError = msg.includes("rate_limit_error") || msg.includes("429") || msg.includes("overloaded_error");
+    const displayMsg = isRawApiError
+      ? "Our AI is currently busy. Please wait a moment and try again."
+      : msg;
     setLoading(false);
-    setError(msg);
-    toast.error(msg);
+    setError(displayMsg);
+    setFailureCount((n) => n + 1);
+    toast.error(displayMsg);
   }, []);
 
   if (loading) {
@@ -975,12 +981,49 @@ function SportsPrepInner() {
       <div style={{ minHeight: "100vh", background: "#06080F", position: "relative" }}>
         <LoadingScreen form={form} onComplete={handleComplete} onError={handleError} preWarmPromise={preWarmPromise} />
         {error && (
-          <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 12, padding: "14px 20px", display: "flex", gap: 12, alignItems: "center", zIndex: 200 }}>
-            <span style={{ fontSize: 13, color: "#FCA5A5", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{error}</span>
-            <button onClick={() => { setError(null); setLoading(false); }}
-              style={{ fontSize: 11, color: "#A5B4FC", background: "rgba(99,102,241,.12)", border: "1px solid rgba(99,102,241,.25)", borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-              Retry
-            </button>
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 300,
+            background: "rgba(5,5,10,0.85)", backdropFilter: "blur(8px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 24px"
+          }}>
+            <div style={{
+              background: "var(--layer, #0f1120)", border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: 16, padding: "32px 28px", maxWidth: 440, width: "100%",
+              textAlign: "center"
+            }}>
+              <p style={{ color: "#FCA5A5", fontSize: 15, marginBottom: 8, fontFamily: "var(--font-syne)" }}>
+                Generation failed
+              </p>
+              <p style={{ color: "#737aaa", fontSize: 13, marginBottom: 24, fontFamily: "var(--font-inter)" }}>
+                {error}
+              </p>
+              {failureCount < 2 ? (
+                <button
+                  onClick={() => { setError(null); setLoading(false); }}
+                  style={{
+                    background: "linear-gradient(135deg, #6c5ce7, #00cec9)",
+                    border: "none", borderRadius: 10, color: "#fff",
+                    padding: "12px 28px", fontSize: 14, cursor: "pointer",
+                    fontFamily: "var(--font-inter)"
+                  }}
+                >
+                  Try Again
+                </button>
+              ) : (
+                <button
+                  onClick={() => router.push("/app/dashboard")}
+                  style={{
+                    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 10, color: "#eef0ff",
+                    padding: "12px 28px", fontSize: 14, cursor: "pointer",
+                    fontFamily: "var(--font-inter)"
+                  }}
+                >
+                  Continue to Dashboard →
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
