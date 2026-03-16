@@ -102,7 +102,7 @@ export function MissingMarkersModal({
       style={{
         position:       "fixed",
         inset:          0,
-        zIndex:         50,
+        zIndex:         9000,
         background:     "rgba(5,5,10,0.82)",
         backdropFilter: "blur(6px)",
         display:        "flex",
@@ -237,7 +237,7 @@ export function MissingMarkersModal({
                   background:   BG_INNER,
                   border:       `1px solid ${isOpen ? BORDER_HI : BORDER}`,
                   borderRadius: 16,
-                  overflow:     "hidden",
+                  overflow:     "visible",
                   transition:   "border-color 0.2s",
                 }}
               >
@@ -259,10 +259,10 @@ export function MissingMarkersModal({
                     transition: "background 0.2s",
                   }}
                 >
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{meta.icon}</span>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{meta?.icon ?? "📊"}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: TEXT, fontFamily: FONT_UI }}>{meta.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: TEXT, fontFamily: FONT_UI }}>{meta?.label ?? category}</span>
                       {essential.length > 0 && (
                         <span style={{
                           fontSize: 10, color: "#F59E0B",
@@ -276,7 +276,7 @@ export function MissingMarkersModal({
                       )}
                     </div>
                     <p style={{ color: MUTED, fontSize: 11, margin: 0 }}>
-                      {markers.length} marker{markers.length !== 1 ? "s" : ""} · {meta.description}
+                      {markers.length} marker{markers.length !== 1 ? "s" : ""} · {meta?.description ?? ""}
                     </p>
                   </div>
                   {isOpen

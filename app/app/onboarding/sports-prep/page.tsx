@@ -408,6 +408,8 @@ function Step4BT({ uploaded, onUpload, eventName }: { uploaded: boolean; onUploa
           markerMap = Object.fromEntries(
             ingestData.normalizedBiomarkers.map((b) => [b.name, b.value]),
           );
+          console.log("[sports-prep ingest] normalized biomarkers:", ingestData?.normalizedBiomarkers);
+          console.log("[sports-prep ingest] marker map keys:", Object.keys(markerMap));
         }
       } catch { /* non-fatal — empty map triggers modal */ }
 
