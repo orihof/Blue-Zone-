@@ -365,10 +365,11 @@ export default function UploadPage() {
               {statusText}
             </div>
             <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 4, overflow: "hidden", marginBottom: 8 }}>
-              <div className="progress-bar-fill" style={{ width: `${Math.min(pct, 100)}%` }} />
-            </div>
-            <div style={{ fontSize: 11, color: "#334155", fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", textAlign: "right", fontWeight: 300 }}>
-              {Math.round(Math.min(pct, 100))}%
+              <motion.div
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                style={{ height: "100%", width: "50%", background: "linear-gradient(90deg, var(--ion-blue, #008AFF), var(--biolum, #00FFB3))", borderRadius: 4 }}
+              />
             </div>
           </div>
         )}
