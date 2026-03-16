@@ -1,8 +1,9 @@
 /// components/auth/SignInForm.tsx
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
@@ -11,6 +12,21 @@ const T = { text: "#F1F5F9", muted: "#64748B" };
 export default function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      const callbackUrl = searchParams.get("callbackUrl") ?? "/app/dashboard";
+      // Use replace so this page is removed from history
+      router.replace(callbackUrl);
+    }
+  }, [status, router, searchParams]);
+
+  // Show nothing while redirecting authenticated users
+  if (status === "authenticated") return null;
 
   async function handleGoogle() {
     setLoading(true);
@@ -85,9 +101,12 @@ export default function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
 
         <p style={{ textAlign: "center", fontSize: 12, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>
           No account?{" "}
-          <a href="/app/onboarding/upload" style={{ color: "#A5B4FC", cursor: "pointer" }}>
+          <span
+            onClick={() => router.push("/app/onboarding")}
+            style={{ color: "#A5B4FC", cursor: "pointer" }}
+          >
             Get started free
-          </a>
+          </span>
         </p>
       </div>
     </div>
