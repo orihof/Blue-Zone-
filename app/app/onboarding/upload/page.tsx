@@ -165,7 +165,7 @@ export default function UploadPage() {
       // For blood test files (PDF / CSV / images) we always want to run detection
       // and show the missing-markers modal. If OCR fails or finds no markers we
       // fall back to an empty map so the modal still appears with full guidance.
-      const isBloodTestFile = /pdf|csv|image\//.test(f.type || "");
+      const isBloodTestFile = /pdf|csv|image\//.test(fileType);
 
       let markerMap: Record<string, number> = {};
       try {

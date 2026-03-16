@@ -1,7 +1,7 @@
 /// components/blood-test/MissingMarkersModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, ChevronDown, ChevronUp, Download } from "lucide-react";
 import type { DetectionResult } from "@/lib/blood-test/detect-missing-markers";
 import { CATEGORY_META, type BiomarkerCategory } from "@/lib/blood-test/biomarker-registry";
@@ -51,6 +51,11 @@ export function MissingMarkersModal({
   );
 
   const [downloading, setDownloading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, []);
 
   function toggleCategory(cat: string) {
     setExpandedCategories((prev) => {
@@ -101,9 +106,9 @@ export function MissingMarkersModal({
         background:     "rgba(5,5,10,0.82)",
         backdropFilter: "blur(6px)",
         display:        "flex",
-        alignItems:     "flex-end",
+        alignItems:     "center",
         justifyContent: "center",
-        padding:        0,
+        padding:        "0 16px",
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -121,9 +126,9 @@ export function MissingMarkersModal({
           maxWidth:      520,
           background:    BG_CARD,
           border:        `1px solid ${BORDER_HI}`,
-          borderRadius:  "24px 24px 0 0",
-          boxShadow:     "0 -8px 48px rgba(0,0,0,0.6)",
-          maxHeight:     "90vh",
+          borderRadius:  16,
+          boxShadow:     "0 8px 48px rgba(0,0,0,0.6)",
+          maxHeight:     "85vh",
           display:       "flex",
           flexDirection: "column",
           overflow:      "hidden",
@@ -217,7 +222,7 @@ export function MissingMarkersModal({
         </div>
 
         {/* ── SCROLLABLE BODY ── */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Category accordion */}
           {categoryEntries.map(([category, markers]) => {
             const meta      = CATEGORY_META[category];
