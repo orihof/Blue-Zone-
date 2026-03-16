@@ -26,8 +26,7 @@ export default function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
     }
   }, [status, router, searchParams]);
 
-  // Show nothing while session is loading or redirecting authenticated users
-  if (status === "loading") return null;
+  // Redirect authenticated users away — form still renders during session load
   if (status === "authenticated") return null;
 
   async function handleGoogle() {
