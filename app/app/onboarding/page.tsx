@@ -955,6 +955,8 @@ function OnboardingInner() {
 
         // Fully onboarded users should not be here
         if (dbStep === "done" || dbStep === "data") {
+          // Clear stale onboarding data so it doesn't bleed into future sessions
+          try { sessionStorage.removeItem(SS_KEY); } catch { /* ignore */ }
           router.replace("/app/dashboard");
           return;
         }
