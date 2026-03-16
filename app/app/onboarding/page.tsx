@@ -968,6 +968,11 @@ function OnboardingInner() {
           setStep(DB_STEP_MAP[dbStep]);
         }
 
+        // Reset primaryGoal when landing on the goals step to prevent stale pre-selection
+        if (dbStep && DB_STEP_MAP[dbStep] === 2) {
+          setPrimaryGoal("");
+        }
+
         setStepResolved(true);
       })
       .catch(() => {
@@ -995,7 +1000,8 @@ function OnboardingInner() {
     const saved = loadSaved();
     if (saved) {
       if (saved.name) setUserName(saved.name);
-      if (saved.primaryGoal) setPrimaryGoal(saved.primaryGoal);
+      // Don't restore primaryGoal on the goals step — prevents stale pre-selection
+      if (saved.primaryGoal && initialStep !== 2) setPrimaryGoal(saved.primaryGoal);
       setGoals(saved.goals);
       setAge(saved.age);
       setGender(saved.gender);
@@ -1006,7 +1012,7 @@ function OnboardingInner() {
       setPreferences(saved.preferences);
       if (saved.uploadData) setUploadData(saved.uploadData);
     }
-  }, []);
+  }, [initialStep]);
 
   // Persist to sessionStorage
   useEffect(() => {
