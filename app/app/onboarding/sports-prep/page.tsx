@@ -952,7 +952,7 @@ function SportsPrepInner() {
   }
 
   function handleBack() {
-    if (step === 0) { router.push(fromOnboarding ? "/onboarding/goal" : "/app/goals"); return; }
+    if (step === 0) { router.push(fromOnboarding ? "/app/onboarding" : "/app/goals"); return; }
     setStep((s) => s - 1);
   }
 

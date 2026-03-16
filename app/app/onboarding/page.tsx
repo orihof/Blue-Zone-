@@ -1065,7 +1065,7 @@ function OnboardingInner() {
             selectedGoal={primaryGoal}
             onSelect={handleGoalSelect}
             onNext={() => setStep(3)}
-            onSportsPrep={() => router.push("/app/onboarding/sports-prep")}
+            onSportsPrep={() => router.push("/app/onboarding/sports-prep?from=onboarding")}
           />
         )}
         {step === 3 && (
