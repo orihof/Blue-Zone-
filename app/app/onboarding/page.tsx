@@ -12,9 +12,22 @@ import { toast } from "sonner";
 import type { Goal, BudgetTier, Preferences } from "@/lib/recommendations/generate";
 import { ConsentOnboardingModal } from "@/components/consent/ConsentOnboardingModal";
 import { WearablesClient } from "@/app/app/wearables/_client";
+import { OnboardingSkeleton } from "@/components/onboarding/OnboardingSkeleton";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
+
+const DB_STEP_MAP: Record<string, number> = {
+  name:          0,
+  consent:       1,
+  goal:          2,
+  personal_info: 3,
+  upload:        4,
+  wearables:     5,
+  analysis:      6,
+  done:          7,
+  data:          7,
+};
 const GT   = { background: GRAD, WebkitBackgroundClip: "text" as const, WebkitTextFillColor: "transparent" as const, backgroundClip: "text" as const };
 const T    = { text: "#F1F5F9", muted: "#64748B" };
 
@@ -896,6 +909,7 @@ function OnboardingInner() {
   const ouraStatus  = searchParams.get("oura");
 
   const [step, setStep] = useState(initialStep);
+  const [stepResolved, setStepResolved] = useState(false);
 
   // Form state
   const [userName,         setUserName]         = useState("");
@@ -916,6 +930,42 @@ function OnboardingInner() {
     oura:  ouraStatus  === "connected",
   });
   const [extraConnected, setExtraConnected] = useState<string[]>([]);
+
+  // Resolve correct step from DB on mount
+  useEffect(() => {
+    const urlStep = parseInt(searchParams.get("step") ?? "", 10);
+
+    fetch("/api/onboarding/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then((profile: { onboarding_step?: string } | null) => {
+        if (!profile) {
+          setStepResolved(true);
+          return;
+        }
+
+        const dbStep = profile.onboarding_step;
+
+        // Fully onboarded users should not be here
+        if (dbStep === "done" || dbStep === "data") {
+          router.replace("/app/dashboard");
+          return;
+        }
+
+        // URL param takes priority over DB value
+        if (!isNaN(urlStep) && urlStep >= 0 && urlStep <= 6) {
+          setStep(urlStep);
+        } else if (dbStep && DB_STEP_MAP[dbStep] !== undefined) {
+          setStep(DB_STEP_MAP[dbStep]);
+        }
+
+        setStepResolved(true);
+      })
+      .catch(() => {
+        // Non-fatal — default to URL param or 0
+        setStepResolved(true);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch existing wearable connections on mount
   useEffect(() => {
@@ -1011,6 +1061,10 @@ function OnboardingInner() {
   }
 
   const progressPct = (step / (STEP_LABELS.length - 1)) * 100;
+
+  if (!stepResolved) {
+    return <OnboardingSkeleton />;
+  }
 
   return (
     <AnimatePresence>
