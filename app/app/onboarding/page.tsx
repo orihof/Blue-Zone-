@@ -184,6 +184,7 @@ function GoalsStep({
 
   async function handleContinue() {
     if (!selectedGoal) return;
+    if (selectedGoal === "sports_competition") { onSportsPrep(); return; }
     setSaving(true);
     try {
       await fetch("/api/onboarding/profile", {
@@ -213,18 +214,11 @@ function GoalsStep({
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
         {GOAL_CARDS.map((card, i) => {
           const isSelected = selectedGoal === card.id;
-          const isSports = card.id === "sports_competition";
 
           return (
             <button
               key={card.id}
-              onClick={() => {
-                if (isSports) {
-                  onSportsPrep();
-                } else {
-                  onSelect(card.id);
-                }
-              }}
+              onClick={() => onSelect(card.id)}
               style={{
                 width: "100%",
                 padding: "20px 24px",
@@ -292,9 +286,6 @@ function GoalsStep({
                 </div>
               </div>
 
-              {isSports && (
-                <span style={{ fontSize: 13, color: "#A5B4FC", flexShrink: 0 }}>→</span>
-              )}
             </button>
           );
         })}
