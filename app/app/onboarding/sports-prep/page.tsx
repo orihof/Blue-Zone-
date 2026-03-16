@@ -169,7 +169,12 @@ function DistanceSlider({ value, onChange }: { value: string | undefined; onChan
 }
 
 // ── Step 2 — Event Details ─────────────────────────────────────────────────────
-function Step2({ form, update }: { form: SportsPrepFormData; update: (p: Partial<SportsPrepFormData>) => void }) {
+function Step2({ form, update, invalidFields, clearInvalid }: {
+  form: SportsPrepFormData;
+  update: (p: Partial<SportsPrepFormData>) => void;
+  invalidFields: Set<string>;
+  clearInvalid: (field: string) => void;
+}) {
   const today = new Date();
   const minDate = new Date(today.getTime() + 86400000).toISOString().split("T")[0];
   const closeEvent = form.eventDate && Math.round((new Date(form.eventDate).getTime() - today.getTime()) / (7 * 86400000)) < 2;
@@ -188,7 +193,11 @@ function Step2({ form, update }: { form: SportsPrepFormData; update: (p: Partial
       {/* Event date */}
       <div>
         <label style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>Event Date *</label>
-        <input type="date" min={minDate} value={form.eventDate} onChange={(e) => handleDateChange(e.target.value)}
+        <input
+          type="date" min={minDate} value={form.eventDate}
+          onChange={(e) => { handleDateChange(e.target.value); clearInvalid("eventDate"); }}
+          className={invalidFields.has("eventDate") ? "field-invalid" : ""}
+          data-invalid={invalidFields.has("eventDate") ? "true" : undefined}
           style={{ width: "100%", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, padding: "12px 14px", color: T.text, fontSize: 14, fontFamily: "var(--font-ui,'Inter',sans-serif)", outline: "none", colorScheme: "dark" }} />
         {form.eventDate && form.weeksToEvent > 0 && (
           <div style={{ marginTop: 6, fontSize: 11, color: "#A5B4FC", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
@@ -213,13 +222,17 @@ function Step2({ form, update }: { form: SportsPrepFormData; update: (p: Partial
       {/* Priority outcome */}
       <div>
         <label style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const, display: "block", marginBottom: 10 }}>What&apos;s your main goal for this event? *</label>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div
+          className={invalidFields.has("priorityOutcome") ? "field-invalid" : ""}
+          data-invalid={invalidFields.has("priorityOutcome") ? "true" : undefined}
+          style={{ display: "flex", flexDirection: "column", gap: 8 }}
+        >
           {[
             { id: "pr_podium",    label: "PR / Podium Push",          sub: "I'm going for my best result" },
             { id: "finish_strong",label: "Finish Strong",             sub: "I want to complete it feeling good" },
             { id: "injury_free",  label: "Injury-Free Comeback",      sub: "I'm returning after time off or injury" },
           ].map((o) => (
-            <SelectCard key={o.id} selected={form.priorityOutcome === o.id} onClick={() => update({ priorityOutcome: o.id })}>
+            <SelectCard key={o.id} selected={form.priorityOutcome === o.id} onClick={() => { update({ priorityOutcome: o.id }); clearInvalid("priorityOutcome"); }}>
               <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, fontSize: 13, color: form.priorityOutcome === o.id ? "#C4B5FD" : T.text }}>{o.label}</div>
               <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{o.sub}</div>
             </SelectCard>
@@ -231,15 +244,22 @@ function Step2({ form, update }: { form: SportsPrepFormData; update: (p: Partial
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <div>
           <label style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>Your Age *</label>
-          <input type="number" min={16} max={80} placeholder="e.g. 42" value={form.age || ""}
-            onChange={(e) => update({ age: parseInt(e.target.value) || 0 })}
+          <input
+            type="number" min={16} max={80} placeholder="e.g. 42" value={form.age || ""}
+            onChange={(e) => { update({ age: parseInt(e.target.value) || 0 }); clearInvalid("age"); }}
+            className={invalidFields.has("age") ? "field-invalid" : ""}
+            data-invalid={invalidFields.has("age") ? "true" : undefined}
             style={{ width: "100%", background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.12)", borderRadius: 10, padding: "12px 14px", color: T.text, fontSize: 14, fontFamily: "var(--font-ui,'Inter',sans-serif)", outline: "none" }} />
         </div>
         <div>
           <label style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>Gender *</label>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+          <div
+            className={invalidFields.has("gender") ? "field-invalid" : ""}
+            data-invalid={invalidFields.has("gender") ? "true" : undefined}
+            style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}
+          >
             {["Male", "Female", "Prefer not to say"].map((g) => (
-              <OptionPill key={g} selected={form.gender === g} onClick={() => update({ gender: g })}>{g}</OptionPill>
+              <OptionPill key={g} selected={form.gender === g} onClick={() => { update({ gender: g }); clearInvalid("gender"); }}>{g}</OptionPill>
             ))}
           </div>
         </div>
@@ -248,13 +268,17 @@ function Step2({ form, update }: { form: SportsPrepFormData; update: (p: Partial
       {/* Experience level */}
       <div>
         <label style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" as const, display: "block", marginBottom: 10 }}>Experience Level *</label>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div
+          className={invalidFields.has("experienceLevel") ? "field-invalid" : ""}
+          data-invalid={invalidFields.has("experienceLevel") ? "true" : undefined}
+          style={{ display: "flex", flexDirection: "column", gap: 8 }}
+        >
           {[
             { id: "first_timer",  label: "First Timer",   sub: "Never done this distance or sport before" },
             { id: "intermediate", label: "Intermediate",  sub: "I've completed this type of event before" },
             { id: "advanced",     label: "Advanced",      sub: "I compete regularly and train structured" },
           ].map((e) => (
-            <SelectCard key={e.id} selected={form.experienceLevel === e.id} onClick={() => update({ experienceLevel: e.id })}>
+            <SelectCard key={e.id} selected={form.experienceLevel === e.id} onClick={() => { update({ experienceLevel: e.id }); clearInvalid("experienceLevel"); }}>
               <div style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, fontSize: 13, color: form.experienceLevel === e.id ? "#C4B5FD" : T.text }}>{e.label}</div>
               <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>{e.sub}</div>
             </SelectCard>
@@ -872,6 +896,7 @@ function SportsPrepInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [failureCount, setFailureCount] = useState(0);
+  const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
   const [bloodTestUploaded,  setBloodTestUploaded]  = useState(false);
   const [wearablesConnected, setWearablesConnected] = useState<string[]>([]);
 
@@ -934,6 +959,15 @@ function SportsPrepInner() {
     setForm((prev) => ({ ...prev, ...partial }));
   }
 
+  const clearInvalid = useCallback((field: string) => {
+    setInvalidFields((prev) => {
+      if (!prev.has(field)) return prev;
+      const next = new Set(prev);
+      next.delete(field);
+      return next;
+    });
+  }, []);
+
   // Step-specific validation
   function canAdvance(): boolean {
     if (step === 0) return !!form.competitionType;
@@ -946,7 +980,25 @@ function SportsPrepInner() {
   }
 
   function handleNext() {
-    if (!canAdvance()) return;
+    if (step === 1) {
+      const missing = new Set<string>();
+      if (!form.eventDate || form.weeksToEvent <= 0) missing.add("eventDate");
+      if (!form.priorityOutcome)                     missing.add("priorityOutcome");
+      if (!(form.age >= 16))                         missing.add("age");
+      if (!form.gender)                              missing.add("gender");
+      if (!form.experienceLevel)                     missing.add("experienceLevel");
+      if (missing.size > 0) {
+        setInvalidFields(missing);
+        requestAnimationFrame(() => {
+          const el = document.querySelector<HTMLElement>("[data-invalid='true']");
+          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+        return;
+      }
+      setInvalidFields(new Set());
+    } else if (!canAdvance()) {
+      return;
+    }
     console.log(`[analytics] sports_prep_step_${step + 1}_complete`);
     if (step === TOTAL_STEPS - 1) { setLoading(true); return; }
     setStep((s) => s + 1);
@@ -1056,7 +1108,7 @@ function SportsPrepInner() {
       {/* Step content */}
       <div style={{ animation: "fadeUp .3s ease both" }} key={step}>
         {step === 0 && <Step1 form={form} update={update} />}
-        {step === 1 && <Step2 form={form} update={update} />}
+        {step === 1 && <Step2 form={form} update={update} invalidFields={invalidFields} clearInvalid={clearInvalid} />}
         {step === 2 && <Step3 form={form} update={update} />}
         {step === 3 && (
           <Step4BT
@@ -1079,7 +1131,7 @@ function SportsPrepInner() {
           <div style={{ position: "sticky", bottom: 0, padding: "20px 0 8px", background: "linear-gradient(0deg,#06080F 70%,transparent)" }}>
             <button
               onClick={handleNext}
-              disabled={!ok}
+              disabled={false}
               style={{ width: "100%", padding: "16px 28px", borderRadius: 12, fontSize: 15, fontWeight: 400,
                 cursor: ok ? "pointer" : "default",
                 border: showGhost ? "1px solid rgba(255,255,255,.12)" : "none",
