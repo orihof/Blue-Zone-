@@ -197,7 +197,15 @@ function GoalsStep({
 
   async function handleContinue() {
     if (!selectedGoal) return;
-    if (selectedGoal === "sports_competition") { onSportsPrep(); return; }
+    if (selectedGoal === "sports_competition") {
+      await fetch("/api/onboarding/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ primary_goal: "sports_competition", onboarding_step: "goal" }),
+      });
+      onSportsPrep();
+      return;
+    }
     setSaving(true);
     try {
       await fetch("/api/onboarding/profile", {
