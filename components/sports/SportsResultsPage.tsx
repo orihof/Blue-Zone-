@@ -466,7 +466,7 @@ function AccuracyBanner({ hasWearable, hasBloodTest }: { hasWearable: boolean; h
 
 // ── Today Section ──────────────────────────────────────────────────────────────
 function TodaySection({
-  payload, adoptedIds, onToggle, eventMeta, currentPhase, hasWearable,
+  payload, adoptedIds, onToggle, eventMeta, currentPhase, hasWearable, hasBloodTest, protocolId,
 }: {
   payload:      SportsProtocolPayload;
   adoptedIds:   string[];
@@ -474,6 +474,8 @@ function TodaySection({
   eventMeta:    EventMeta;
   currentPhase: PhaseInfo | null;
   hasWearable:  boolean;
+  hasBloodTest: boolean;
+  protocolId:   string;
 }) {
   const morningStack = (payload.tierPack?.supplements ?? [])
     .filter(s => s.priority === "essential" || s.priority === "high")
@@ -481,17 +483,76 @@ function TodaySection({
 
   return (
     <div className="bz-section-enter" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Date header */}
-      <div>
-        <h1 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: 22, fontWeight: 400, color: "#F1F5F9", margin: 0, marginBottom: 4 }}>
-          {format(new Date(), "EEEE, MMMM d")}
-        </h1>
-        <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0 }}>
-          {currentPhase
-            ? `${currentPhase.phase.phase} phase · Day ${currentPhase.dayInPhase} of ${currentPhase.phaseDuration}`
-            : "Protocol active"}
-        </p>
+      {/* Protocol Hero */}
+      <div style={{
+        background: "linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(124,58,237,0.08) 100%)",
+        border: "1px solid rgba(99,102,241,0.2)",
+        borderRadius: 20,
+        padding: "24px 24px 20px",
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        {/* Background glow */}
+        <div style={{ position: "absolute", top: -60, right: -60, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
+        {/* Top row: date + days to race */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: ".1em", color: "#7C3AED", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 6 }}>
+              ⚡ {eventMeta.competitionType.replace(/_/g, " ")}
+            </div>
+            <h1 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: "clamp(20px,3vw,28px)", fontWeight: 400, color: "#F1F5F9", margin: 0, marginBottom: 4, letterSpacing: "-.02em" }}>
+              {format(new Date(), "EEEE, MMMM d")}
+            </h1>
+            <p style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 12, color: "#64748B", margin: 0 }}>
+              {currentPhase
+                ? `${currentPhase.phase.phase} phase · Day ${currentPhase.dayInPhase} of ${currentPhase.phaseDuration}`
+                : "Protocol active"}
+            </p>
+          </div>
+          <div style={{ textAlign: "center", flexShrink: 0, background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.3)", borderRadius: 14, padding: "10px 16px" }}>
+            <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 34, color: "#F1F5F9", lineHeight: 1, letterSpacing: "-.03em" }}>
+              {differenceInDays(new Date(eventMeta.eventDate), new Date())}
+            </div>
+            <div style={{ fontSize: 9, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".08em", textTransform: "uppercase", marginTop: 4 }}>
+              days to race
+            </div>
+          </div>
+        </div>
+        {/* Adoption progress */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+              Protocol adoption
+            </span>
+            <span style={{ fontSize: 11, color: adoptedIds.length > 0 ? "#34D399" : "#64748B", fontFamily: "var(--font-mono,'JetBrains Mono',monospace)" }}>
+              {adoptedIds.length}/{(payload.tierPack?.supplements ?? []).length} adopted
+            </span>
+          </div>
+          <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 99, overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${(payload.tierPack?.supplements ?? []).length > 0 ? Math.round((adoptedIds.length / (payload.tierPack?.supplements ?? []).length) * 100) : 0}%`,
+              background: adoptedIds.length === 0 ? "rgba(255,255,255,0.1)" : "linear-gradient(90deg, #7C3AED, #06B6D4)",
+              borderRadius: 99,
+              transition: "width .6s cubic-bezier(.16,1,.3,1)",
+            }} />
+          </div>
+          {adoptedIds.length === 0 && (
+            <p style={{ fontSize: 11, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 5 }}>
+              Tap any supplement below to begin
+            </p>
+          )}
+        </div>
       </div>
+
+      <AccuracyBanner hasWearable={hasWearable} hasBloodTest={hasBloodTest} />
+      <ProtocolLeaderboard
+        protocolId={protocolId}
+        competitionType={eventMeta.competitionType}
+        weeksToEvent={eventMeta.weeksToEvent}
+        experienceLevel={eventMeta.experienceLevel}
+        budgetTier={eventMeta.budgetTier}
+      />
 
       {/* Wearable nudge */}
       {!hasWearable && (
@@ -560,14 +621,19 @@ function TodaySection({
                 <button
                   onClick={() => onToggle(s.name)}
                   style={{
-                    width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                    background: adopted ? "#10B981" : "transparent",
-                    border: `2px solid ${adopted ? "#10B981" : "#374151"}`,
-                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all .2s",
+                    width: 28, height: 28, marginTop: 0, borderRadius: "50%", flexShrink: 0,
+                    background: adopted
+                      ? "linear-gradient(135deg, #10B981, #34D399)"
+                      : "rgba(255,255,255,0.04)",
+                    border: `2px solid ${adopted ? "#10B981" : "rgba(255,255,255,0.18)"}`,
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "all .25s cubic-bezier(.16,1,.3,1)",
+                    transform: adopted ? "scale(1.08)" : "scale(1)",
+                    boxShadow: adopted ? "0 0 12px rgba(16,185,129,0.4)" : "none",
                   }}
                 >
-                  {adopted && <Check size={10} color="white" strokeWidth={3} />}
+                  {adopted && <Check size={12} color="white" strokeWidth={3} />}
                 </button>
                 <div style={{ flex: 1 }}>
                   <span style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)", fontSize: 13, color: adopted ? "#64748B" : "#F1F5F9", textDecoration: adopted ? "line-through" : "none" }}>
@@ -885,9 +951,20 @@ function SupplementsSection({
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px" }}>
                           <button
                             onClick={() => onToggle(s.name)}
-                            style={{ width: 20, height: 20, marginTop: 2, borderRadius: "50%", flexShrink: 0, background: adopted ? "#10B981" : "transparent", border: `2px solid ${adopted ? "#10B981" : "#374151"}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .2s" }}
+                            style={{
+                              width: 28, height: 28, marginTop: 0, borderRadius: "50%", flexShrink: 0,
+                              background: adopted
+                                ? "linear-gradient(135deg, #10B981, #34D399)"
+                                : "rgba(255,255,255,0.04)",
+                              border: `2px solid ${adopted ? "#10B981" : "rgba(255,255,255,0.18)"}`,
+                              cursor: "pointer",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              transition: "all .25s cubic-bezier(.16,1,.3,1)",
+                              transform: adopted ? "scale(1.08)" : "scale(1)",
+                              boxShadow: adopted ? "0 0 12px rgba(16,185,129,0.4)" : "none",
+                            }}
                           >
-                            {adopted && <Check size={10} color="white" strokeWidth={3} />}
+                            {adopted && <Check size={12} color="white" strokeWidth={3} />}
                           </button>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
@@ -1257,21 +1334,8 @@ export function SportsResultsPage({
         {/* Right content */}
         <main
           className="bz-right-content"
-          style={{ flex: 1, minWidth: 0, padding: "32px 24px", maxWidth: 700 }}
+          style={{ flex: 1, minWidth: 0, padding: "24px 24px 16px", maxWidth: 700 }}
         >
-          {activeSection === "today" && (
-            <>
-              <ProtocolLeaderboard
-                protocolId={protocolId}
-                competitionType={eventMeta.competitionType}
-                weeksToEvent={eventMeta.weeksToEvent}
-                experienceLevel={eventMeta.experienceLevel}
-                budgetTier={eventMeta.budgetTier}
-              />
-              <AccuracyBanner hasWearable={hasWearable} hasBloodTest={hasBloodTest} />
-            </>
-          )}
-
           <div key={sectionKey}>
             {activeSection === "today" && (
               <TodaySection
@@ -1281,6 +1345,8 @@ export function SportsResultsPage({
                 eventMeta={eventMeta}
                 currentPhase={currentPhase}
                 hasWearable={hasWearable}
+                hasBloodTest={hasBloodTest}
+                protocolId={protocolId}
               />
             )}
             {activeSection === "why" && (

@@ -84,8 +84,8 @@ export function useConsentOnboarding(): UseConsentOnboardingReturn {
 
       return { success: true };
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "An unexpected error occurred";
-      setError(message);
+      console.error("[useConsentOnboarding]", err);
+      setError("Something went wrong saving your preferences. Please try again.");
       return { success: false };
     } finally {
       setIsSubmitting(false);

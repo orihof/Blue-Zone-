@@ -44,9 +44,32 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Blue Zone — Longevity Intelligence",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  ),
+  title: "Blue Zone — Performance Biology for Endurance Athletes",
   description:
-    "Turn your bloodwork and wearable data into a continuously evolving optimization protocol. Precision longevity for serious performers.",
+    "The first platform that reads your blood data and your training load together. Upload your blood panel, connect your wearable, and find out exactly why your body isn\u2019t responding — and what to fix first.",
+  openGraph: {
+    title: "Blue Zone — Now you know why.",
+    description:
+      "Blood data + training load, read together. Built for Ironman triathletes, marathon runners, and gran fondo cyclists who\u2019ve done the testing and still don\u2019t have answers.",
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Blue Zone — Performance Biology for Endurance Athletes',
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Blue Zone — Now you know why.",
+    description:
+      "Blood data + training load, read together. Built for Ironman triathletes, marathon runners, and gran fondo cyclists who\u2019ve done the testing and still don\u2019t have answers.",
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

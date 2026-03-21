@@ -28,6 +28,11 @@ export async function PATCH(req: Request) {
 
   const body = (await req.json()) as Record<string, unknown>;
 
+  // Ensure profile row exists before patching
+  await getAdminClient()
+    .from(TABLES.PROFILES)
+    .upsert({ [COLS.ID]: session.user.id }, { onConflict: COLS.ID, ignoreDuplicates: true });
+
   const patch: Record<string, unknown> = {
     id:         session.user.id,
     updated_at: new Date().toISOString(),

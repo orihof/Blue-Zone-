@@ -45,14 +45,13 @@ export async function POST(req: Request) {
       ipAddress,
     );
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[consent/record] Unhandled exception:", message, err);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    console.error("[consent/record] Unhandled exception:", err);
+    return NextResponse.json({ success: false, error: "Failed to save preferences. Please try again." }, { status: 500 });
   }
 
   if (!result.success) {
     console.error("[consent/record] recordConsent failed:", result.error);
-    return NextResponse.json({ success: false, error: result.error }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to save preferences. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, consentId: result.consentId });

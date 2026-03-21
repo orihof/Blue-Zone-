@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { toast } from "sonner";
@@ -140,8 +141,8 @@ function WelcomeStep({ name, setName, onNext }: { name: string; setName: (n: str
 
       {/* Name input */}
       <div className="card" style={{ padding: "24px 28px", marginBottom: 28, textAlign: "left" }}>
-        <label style={{ display: "block", fontSize: 10, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 10 }}>
-          What should we call you?
+        <label style={{ display: "block", fontSize: 14, color: "#94A3B8", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 10, letterSpacing: 0, textTransform: "none" }}>
+          First, what&apos;s your name?
         </label>
         <input
           type="text"
@@ -169,8 +170,8 @@ function WelcomeStep({ name, setName, onNext }: { name: string; setName: (n: str
       <button className="cta" style={{ width: "100%" }} onClick={handleContinue} disabled={!name.trim() || saving}>
         {saving ? "Saving..." : "Let\u2019s begin →"}
       </button>
-      <p style={{ fontSize: 11, color: T.muted, marginTop: 10, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-        Takes about 5 minutes
+      <p style={{ fontSize: 13, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)", display: "flex", alignItems: "center", gap: 6, justifyContent: "center", marginTop: 12 }}>
+        ⏱ Takes about 5 minutes
       </p>
     </div>
   );
@@ -178,7 +179,11 @@ function WelcomeStep({ name, setName, onNext }: { name: string; setName: (n: str
 
 // ── Step 1: Data Sharing / consent ───────────────────────────────────────────
 function ConsentStep({ onNext }: { onNext: () => void }) {
-  return <ConsentOnboardingModal onComplete={onNext} />;
+  return (
+    <div style={{ position: "relative" }}>
+      <ConsentOnboardingModal onComplete={onNext} />
+    </div>
+  );
 }
 
 // ── Step 2: Goals (4 cards, single-select) ───────────────────────────────────
@@ -939,6 +944,15 @@ function OnboardingInner() {
   });
   const [extraConnected, setExtraConnected] = useState<string[]>([]);
 
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    const googleName = session?.user?.name;
+    if (googleName && !userName) {
+      setUserName(googleName.split(" ")[0]);
+    }
+  }, [session]);
+
   // Resolve correct step from DB on mount
   useEffect(() => {
     const urlStep = parseInt(searchParams.get("step") ?? "", 10);
@@ -1105,16 +1119,49 @@ function OnboardingInner() {
                 <div style={{ width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 400, background: i < step ? GRAD : i === step ? "rgba(99,102,241,.2)" : "rgba(255,255,255,.06)", color: i < step ? "#fff" : i === step ? "#A5B4FC" : T.muted, border: i === step ? "1px solid rgba(99,102,241,.4)" : "none", transition: "all .3s" }}>
                   {i < step ? "✓" : i + 1}
                 </div>
-                <span style={{ fontSize: 9, color: i === step ? "#A5B4FC" : T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".06em", textTransform: "uppercase" }}>
+                <span className="onboarding-step-label" style={{ fontSize: 9, color: i === step ? "#A5B4FC" : T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".06em", textTransform: "uppercase" }}>
                   {label}
                 </span>
               </div>
             ))}
           </div>
-          <div style={{ height: 2, background: "rgba(255,255,255,.06)", borderRadius: 99, overflow: "hidden" }}>
+          <div style={{ height: 2, background: "rgba(255,255,255,.06)", borderRadius: 99, overflow: "hidden", marginTop: 10 }}>
             <div style={{ height: "100%", background: GRAD, borderRadius: 99, width: `${progressPct}%`, transition: "width .5s cubic-bezier(.16,1,.3,1)" }} />
           </div>
         </div>
+        <button
+          onClick={handleSkip}
+          style={{
+            position: "fixed",
+            top: 20,
+            right: 20,
+            zIndex: 10001,
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            color: "#64748B",
+            cursor: "pointer",
+            width: 28,
+            height: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12,
+            transition: "all .15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.10)";
+            e.currentTarget.style.color = "#F1F5F9";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+            e.currentTarget.style.color = "#64748B";
+          }}
+          className="onboarding-close-btn"
+          aria-label="Exit to dashboard"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Step content */}
@@ -1168,14 +1215,6 @@ function OnboardingInner() {
           />
         )}
       </div>
-      <button
-        onClick={handleSkip}
-        style={{ position: "fixed", bottom: "1.5rem", right: "1.5rem", background: "none", border: "none", cursor: "pointer", color: "var(--t3, #343960)", fontSize: "0.75rem", fontFamily: "var(--font-ui,'Inter',sans-serif)", padding: "4px 8px", lineHeight: 1.5, letterSpacing: ".02em", opacity: 0.85 }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.85"; }}
-      >
-        Skip for now →
-      </button>
       </motion.div>
     </AnimatePresence>
   );

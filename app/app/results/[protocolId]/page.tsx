@@ -104,6 +104,31 @@ export default async function ResultsServerPage({ params }: PageProps) {
     // Non-fatal — panel will not render if empty
   }
 
+  // 3. Sports prep event data + profile name
+  const [sportsProtocolRes, profileRes] = await Promise.all([
+    supabase
+      .from("sports_protocols")
+      .select("competition_type, event_date, weeks_to_event")
+      .eq("user_id", session.user.id)
+      .eq("status", "ready")
+      .order("created_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", session.user.id)
+      .maybeSingle(),
+  ]);
+
+  const sportsPrep = sportsProtocolRes.data?.[0] ?? null;
+  const userName = (profileRes.data?.display_name as string | null)
+    ?? session.user.name?.split(" ")[0]
+    ?? "Athlete";
+
+  const daysToRace = sportsPrep?.event_date
+    ? Math.max(0, Math.ceil((new Date(sportsPrep.event_date).getTime() - Date.now()) / 86_400_000))
+    : null;
+
   // ── Render interactive client component ──────────────────────────────────
   return (
     <ResultsPage
@@ -119,6 +144,9 @@ export default async function ResultsServerPage({ params }: PageProps) {
       payload={payload}
       pregnancyStatus={pregnancyStatus}
       competitionConflicts={competitionConflicts}
+      userName={userName}
+      daysToRace={daysToRace}
+      competitionType={sportsPrep?.competition_type ?? null}
     />
   );
 }

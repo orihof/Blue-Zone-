@@ -15,6 +15,15 @@ const SERIF = "var(--font-serif,'Syne',sans-serif)";
 // ── Goal definitions ───────────────────────────────────────────────────────────
 const GOALS = [
   {
+    id:           "competition_prep",
+    label:        "Competition Prep",
+    description:  "Race-ready protocols for your next event",
+    icon:         "🏆",
+    badge:        "New" as const,
+    badgeStyle:   "purple" as const,
+    prepCategory: "competition_prep",
+  },
+  {
     id:           "weight_loss",
     label:        "Weight Loss",
     description:  "Optimize body composition & fat metabolism",
@@ -37,8 +46,8 @@ const GOALS = [
     label:        "Sleep",
     description:  "Improve sleep quality, depth & recovery",
     icon:         "🌙",
-    badge:        "Most popular" as const,
-    badgeStyle:   "amber" as const,
+    badge:        null,
+    badgeStyle:   null,
     prepCategory: "sleep",
   },
   {
@@ -92,6 +101,7 @@ type GoalId = typeof GOALS[number]["id"];
 
 // Map goal IDs to the legacy Goal type used by protocol creation
 const GOAL_MAP: Record<GoalId, Goal> = {
+  competition_prep:     "strength",
   weight_loss:          "fat_loss",
   physical_performance: "strength",
   sleep:                "sleep",
@@ -181,7 +191,7 @@ function GenerationScreen({ primaryGoal, onComplete }: { primaryGoal: GoalId; on
           <h2 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(20px,3vw,30px)", color: T.text, marginBottom: 6, letterSpacing: "-.02em" }}>
             Creating your <FlickerText text="PERSONAL" active /> protocol
           </h2>
-          <p style={{ fontSize: 12, color: T.muted, fontFamily: FONT }}>Analyzing your data and goal — takes a few seconds</p>
+          <p style={{ fontSize: 15, color: T.muted, fontFamily: FONT }}>Analyzing your data and goal — takes a few seconds</p>
         </div>
         <div style={{ width: "100%", height: 3, background: "rgba(255,255,255,.06)", borderRadius: 99, overflow: "hidden" }}>
           <div style={{ height: "100%", background: GRAD, borderRadius: 99, width: `${pct}%`, transition: "width 1s cubic-bezier(.16,1,.3,1)" }} />
@@ -193,7 +203,7 @@ function GenerationScreen({ primaryGoal, onComplete }: { primaryGoal: GoalId; on
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, opacity: isDone ? 0.5 : 1, transition: "opacity .3s", animation: "fadeUp .35s cubic-bezier(.16,1,.3,1) both" }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: isDone ? "#10B981" : isActive ? "#6366F1" : "rgba(255,255,255,.15)", boxShadow: isActive ? "0 0 8px rgba(99,102,241,.7)" : "none", animation: isActive ? "glowPulse 1.2s ease-in-out infinite" : "none" }} />
-                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11, color: isDone ? "#10B981" : isActive ? T.text : T.muted }}>
+                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 14, color: isDone ? "#10B981" : isActive ? T.text : T.muted }}>
                   {isDone ? "✓ " : isActive ? "→ " : "  "}{step}
                 </span>
               </div>
@@ -235,7 +245,7 @@ function GoalCard({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          width: "100%", minHeight: 160, padding: "22px 20px 44px", borderRadius: 16, textAlign: "left",
+          width: "100%", minHeight: 160, padding: "22px 20px 58px", borderRadius: 16, textAlign: "left",
           cursor:     dimmed ? "not-allowed" : "pointer",
           opacity:    dimmed ? 0.3 : 1,
           transition: "all .2s",
@@ -250,24 +260,24 @@ function GoalCard({
         {/* Social proof badge */}
         {g.badge && (
           <div style={{
-            position: "absolute", top: 10, left: 10, fontSize: 9, fontWeight: 500, letterSpacing: ".04em",
+            position: "absolute", top: 10, left: 10, fontSize: 11, fontWeight: 500, letterSpacing: ".04em",
             color: g.badgeStyle === "amber" ? "#FCD34D" : "#C4B5FD",
             background: g.badgeStyle === "amber" ? "rgba(245,158,11,.13)" : "rgba(124,58,237,.13)",
             border: g.badgeStyle === "amber" ? "1px solid rgba(245,158,11,.3)" : "1px solid rgba(124,58,237,.3)",
             borderRadius: 100, padding: "2px 8px", fontFamily: FONT,
           }}>
-            {g.badgeStyle === "amber" ? "🔥 " : ""}{g.badge}
+            {g.badgeStyle === "amber" ? "🔥 " : g.badgeStyle === "purple" ? "🏆 " : ""}{g.badge}
           </div>
         )}
 
         {/* Selected checkmark */}
         {isSelected && (
-          <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#fff", fontWeight: 700 }}>✓</div>
+          <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#fff", fontWeight: 700 }}>✓</div>
         )}
 
-        <div style={{ fontSize: 28, marginBottom: 10, marginTop: g.badge ? 18 : 0 }}>{g.icon}</div>
-        <div style={{ fontFamily: SERIF, fontWeight: 400, fontSize: 15, color: isSelected ? "#C4B5FD" : T.text, marginBottom: 5, letterSpacing: "-.01em" }}>{g.label}</div>
-        <div style={{ fontSize: 11, color: T.muted, fontFamily: FONT, lineHeight: 1.55 }}>{g.description}</div>
+        <div style={{ fontSize: 28, marginBottom: 10, marginTop: 18 }}>{g.icon}</div>
+        <div style={{ fontFamily: SERIF, fontWeight: 400, fontSize: 18, color: isSelected ? "#C4B5FD" : T.text, marginBottom: 5, letterSpacing: "-.01em" }}>{g.label}</div>
+        <div style={{ fontSize: 15, color: T.muted, fontFamily: FONT, lineHeight: 1.55 }}>{g.description}</div>
       </button>
 
       {/* Get Prep Pack button */}
@@ -277,15 +287,20 @@ function GoalCard({
         onMouseEnter={() => setPackHovered(true)}
         onMouseLeave={() => setPackHovered(false)}
         style={{
-          position: "absolute", bottom: 10, left: 10, right: 10,
-          padding: "5px 10px", borderRadius: 8, fontSize: 10, fontFamily: FONT,
-          fontWeight: 500, letterSpacing: ".02em",
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          padding: "11px 16px",
+          borderRadius: "0 0 16px 16px",
+          fontSize: 12, fontFamily: FONT,
+          fontWeight: 500,
           cursor: "pointer", outline: "none",
-          background: packHovered ? "rgba(99,102,241,.12)" : "transparent",
-          border: `1px solid ${packHovered ? "rgba(99,102,241,.5)" : "rgba(99,102,241,.25)"}`,
-          color: packHovered ? "#A5B4FC" : "#818CF8",
+          background: packHovered
+            ? "linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%)"
+            : "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)",
+          border: "none",
+          color: "#fff",
           transition: "all .15s",
           display: "flex", alignItems: "center", justifyContent: "space-between",
+          boxShadow: packHovered ? "0 4px 16px rgba(99,102,241,.35)" : "none",
         }}
       >
         <span>Get Prep Pack</span>
@@ -329,20 +344,43 @@ export function GoalsClient() {
       )}
 
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "40px 20px 80px" }}>
+        <button
+          onClick={() => router.back()}
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 10,
+            color: "#F1F5F9",
+            cursor: "pointer",
+            fontSize: 14,
+            fontFamily: FONT,
+            padding: "10px 18px",
+            marginBottom: 28,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontWeight: 400,
+            transition: "all .15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.10)";
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+          }}
+        >
+          ← Back
+        </button>
+
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          {/* Back to event fork */}
-          <button
-            onClick={() => router.back()}
-            style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: FONT, padding: 0, marginBottom: 16, display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            ← Back
-          </button>
-          <div style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: FONT, textTransform: "uppercase", marginBottom: 12 }}>◎ Step 4 — Goals</div>
+          <div style={{ fontSize: 14, letterSpacing: ".1em", color: "#6366F1", fontFamily: FONT, textTransform: "uppercase", marginBottom: 12 }}>◎ Step 4 — Goals</div>
           <h1 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(24px,4vw,42px)", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 10 }}>
             What do you want to<br /><span style={GT}>optimise</span>
           </h1>
-          <p style={{ fontSize: 14, color: T.muted, fontFamily: FONT, lineHeight: 1.7, maxWidth: 360, margin: "0 auto" }}>
+          <p style={{ fontSize: 16, color: T.muted, fontFamily: FONT, lineHeight: 1.7, maxWidth: 360, margin: "0 auto" }}>
             Your protocol will be built around this priority.
             {" "}<span style={{ color: "#94A3B8" }}>You can add a second goal later.</span>
           </p>

@@ -95,13 +95,13 @@ function useCheckinDone(): boolean {
 function CheckinBadge({ done }: { done: boolean }) {
   if (done) {
     return (
-      <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 100, background: "rgba(16,185,129,.18)", color: "#34D399", fontWeight: 400 }}>
+      <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 100, background: "rgba(16,185,129,.18)", color: "#34D399", fontWeight: 400 }}>
         ✓ Done
       </span>
     );
   }
   return (
-    <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 100, background: "rgba(6,182,212,.18)", color: "#22D3EE", fontWeight: 400 }}>
+    <span style={{ fontSize: 11, padding: "2px 7px", borderRadius: 100, background: "rgba(6,182,212,.18)", color: "#22D3EE", fontWeight: 400 }}>
       Ready ✓
     </span>
   );
@@ -115,12 +115,12 @@ function AdherenceWidget({ percent = 0, checkinDone }: { percent?: number; check
   if (composite === 0) {
     return (
       <div style={{ padding: "12px 14px", background: "rgba(99,102,241,.07)", borderRadius: 12, border: "1px solid rgba(99,102,241,.14)" }}>
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".12em", color: T.muted, marginBottom: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".12em", color: T.muted, marginBottom: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
           This Week
         </div>
         <Link href="/app/checkin" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
           <ClipboardCheck size={13} color="#6366F1" />
-          <span style={{ fontSize: 12, color: "#A5B4FC", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+          <span style={{ fontSize: 13, color: "#A5B4FC", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
             Log your first check-in
           </span>
         </Link>
@@ -132,14 +132,14 @@ function AdherenceWidget({ percent = 0, checkinDone }: { percent?: number; check
   if (composite >= 70) {
     return (
       <div style={{ padding: "12px 14px", background: "rgba(16,185,129,.07)", borderRadius: 12, border: "1px solid rgba(16,185,129,.14)" }}>
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".12em", color: T.muted, marginBottom: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".12em", color: T.muted, marginBottom: 8, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
           Weekly Adherence
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 22, color: "#34D399" }}>
             {composite}%
           </div>
-          <div style={{ fontSize: 11, color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", opacity: .8 }}>
+          <div style={{ fontSize: 12, color: "#34D399", fontFamily: "var(--font-ui,'Inter',sans-serif)", opacity: .8 }}>
             On track ✓
           </div>
         </div>
@@ -151,7 +151,7 @@ function AdherenceWidget({ percent = 0, checkinDone }: { percent?: number; check
   return (
     <div style={{ padding: "12px 14px", background: "rgba(99,102,241,.07)", borderRadius: 12, border: "1px solid rgba(99,102,241,.14)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".12em", color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".12em", color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>
           Weekly Adherence
         </div>
         <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 14, background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
@@ -161,7 +161,7 @@ function AdherenceWidget({ percent = 0, checkinDone }: { percent?: number; check
       <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${composite}%`, background: GRAD, borderRadius: 2, transition: "width .8s cubic-bezier(.16,1,.3,1)" }} />
       </div>
-      <div style={{ fontSize: 10, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 6 }}>
+      <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 6 }}>
         Building streak…
       </div>
     </div>
@@ -204,7 +204,7 @@ function SidebarItem({ it, active, isCheckin, checkinDone }: { it: NavItem; acti
         gap: 10,
         padding: "9px 13px",
         borderRadius: 10,
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: active ? 400 : 300,
         color: active ? "#fff" : hovered ? "#CBD5E1" : T.muted,
         background: active ? ACTIVE_BG : hovered ? "rgba(255,255,255,0.03)" : "transparent",
@@ -230,14 +230,24 @@ function Sidebar({ user, adherencePercent }: AppNavProps) {
   const [shareOpen, setShareOpen] = useState(false);
   return (
     <aside
-      style={{ width: 210, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.05)", padding: "20px 12px", position: "fixed", left: 0, top: 60, height: "calc(100vh - 60px)", overflowY: "auto", flexDirection: "column", background: "rgba(6,8,15,0.5)", backdropFilter: "blur(10px)", zIndex: 40 }}
+      style={{ width: 210, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.05)", padding: "20px 12px", position: "fixed", left: 0, top: 0, height: "100vh", overflowY: "auto", flexDirection: "column", background: "rgba(6,8,15,0.5)", backdropFilter: "blur(10px)", zIndex: 40 }}
       className="hidden md:flex"
     >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, padding: "4px 4px 0" }}>
+        <Link href="/app/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+          <BZMark size={28} />
+          <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 16, letterSpacing: "-.02em", background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
+        </Link>
+        <Link href="/app/profile" style={{ textDecoration: "none", borderRadius: "50%", display: "flex" }}>
+          <UserAvatar user={user} size={28} />
+        </Link>
+      </div>
+
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
         {NAV_GROUPS.map((group, gi) => (
           <div key={gi} style={{ marginTop: gi > 0 ? 12 : 0 }}>
             {group.label && (
-              <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".14em", color: T.muted, padding: "2px 13px 6px", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", opacity: .6 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".14em", color: T.muted, padding: "2px 13px 6px", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", opacity: .6 }}>
                 {group.label}
               </div>
             )}
@@ -259,7 +269,7 @@ function Sidebar({ user, adherencePercent }: AppNavProps) {
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8, marginTop: 8 }}>
         <button
           onClick={() => setShareOpen(true)}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "transparent", border: "none", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "transparent", border: "none", color: T.muted, cursor: "pointer", fontSize: 13, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#A5B4FC")}
           onMouseLeave={(e) => (e.currentTarget.style.color = T.muted)}
         >
@@ -267,7 +277,7 @@ function Sidebar({ user, adherencePercent }: AppNavProps) {
         </button>
         <button
           onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "transparent", border: "none", color: T.muted, cursor: "pointer", fontSize: 12, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8, background: "transparent", border: "none", color: T.muted, cursor: "pointer", fontSize: 13, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#F87171")}
           onMouseLeave={(e) => (e.currentTarget.style.color = T.muted)}
         >
@@ -276,7 +286,7 @@ function Sidebar({ user, adherencePercent }: AppNavProps) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", marginTop: 4 }}>
           <UserAvatar user={user} size={24} />
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 11, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.name ?? user.email}</div>
+            <div style={{ fontSize: 12, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.name ?? user.email}</div>
           </div>
         </div>
       </div>
@@ -297,7 +307,7 @@ function MobileNav({ user }: AppNavProps) {
     <>
       {/* Top header */}
       <header className="md:hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "rgba(6,8,15,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+        <Link href="/app/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
           <BZMark size={28} />
           <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 16, background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
         </Link>
@@ -325,8 +335,8 @@ function MobileNav({ user }: AppNavProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <UserAvatar user={user} size={32} />
                   <div>
-                    <div style={{ fontSize: 13, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{user.name ?? user.email}</div>
-                    {user.name && <div style={{ fontSize: 10, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{user.email}</div>}
+                    <div style={{ fontSize: 14, color: T.text, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{user.name ?? user.email}</div>
+                    {user.name && <div style={{ fontSize: 11, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{user.email}</div>}
                   </div>
                 </div>
                 <button onClick={() => setDrawerOpen(false)} style={{ background: "transparent", border: "none", color: T.muted, cursor: "pointer" }}>
@@ -338,7 +348,7 @@ function MobileNav({ user }: AppNavProps) {
                 {NAV_GROUPS.map((group, gi) => (
                   <div key={gi} style={{ marginBottom: 8 }}>
                     {group.label && (
-                      <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".14em", color: T.muted, padding: "4px 13px 4px", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", opacity: .6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".14em", color: T.muted, padding: "4px 13px 4px", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", opacity: .6 }}>
                         {group.label}
                       </div>
                     )}
@@ -348,7 +358,7 @@ function MobileNav({ user }: AppNavProps) {
                       const isCheckin = it.href === "/app/checkin";
                       return (
                         <Link key={it.href} href={it.href} onClick={() => setDrawerOpen(false)}
-                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: active ? 400 : 300, color: active ? "#fff" : T.muted, background: active ? ACTIVE_BG : "transparent", textDecoration: "none", marginBottom: 1, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 14, fontWeight: active ? 400 : 300, color: active ? "#fff" : T.muted, background: active ? ACTIVE_BG : "transparent", textDecoration: "none", marginBottom: 1, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                           <Icon size={15} color={active ? "#A5B4FC" : T.muted} />
                           <span style={{ flex: 1 }}>{it.label}</span>
                           {isCheckin && <CheckinBadge done={checkinDone} />}
@@ -361,19 +371,19 @@ function MobileNav({ user }: AppNavProps) {
 
               <div style={{ padding: "12px 8px 32px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
                 <Link href="/app/settings" onClick={() => setDrawerOpen(false)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 14, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <Settings size={14} color={T.muted} /> Settings
                 </Link>
                 <Link href="/app/settings/privacy" onClick={() => setDrawerOpen(false)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 14, fontWeight: 300, color: T.muted, textDecoration: "none", marginBottom: 4, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <Shield size={14} color={T.muted} /> Privacy & Data
                 </Link>
                 <button onClick={() => { setDrawerOpen(false); setShareOpen(true); }}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: T.muted, background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 4 }}>
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 14, fontWeight: 300, color: T.muted, background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginBottom: 4 }}>
                   <Share2 size={14} color={T.muted} /> Share Blue Zone
                 </button>
                 <button onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 13, fontWeight: 300, color: "#F87171", background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 13px", borderRadius: 10, fontSize: 14, fontWeight: 300, color: "#F87171", background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
                   <LogOut size={14} /> Sign out
                 </button>
               </div>
@@ -412,7 +422,7 @@ function MobileNav({ user }: AppNavProps) {
                 >
                   <Sparkles size={22} color="#fff" />
                 </Link>
-                <span style={{ fontSize: 9, color: fabActive ? "#A5B4FC" : "#C4B5FD", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 3, letterSpacing: "0.06em" }}>Protocol</span>
+                <span style={{ fontSize: 10, color: fabActive ? "#A5B4FC" : "#C4B5FD", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 3, letterSpacing: "0.06em" }}>Protocol</span>
               </div>
             );
           }
@@ -428,7 +438,7 @@ function MobileNav({ user }: AppNavProps) {
               style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", paddingBottom: 10, gap: 2, color: active ? "#A5B4FC" : T.muted, textDecoration: "none", position: "relative" }}
             >
               <Icon size={18} color={active ? "#A5B4FC" : T.muted} style={{ transform: active ? "scale(1.1)" : "scale(1)", transition: "transform .2s" }} />
-              <span style={{ fontSize: 9, letterSpacing: "0.06em", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{it.label}</span>
+              <span style={{ fontSize: 10, letterSpacing: "0.06em", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{it.label}</span>
               {isCheckin && !checkinDone && (
                 <span style={{ position: "absolute", top: -2, right: "calc(50% - 14px)", width: 6, height: 6, borderRadius: "50%", background: "#22D3EE" }} />
               )}
@@ -440,27 +450,10 @@ function MobileNav({ user }: AppNavProps) {
   );
 }
 
-// ── Top nav bar ─────────────────────────────────────────────────────────────
-function TopNav({ user }: AppNavProps) {
-  return (
-    <header className="hidden md:flex" style={{ position: "sticky", top: 0, zIndex: 50, height: 60, borderBottom: "1px solid rgba(255,255,255,0.05)", alignItems: "center", padding: "0 28px", background: "rgba(6,8,15,0.85)", backdropFilter: "blur(24px)" }}>
-      <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
-        <BZMark size={32} />
-        <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 18, letterSpacing: "-.02em", background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
-      </Link>
-      <div style={{ flex: 1 }} />
-      <Link href="/app/profile" style={{ textDecoration: "none", borderRadius: "50%", display: "flex" }}>
-        <UserAvatar user={user} size={32} />
-      </Link>
-    </header>
-  );
-}
-
 // ── Export ──────────────────────────────────────────────────────────────────
 export function AppNav({ user, adherencePercent = 0 }: AppNavProps) {
   return (
     <>
-      <TopNav user={user} adherencePercent={adherencePercent} />
       <Sidebar user={user} adherencePercent={adherencePercent} />
       <MobileNav user={user} />
     </>

@@ -70,7 +70,7 @@ export function ConsentUpdateBanner() {
   }
 
   return (
-    <div style={{
+    <div className="md:pl-[230px]" style={{
       width:        "100%",
       background:   "#0D1E35",
       borderBottom: "1px solid rgba(126,184,247,0.2)",

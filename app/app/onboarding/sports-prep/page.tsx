@@ -10,6 +10,7 @@ import AppleHealthHelpModal from "@/components/upload/AppleHealthHelpModal";
 import SamsungHealthHelpModal from "@/components/upload/SamsungHealthHelpModal";
 import { MissingMarkersModal } from "@/components/blood-test/MissingMarkersModal";
 import { BloodPanelModal } from "@/components/onboarding/BloodPanelModal";
+import { NotifyMeButton } from "@/components/push/NotifyMeButton";
 import { detectMissingMarkers, type DetectionResult } from "@/lib/blood-test/detect-missing-markers";
 import type { IngestResult } from "@/lib/types/health";
 
@@ -898,6 +899,14 @@ function LoadingScreen({ form, onComplete, onError, preWarmPromise }: {
               </div>
             );
           })}
+        </div>
+
+        <div style={{ marginTop: 32, display: "flex", justifyContent: "center" }}>
+          <NotifyMeButton
+            title="Competition Prep Ready"
+            body="Your protocol has been generated. Tap to view."
+            url="/app/results/sports"
+          />
         </div>
 
       </div>

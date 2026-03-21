@@ -21,6 +21,15 @@ const nextConfig = {
       "resend",
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/demo',
+        destination: '/',
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {

@@ -24,7 +24,6 @@ import { PregnancySafetyBanner } from "@/app/components/PregnancySafetyBanner";
 import { NutrientConflictPanel } from "@/app/components/NutrientConflictPanel";
 import { OutcomeArcWidget }      from "@/app/components/OutcomeArcWidget";
 import ProtocolTabs              from "@/components/protocol/ProtocolTabs";
-import ProtocolSessionHero      from "@/components/protocol/ProtocolSessionHero";
 import ProtocolMeta             from "@/components/protocol/ProtocolMeta";
 import RecommendationTabs       from "@/components/protocol/RecommendationTabs";
 import { useProtocolPhase }     from "@/hooks/useProtocolPhase";
@@ -80,10 +79,13 @@ interface ResultsPageProps {
   payload:              ProtocolPayload;
   pregnancyStatus:      string;
   competitionConflicts: CompetitionResult[];
+  userName:             string;
+  daysToRace:           number | null;
+  competitionType:      string | null;
 }
 
 // ── Inner component (uses useSearchParams — needs Suspense) ────────────────
-function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConflicts }: ResultsPageProps) {
+function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConflicts, userName, daysToRace, competitionType }: ResultsPageProps) {
   const searchParams = useSearchParams();
   const router       = useRouter();
 
@@ -177,28 +179,69 @@ function ResultsPageInner({ protocol, payload, pregnancyStatus, competitionConfl
       {/* Full-screen critical value gate — renders null when no active events */}
       <CriticalValueGate />
 
-      {/* Check-in hero */}
-      <ProtocolSessionHero
-        checkInState={checkinDone ? "complete" : "pending"}
-        topRecommendation={{
-          title: payload.recommendations.supplements[0]?.title ?? "",
-          detectedSignal: payload.recommendations.supplements[0]?.rationaleBullets[0] ?? "",
-          category: "supplement",
-        }}
-        onCheckInSubmit={async (energy) => {
-          await fetch("/api/checkin", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ energy }),
-          });
-        }}
-        onStartRecommendation={() => {}}
-        onCheckInComplete={() => {
-          setCheckinDone(true);
-          localStorage.setItem("bz_checkin_date", new Date().toDateString());
-          window.dispatchEvent(new CustomEvent("bz-checkin-done"));
-        }}
-      />
+      {/* Protocol Hero */}
+      <div style={{
+        background: "linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(124,58,237,0.08) 100%)",
+        border: "1px solid rgba(99,102,241,0.2)",
+        borderRadius: 20,
+        padding: "28px 28px 24px",
+        marginBottom: 24,
+        position: "relative",
+        overflow: "hidden",
+      }}>
+        {/* Background glow */}
+        <div style={{ position: "absolute", top: -60, right: -60, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
+        {/* Top row: greeting + days to race */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: ".1em", color: "#6366F1", fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase", marginBottom: 6 }}>
+              {competitionType ? `⚡ ${competitionType.replace(/_/g, " ")}` : "⬡ My Protocol"}
+            </div>
+            <h1 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: "clamp(22px,3vw,32px)", color: "#F1F5F9", letterSpacing: "-.02em", marginBottom: 4 }}>
+              {checkinDone ? `Ready, ${userName}.` : `Good morning, ${userName}.`}
+            </h1>
+            <p style={{ fontSize: 13, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+              {checkinDone ? "Protocol active — check your morning stack." : "Log your check-in to activate today's protocol."}
+            </p>
+          </div>
+          {daysToRace !== null && (
+            <div style={{ textAlign: "center", flexShrink: 0, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 14, padding: "12px 18px" }}>
+              <div style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 36, color: "#F1F5F9", lineHeight: 1, letterSpacing: "-.03em" }}>
+                {daysToRace}
+              </div>
+              <div style={{ fontSize: 10, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)", letterSpacing: ".08em", textTransform: "uppercase", marginTop: 4 }}>
+                days to race
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Adoption progress bar */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 11, color: "#64748B", fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
+              Protocol adoption
+            </span>
+            <span style={{ fontSize: 11, color: adopted > 0 ? "#34D399" : "#64748B", fontFamily: "var(--font-mono,'JetBrains Mono',monospace)" }}>
+              {adopted}/{allRecs.length} adopted
+            </span>
+          </div>
+          <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 99, overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${pct}%`,
+              background: pct === 0 ? "rgba(255,255,255,0.1)" : "linear-gradient(90deg, #3B82F6, #8B5CF6)",
+              borderRadius: 99,
+              transition: "width .6s cubic-bezier(.16,1,.3,1)",
+              boxShadow: pct > 0 ? "0 0 8px rgba(99,102,241,0.4)" : "none",
+            }} />
+          </div>
+          {adopted === 0 && (
+            <p style={{ fontSize: 11, color: "#475569", fontFamily: "var(--font-ui,'Inter',sans-serif)", marginTop: 6 }}>
+              Tap any supplement below to begin
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
