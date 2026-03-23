@@ -168,15 +168,6 @@ function AdherenceWidget({ percent = 0, checkinDone }: { percent?: number; check
   );
 }
 
-// ── BZ monogram ─────────────────────────────────────────────────────────────
-function BZMark({ size = 32 }: { size?: number }) {
-  return (
-    <div style={{ width: size, height: size, borderRadius: Math.round(size * 0.28), background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 18px rgba(99,102,241,0.4)", flexShrink: 0 }}>
-      <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 700, fontSize: Math.round(size * 0.44), color: "#fff", letterSpacing: "-0.05em", lineHeight: 1 }}>BZ</span>
-    </div>
-  );
-}
-
 // ── User avatar ─────────────────────────────────────────────────────────────
 function UserAvatar({ user, size = 32 }: { user: AppNavProps["user"]; size?: number }) {
   if (user.image) {
@@ -235,8 +226,7 @@ function Sidebar({ user, adherencePercent }: AppNavProps) {
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, padding: "4px 4px 0" }}>
         <Link href="/app/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          <BZMark size={28} />
-          <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 16, letterSpacing: "-.02em", background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
+          <img src="/Blue-zone-white-full.svg" alt="Blue Zone" style={{ height: 24, width: "auto" }} />
         </Link>
         <Link href="/app/profile" style={{ textDecoration: "none", borderRadius: "50%", display: "flex" }}>
           <UserAvatar user={user} size={28} />
@@ -308,8 +298,7 @@ function MobileNav({ user }: AppNavProps) {
       {/* Top header */}
       <header className="md:hidden" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50, height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "rgba(6,8,15,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
         <Link href="/app/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-          <BZMark size={28} />
-          <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 16, background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
+          <img src="/Blue-zone-white-full.svg" alt="Blue Zone" style={{ height: 24, width: "auto" }} />
         </Link>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Link href="/app/profile" style={{ textDecoration: "none", display: "flex", borderRadius: "50%" }}>

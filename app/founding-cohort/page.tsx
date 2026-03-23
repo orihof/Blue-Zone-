@@ -9,14 +9,7 @@ export const metadata: Metadata = {
     "Blue Zone is opening to 50 competitive endurance athletes in April 2026. Apply for founding cohort access.",
 };
 
-const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const T = { text: "#F1F5F9", muted: "#64748B" };
-const GT = {
-  background: GRAD,
-  WebkitBackgroundClip: "text" as const,
-  WebkitTextFillColor: "transparent",
-  backgroundClip: "text" as const,
-};
 
 export default function FoundingCohortPage() {
   return (
@@ -31,8 +24,7 @@ export default function FoundingCohortPage() {
         {/* ── Top nav ── */}
         <nav style={{ height: 60, borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", padding: "0 28px", position: "sticky", top: 0, zIndex: 50, background: "rgba(6,8,15,0.85)", backdropFilter: "blur(24px)" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
-            <div style={{ width: 32, height: 32, borderRadius: 9, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, boxShadow: "0 0 18px rgba(99,102,241,0.4)" }}>⬡</div>
-            <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 18, letterSpacing: "-.02em", ...GT }}>Blue Zone</span>
+            <img src="/Blue-zone-white-full.svg" alt="Blue Zone" style={{ height: 28, width: "auto" }} />
           </Link>
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", gap: 8 }}>

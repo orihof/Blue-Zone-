@@ -6,7 +6,6 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const T = { text: "#F1F5F9", muted: "#64748B" };
 
 export default function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
@@ -54,11 +53,10 @@ export default function SignInForm({ hasGoogle }: { hasGoogle: boolean }) {
   return (
     <div style={{ minHeight: "calc(100vh - 60px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
       <div className="card fu" style={{ width: "100%", maxWidth: 420, padding: 36 }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
           {/* Logo */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 9, marginBottom: 20 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 9, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, boxShadow: "0 0 18px rgba(99,102,241,0.4)" }}>⬡</div>
-            <span style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: 18, letterSpacing: "-.02em", background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>Blue Zone</span>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+            <img src="/Blue-zone-white-full.svg" alt="Blue Zone" style={{ height: 32, width: "auto" }} />
           </div>
           <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: 26, color: T.text, marginBottom: 6, letterSpacing: "-.02em" }}>Welcome back</h2>
           <p style={{ fontSize: 13, color: T.muted, fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300 }}>Sign in to access your protocol</p>

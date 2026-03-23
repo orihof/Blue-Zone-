@@ -129,8 +129,8 @@ function WelcomeStep({ name, setName, onNext }: { name: string; setName: (n: str
 
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", textAlign: "center" }}>
-      <div style={{ width: 64, height: 64, borderRadius: 18, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, margin: "0 auto 28px", boxShadow: "0 0 40px rgba(99,102,241,.35)" }}>
-        ⬡
+      <div style={{ margin: "0 auto 28px" }}>
+        <img src="/Blue-zone-white-full.svg" alt="Blue Zone" style={{ height: 28, width: "auto" }} />
       </div>
       <h1 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(26px,4.5vw,38px)", letterSpacing: "-.02em", lineHeight: 1.2, marginBottom: 14 }}>
         <span style={{ color: T.text }}>Welcome to</span>{" "}<span style={GT}>Blue Zone</span>
@@ -882,7 +882,7 @@ function ProcessingStep({
     <div style={{ minHeight: "60vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 55% 45% at 50% 40%,rgba(99,102,241,.07) 0%,transparent 70%)" }} />
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 28, width: "100%", maxWidth: 400 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 16, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, boxShadow: "0 0 32px rgba(99,102,241,.4)", animation: "glowPulse 2.4s ease-in-out infinite" }}>⬡</div>
+        <img src="/Blue-zone-white-full.svg" alt="Blue Zone" style={{ height: 40, width: "auto" }} />
         <div style={{ textAlign: "center" }}>
           <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 400, fontSize: "clamp(20px,3vw,28px)", color: T.text, marginBottom: 6 }}>
             Building your <FlickerWord word="PERSONAL" /> protocol

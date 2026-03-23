@@ -4,8 +4,6 @@
 import Link from "next/link";
 
 export default function GoodbyePage() {
-  const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
-
   return (
     <div style={{ minHeight: "100vh", background: "#06080F", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
 
@@ -16,9 +14,7 @@ export default function GoodbyePage() {
 
       {/* BZ Logo */}
       <div style={{ position: "relative", marginBottom: 32 }}>
-        <div style={{ width: 64, height: 64, borderRadius: 18, background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.6 }}>
-          <span style={{ color: "#fff", fontSize: 22, fontWeight: 700, letterSpacing: "-.02em" }}>BZ</span>
-        </div>
+        <img src="/Blue-zone-white-full.svg" alt="Blue Zone" style={{ height: 36, width: "auto", opacity: 0.85 }} />
       </div>
 
       {/* Headline */}

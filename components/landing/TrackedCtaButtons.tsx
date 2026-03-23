@@ -2,28 +2,35 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { trackPrimaryCtaClick, trackSecondaryCtaClick, trackBottomCtaClick, trackHowItWorksCtaClick } from "@/lib/analytics";
+
+const ARROW = <ArrowRight size={15} strokeWidth={1.5} style={{ display: "inline", verticalAlign: "middle", marginTop: -1 }} />;
 
 export function PrimaryCtaButton() {
   return (
     <Link href="/auth/signin" onClick={trackPrimaryCtaClick}>
-      <button className="cta" style={{ fontSize: 18, padding: "17px 50px" }}>Get My Personal Protocol →</button>
+      <button className="cta" style={{ fontSize: 18, padding: "17px 50px" }}>Get My Personal Protocol {ARROW}</button>
     </Link>
   );
 }
 
 export function SecondaryCtaButton() {
   return (
-    <Link href="/how-it-works" onClick={trackSecondaryCtaClick}>
-      <button className="ghost" style={{ fontSize: 14, padding: "11px 22px", border: "1px solid rgba(99,102,241,0.14)" }}>See how it works →</button>
-    </Link>
+    <a
+      href="#how-it-works"
+      onClick={trackSecondaryCtaClick}
+      className="text-sm text-[--stellar] hover:text-white transition-colors underline-offset-4 hover:underline cursor-pointer"
+    >
+      See how it works {ARROW}
+    </a>
   );
 }
 
 export function BottomCtaButton() {
   return (
     <Link href="/auth/signin" onClick={trackBottomCtaClick}>
-      <button className="cta">Get My Personal Protocol →</button>
+      <button className="cta">Get My Personal Protocol {ARROW}</button>
     </Link>
   );
 }
@@ -31,7 +38,7 @@ export function BottomCtaButton() {
 export function HowItWorksCtaButton() {
   return (
     <Link href="/auth/signin" onClick={trackHowItWorksCtaClick}>
-      <button className="cta" style={{ fontSize: 18, padding: "17px 50px" }}>Find out why your training stalled →</button>
+      <button className="cta" style={{ fontSize: 18, padding: "17px 50px" }}>Find out why your training stalled {ARROW}</button>
     </Link>
   );
 }
