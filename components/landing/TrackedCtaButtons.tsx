@@ -20,9 +20,9 @@ export function SecondaryCtaButton() {
     <a
       href="#how-it-works"
       onClick={trackSecondaryCtaClick}
-      className="text-sm text-[--stellar] hover:text-white transition-colors underline-offset-4 hover:underline cursor-pointer"
+      className="text-xs text-white/45 md:text-sm md:text-[--stellar] hover:text-white transition-colors underline-offset-4 hover:underline cursor-pointer"
     >
-      See how it works {ARROW}
+      See a sample protocol {ARROW}
     </a>
   );
 }
@@ -30,7 +30,7 @@ export function SecondaryCtaButton() {
 export function BottomCtaButton() {
   return (
     <Link href="/auth/signin" onClick={trackBottomCtaClick}>
-      <button className="cta">Get My Personal Protocol {ARROW}</button>
+      <button className="cta">Apply for Early Access {ARROW}</button>
     </Link>
   );
 }

@@ -1,28 +1,35 @@
 /// components/landing/TrustStrip.tsx
+"use client";
+
 import { Database, Activity, GitBranch } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface TrustCard {
   icon: LucideIcon;
   heading: string;
   body: string;
+  example: string;
 }
 
 const CARDS: TrustCard[] = [
   {
     icon: Database,
-    heading: "We read what your doctor flags — and what they don\u2019t",
+    heading: "We read what your doctor flags \u2014 and what they don\u2019t",
     body: "CBC, CMP, iron panel, thyroid, hormones, vitamins, and inflammatory markers synthesized together. Not just the 6 your doctor highlights.",
+    example: "e.g. A ferritin of 62 ng/mL inside lab range \u2014 flagged as low-for-load because you\u2019re in week 4 of a build block.",
   },
   {
     icon: Activity,
     heading: "Your HRV only makes sense with your training load",
-    body: "HRV, resting HR, strain, sleep quality, and weekly volume read alongside your blood — because they\u2019re not separate problems.",
+    body: "HRV, resting HR, strain, sleep quality, and weekly volume read alongside your blood \u2014 because they\u2019re not separate problems.",
+    example: "e.g. HRV at 38ms after four consecutive hard days is expected. The same number after a rest week is a signal.",
   },
   {
     icon: GitBranch,
     heading: "Every fix ordered by what moves your markers fastest",
-    body: "Interventions ranked by impact given your current training phase — not a generic priority list.",
+    body: "Interventions ranked by impact given your current training phase \u2014 not a generic priority list.",
+    example: "e.g. Iron before magnesium \u2014 because your HRV won\u2019t respond to sleep support while iron-restricted erythropoiesis is active.",
   },
 ];
 
@@ -30,12 +37,20 @@ export function TrustStrip() {
   return (
     <div className="py-16 px-4 max-w-4xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {CARDS.map((card) => {
+        {CARDS.map((card, i) => {
           const Icon = card.icon;
           return (
-            <div
+            <motion.div
               key={card.heading}
               className="bg-[#111118] border border-white/10 rounded-xl p-6"
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{
+                duration: 0.5,
+                ease: [0.16, 1, 0.3, 1],
+                delay: i * 0.1,
+              }}
             >
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center mb-4"
@@ -44,21 +59,13 @@ export function TrustStrip() {
                 <Icon className="w-5 h-5 text-[--ion-blue]" strokeWidth={1.5} />
               </div>
               <p className="text-sm font-semibold text-white mb-2">{card.heading}</p>
-              <p className="text-sm text-gray-400 leading-relaxed">{card.body}</p>
-            </div>
+              <p className="text-sm text-gray-300 leading-relaxed">{card.body}</p>
+              <p className="border-t border-white/5 mt-4 pt-4 text-xs text-white/40 italic" style={{ fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>{card.example}</p>
+            </motion.div>
           );
         })}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, maxWidth: 560, margin: "32px auto 0", flexWrap: "nowrap" }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(96,165,250,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          <polyline points="9 12 11 14 15 10"/>
-        </svg>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", fontFamily: "var(--font-ui,'Inter',sans-serif)", fontWeight: 300, margin: 0, lineHeight: 1.6, flex: 1 }}>
-          Built on peer-reviewed exercise physiology and sports medicine research. Not AI guesswork.
-        </p>
-      </div>
     </div>
   );
 }

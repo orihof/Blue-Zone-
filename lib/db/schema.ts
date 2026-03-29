@@ -84,6 +84,7 @@ export const TABLES = {
   CHRONOTYPE_TIMING_OFFSETS:        "chronotype_timing_offsets",
   USER_PROTOCOL_TIMELINES:          "user_protocol_timelines",
   TRAVEL_EVENTS:                    "travel_events",
+  FOUNDING_APPLICATIONS:            "founding_applications",
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];

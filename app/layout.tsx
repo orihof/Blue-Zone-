@@ -47,28 +47,55 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   ),
-  title: "Blue Zone — Performance Biology for Endurance Athletes",
+  title: "Blue Zone \u2014 Blood + Training Intelligence",
   description:
-    "The first platform that reads your blood data and your training load together. Upload your blood panel, connect your wearable, and find out exactly why your body isn\u2019t responding — and what to fix first.",
+    "Blue Zone combines your blood panel data with wearable training metrics to identify why your body isn\u2019t adapting \u2014 and generate a precise, personalized protocol. Built on peer-reviewed exercise physiology. Not AI guesswork.",
+  keywords: [
+    "blood biomarker analysis",
+    "athlete blood testing",
+    "HRV and blood correlation",
+    "personalized supplement protocol",
+    "endurance athlete recovery",
+    "biohacker health optimization",
+    "WHOOP blood panel integration",
+    "ferritin athlete performance",
+    "longevity platform athletes",
+    "training load blood markers",
+  ],
+  authors: [{ name: "Ori Hofnung", url: "https://bluezone.ai" }],
+  creator: "Blue Zone",
   openGraph: {
-    title: "Blue Zone — Now you know why.",
+    type: "website",
+    locale: "en_US",
+    url: "https://bluezone.ai",
+    siteName: "Blue Zone",
+    title: "You have the data. You still don\u2019t have the answer.",
     description:
-      "Blood data + training load, read together. Built for Ironman triathletes, marathon runners, and gran fondo cyclists who\u2019ve done the testing and still don\u2019t have answers.",
+      "Blue Zone reads your blood panel and wearable data together \u2014 and tells you exactly what to fix. In minutes.",
     images: [
       {
-        url: '/og-image.png',
+        url: "/og",
         width: 1200,
         height: 630,
-        alt: 'Blue Zone — Performance Biology for Endurance Athletes',
+        alt: "Blue Zone — Blood + Training Intelligence",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Blue Zone — Now you know why.",
+    title: "You have the data. You still don\u2019t have the answer.",
     description:
-      "Blood data + training load, read together. Built for Ironman triathletes, marathon runners, and gran fondo cyclists who\u2019ve done the testing and still don\u2019t have answers.",
-    images: ['/og-image.png'],
+      "Blue Zone reads your blood panel and wearable data together \u2014 and tells you exactly what to fix. In minutes.",
+    images: ["/og"],
+    creator: "@orhofnung",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
 };
 
