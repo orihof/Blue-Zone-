@@ -260,6 +260,11 @@ export const COLS = {
   SCENARIO:                     "scenario",
   LAST_WEARABLE_UPLOAD_AT:      "last_wearable_upload_at",
   BASELINE_ESTABLISHED_AT:      "baseline_established_at",
+  // protocol_share_cards — card content (migration 031)
+  CARD_DATA:                    "card_data",
+  PROTOCOL_REF_ID:              "protocol_ref_id",
+  CARD_TYPE:                    "card_type",
+  VIEW_COUNT:                   "view_count",
 } as const;
 
 export const BUCKETS = {

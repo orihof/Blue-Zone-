@@ -29,7 +29,7 @@ import type {
 }                                 from "@/lib/analysis/types";
 import { Resend }                 from "resend";
 import { NextRequest, NextResponse } from "next/server";
-import { requireConsent }          from "@/middleware/requireConsent";
+import { requireConsent }          from "@/lib/middleware/requireConsent";
 import {
   getPregnancyRulesForProduct,
   applyPregnancyGate,

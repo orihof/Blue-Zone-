@@ -13,7 +13,7 @@ import { AnalysisReport }    from "@/components/analysis/AnalysisReport";
 export default async function AnalysisDashboardRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/auth/signin");
@@ -25,7 +25,7 @@ export default async function AnalysisDashboardRoute({
     supabase
       .from(TABLES.ANALYSIS_REPORTS)
       .select(`${COLS.ID}, ${COLS.STATUS}, ${COLS.PAYLOAD}, ${COLS.ERROR_MESSAGE}, ${COLS.GENERATED_AT}`)
-      .eq(COLS.ID, params.id)
+      .eq(COLS.ID, (await params).id)
       .eq(COLS.USER_ID, userId)
       .maybeSingle(),
 
@@ -92,7 +92,7 @@ export default async function AnalysisDashboardRoute({
   return (
     <AnalysisReport
       result={result}
-      reportId={params.id}
+      reportId={(await params).id}
       generatedAt={generatedAt}
       biologicalAge={biologicalAge}
       biologicalAgeDelta={biologicalAgeDelta}

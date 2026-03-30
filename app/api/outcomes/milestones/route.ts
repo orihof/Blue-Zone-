@@ -9,7 +9,7 @@ import {
   type OutcomeMilestone,
 } from "@/lib/outcome-tracker";
 import { NextRequest, NextResponse } from "next/server";
-import { requireConsent }    from "@/middleware/requireConsent";
+import { requireConsent }    from "@/lib/middleware/requireConsent";
 
 export const runtime = "nodejs";
 

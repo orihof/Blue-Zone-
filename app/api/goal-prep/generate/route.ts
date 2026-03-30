@@ -10,7 +10,7 @@ import { generateGoalProtocol } from "@/lib/ai/generateGoalProtocol";
 import { GOAL_CATEGORIES, type GoalPrepFormData } from "@/lib/db/goal-payload";
 import { isProtocolGated, getActiveCriticalEvents } from "@/lib/critical-values";
 import { NextRequest, NextResponse } from "next/server";
-import { requireConsent } from "@/middleware/requireConsent";
+import { requireConsent } from "@/lib/middleware/requireConsent";
 import type { UserHealthContextRow } from "@/lib/types/health";
 import {
   getPregnancyRulesForProduct,

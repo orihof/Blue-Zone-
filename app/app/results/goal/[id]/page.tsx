@@ -10,7 +10,7 @@ import { GoalResultsPage } from "@/components/goals/GoalResultsPage";
 export default async function GoalResultsRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/auth/signin");
@@ -19,7 +19,7 @@ export default async function GoalResultsRoute({
   const { data: row } = await supabase
     .from(TABLES.GOAL_PROTOCOLS)
     .select("*")
-    .eq(COLS.ID, params.id)
+    .eq(COLS.ID, (await params).id)
     .eq(COLS.USER_ID, session.user.id)
     .maybeSingle();
 

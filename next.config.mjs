@@ -12,15 +12,14 @@ const nextConfig = {
       },
     ],
   },
-  experimental: {
-    serverComponentsExternalPackages: [
-      "nodemailer",
-      "@supabase/supabase-js",
-      "@supabase/ssr",
-      "@anthropic-ai/sdk",
-      "resend",
-    ],
-  },
+  serverExternalPackages: [
+    "nodemailer",
+    "@supabase/supabase-js",
+    "@supabase/ssr",
+    "@anthropic-ai/sdk",
+    "resend",
+  ],
+  turbopack: {},
   async redirects() {
     return [
       {

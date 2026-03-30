@@ -27,7 +27,7 @@ interface Protocol {
 }
 
 interface PageProps {
-  params: { protocolId: string };
+  params: Promise<{ protocolId: string }>;
 }
 
 export default async function ResultsServerPage({ params }: PageProps) {
@@ -38,7 +38,7 @@ export default async function ResultsServerPage({ params }: PageProps) {
   const { data, error } = await supabase
     .from(TABLES.PROTOCOLS)
     .select("*")
-    .eq(COLS.ID, params.protocolId)
+    .eq(COLS.ID, (await params).protocolId)
     .eq(COLS.USER_ID, session.user.id)
     .maybeSingle();
 

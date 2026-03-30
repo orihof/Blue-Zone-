@@ -6,7 +6,7 @@ import { getServerSession }  from "next-auth";
 import { authOptions }       from "@/lib/auth";
 import { getAdminClient }    from "@/lib/supabase/admin";
 import { TABLES, COLS }      from "@/lib/db/schema";
-import { requireConsent }    from "@/middleware/requireConsent";
+import { requireConsent }    from "@/lib/middleware/requireConsent";
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";

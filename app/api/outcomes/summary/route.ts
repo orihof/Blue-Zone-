@@ -5,7 +5,7 @@ import { getAdminClient }    from "@/lib/supabase/admin";
 import { TABLES, COLS }      from "@/lib/db/schema";
 import { generateOutcomeSummary } from "@/lib/outcome-tracker";
 import { NextRequest, NextResponse } from "next/server";
-import { requireConsent }    from "@/middleware/requireConsent";
+import { requireConsent }    from "@/lib/middleware/requireConsent";
 
 export const runtime     = "nodejs";
 export const maxDuration = 30;

@@ -8,7 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import type { NormalizedBiomarkers, NormalizedWearableData, UserProfile, UserHealthContextRow } from "@/lib/types/health";
 import { isProtocolGated, getActiveCriticalEvents } from "@/lib/critical-values";
 import { NextRequest, NextResponse } from "next/server";
-import { requireConsent } from "@/middleware/requireConsent";
+import { requireConsent } from "@/lib/middleware/requireConsent";
 import {
   getPregnancyRulesForProduct,
   applyPregnancyGate,

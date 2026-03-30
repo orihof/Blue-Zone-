@@ -5,7 +5,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { requireConsent } from "@/middleware/requireConsent";
+import { requireConsent } from "@/lib/middleware/requireConsent";
 
 export const runtime    = "nodejs";
 export const maxDuration = 120;

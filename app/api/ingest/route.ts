@@ -6,7 +6,7 @@ import { TABLES, COLS, BUCKETS } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
 import type { NormalizedBiomarkers } from "@/lib/types/health";
 import { checkForCriticalValues, gateCriticalProtocol } from "@/lib/critical-values";
-import { requireConsent } from "@/middleware/requireConsent";
+import { requireConsent } from "@/lib/middleware/requireConsent";
 import { upsertBaseline } from "@/lib/personal-baselines";
 import { evaluateMilestones } from "@/lib/outcome-tracker";
 

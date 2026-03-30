@@ -28,7 +28,7 @@ function resolveToken(req: NextRequest): string | null {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { cohortId: string } },
+  { params }: { params: Promise<{ cohortId: string }> },
 ) {
   // 1. Validate partner API token
   const token = resolveToken(req);
@@ -37,7 +37,7 @@ export async function GET(
   }
 
   const supabase = getAdminClient();
-  const { cohortId } = params;
+  const { cohortId } = await params;
 
   // 2. Fetch cohort (must be active)
   const { data: cohort, error: cohortErr } = await supabase

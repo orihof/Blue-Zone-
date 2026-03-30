@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { NextRequest, NextResponse } from "next/server";
-import { requireConsent } from "@/middleware/requireConsent";
+import { requireConsent } from "@/lib/middleware/requireConsent";
 import {
   buildProtocolPDFContent,
   generatePDFBuffer,

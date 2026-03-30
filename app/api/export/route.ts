@@ -5,7 +5,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email";
-import { requireConsent } from "@/middleware/requireConsent";
+import { requireConsent } from "@/lib/middleware/requireConsent";
 import { track } from "@/lib/analytics";
 
 export const GET = requireConsent(1)(async () => {

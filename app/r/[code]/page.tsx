@@ -4,8 +4,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { TABLES, COLS } from "@/lib/db/schema";
 import { ReferralLandingClient } from "./_client";
 
-export default async function ReferralPage({ params }: { params: { code: string } }) {
-  const { code } = params;
+export default async function ReferralPage({ params }: { params: Promise<{ code: string }> }) {
+  const { code } = await params;
   const supabase  = getAdminClient();
 
   // Look up the referral link

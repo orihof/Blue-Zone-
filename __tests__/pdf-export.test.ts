@@ -6,7 +6,7 @@ jest.mock("jspdf");
 jest.mock("@/lib/supabase/admin");
 jest.mock("next-auth",            () => ({ getServerSession: jest.fn() }));
 jest.mock("@/lib/auth",           () => ({ authOptions: {} }));
-jest.mock("@/middleware/requireConsent", () => ({
+jest.mock("@/lib/middleware/requireConsent", () => ({
   // Strips the consent wrapper so the raw handler is exported as POST
   requireConsent: () => (handler: (req: unknown) => unknown) => handler,
 }));

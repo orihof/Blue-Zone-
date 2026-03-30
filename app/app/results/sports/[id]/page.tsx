@@ -10,7 +10,7 @@ import { SportsResultsPage } from "@/components/sports/SportsResultsPage";
 export default async function SportsResultsRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/auth/signin");
@@ -20,7 +20,7 @@ export default async function SportsResultsRoute({
     supabase
       .from(TABLES.SPORTS_PROTOCOLS)
       .select("*")
-      .eq(COLS.ID, params.id)
+      .eq(COLS.ID, (await params).id)
       .eq(COLS.USER_ID, session.user.id)
       .maybeSingle(),
     supabase
@@ -114,7 +114,7 @@ export default async function SportsResultsRoute({
       hasWearable={!!wearable}
       hasBloodTest={!!bloodTest}
       communityCount={communityCount ?? 0}
-      protocolId={params.id}
+      protocolId={(await params).id}
       initialAdoptedIds={initialAdoptedIds}
     />
   );

@@ -5,7 +5,7 @@
 jest.mock("@/lib/supabase/admin");
 jest.mock("next-auth",            () => ({ getServerSession: jest.fn() }));
 jest.mock("@/lib/auth",           () => ({ authOptions: {} }));
-jest.mock("@/middleware/requireConsent", () => ({
+jest.mock("@/lib/middleware/requireConsent", () => ({
   requireConsent: () => (handler: (req: unknown) => unknown) => handler,
 }));
 

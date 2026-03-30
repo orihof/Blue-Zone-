@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { requireConsent } from "@/middleware/requireConsent";
+import { requireConsent } from "@/lib/middleware/requireConsent";
 import { authOptions } from "@/lib/auth";
 import { createServiceRoleClient } from "@/lib/supabase-server";
 import { analyzeHealthData } from "@/lib/openai";

@@ -14,7 +14,7 @@ function generateToken() {
 
 export async function POST(
   _req: Request,
-  { params }: { params: { protocolId: string } }
+  { params }: { params: Promise<{ protocolId: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,7 +29,7 @@ export async function POST(
   const { data: protocol } = await supabase
     .from(TABLES.PROTOCOLS)
     .select(COLS.ID)
-    .eq(COLS.ID, params.protocolId)
+    .eq(COLS.ID, (await params).protocolId)
     .eq(COLS.USER_ID, session.user.id)
     .maybeSingle();
 
@@ -46,7 +46,7 @@ export async function POST(
       [COLS.SHARE_TOKEN]: token,
       [COLS.SHARE_TOKEN_EXPIRES_AT]: expiresAt,
     })
-    .eq(COLS.ID, params.protocolId);
+    .eq(COLS.ID, (await params).protocolId);
 
   if (error) {
     console.error("[protocols/share]", error.message);

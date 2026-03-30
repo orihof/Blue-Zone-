@@ -11,7 +11,7 @@ import { generateSportsProtocol } from "@/lib/ai/generateSportsProtocol";
 import { type SportsPrepFormData } from "@/lib/db/sports-payload";
 import { isProtocolGated, getActiveCriticalEvents } from "@/lib/critical-values";
 import { NextRequest, NextResponse } from "next/server";
-import { requireConsent } from "@/middleware/requireConsent";
+import { requireConsent } from "@/lib/middleware/requireConsent";
 import type { UserHealthContextRow } from "@/lib/types/health";
 import {
   getPregnancyRulesForProduct,

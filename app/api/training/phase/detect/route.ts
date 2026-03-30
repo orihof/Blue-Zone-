@@ -6,7 +6,7 @@ import {
   savePhaseDetection,
 } from "@/lib/training-phase-detector";
 import { NextResponse } from "next/server";
-import { requireConsent }     from "@/middleware/requireConsent";
+import { requireConsent }     from "@/lib/middleware/requireConsent";
 
 export const runtime     = "nodejs";
 export const maxDuration = 30;

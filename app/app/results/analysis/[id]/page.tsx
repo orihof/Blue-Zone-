@@ -10,7 +10,7 @@ import { AnalysisResultsPage } from "@/components/analysis/AnalysisResultsPage";
 export default async function AnalysisReportRoute({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/auth/signin");
@@ -19,7 +19,7 @@ export default async function AnalysisReportRoute({
   const { data: row } = await supabase
     .from(TABLES.ANALYSIS_REPORTS)
     .select("id, status, payload, error_message, generated_at, model")
-    .eq(COLS.ID, params.id)
+    .eq(COLS.ID, (await params).id)
     .eq(COLS.USER_ID, session.user.id)
     .maybeSingle();
 
@@ -63,7 +63,7 @@ export default async function AnalysisReportRoute({
   return (
     <AnalysisResultsPage
       result={payload}
-      reportId={params.id}
+      reportId={(await params).id}
       generatedAt={row.generated_at as string}
     />
   );

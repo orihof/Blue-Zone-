@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -18,7 +18,7 @@ export async function GET(
   const { data: row, error } = await supabase
     .from(TABLES.GOAL_PROTOCOLS)
     .select(`${COLS.STATUS}, ${COLS.ERROR_MESSAGE}`)
-    .eq(COLS.ID, params.id)
+    .eq(COLS.ID, (await params).id)
     .eq(COLS.USER_ID, session.user.id)
     .maybeSingle();
 

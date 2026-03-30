@@ -11,14 +11,14 @@ import { TABLES, COLS } from "@/lib/db/schema";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const recId = params.id;
+  const recId = (await params).id;
   let body: { status?: string; protocolId?: string };
   try {
     body = await req.json();

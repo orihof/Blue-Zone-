@@ -8,7 +8,7 @@ import { track } from "@/lib/analytics";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { protocolId: string } }
+  { params }: { params: Promise<{ protocolId: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -17,7 +17,7 @@ export async function GET(
   const { data, error } = await supabase
     .from(TABLES.PROTOCOLS)
     .select("*")
-    .eq(COLS.ID, params.protocolId)
+    .eq(COLS.ID, (await params).protocolId)
     .eq(COLS.USER_ID, session.user.id)
     .maybeSingle();
 
@@ -46,7 +46,7 @@ export async function GET(
   return new NextResponse(JSON.stringify(exportData, null, 2), {
     headers: {
       "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="bluezone-protocol-${params.protocolId}.json"`,
+      "Content-Disposition": `attachment; filename="bluezone-protocol-${(await params).protocolId}.json"`,
     },
   });
 }
