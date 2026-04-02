@@ -1,0 +1,70 @@
+/* StitchLayout — responsive structure + animations */
+
+.wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bz-bg);
+  color: var(--bz-text);
+  overflow: hidden;
+}
+
+.hero {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.leftCol {
+  width: 38%;
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.rightCol {
+  width: 62%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bz-bg);
+}
+
+.loadingText {
+  animation: blink 2s infinite;
+}
+
+.floatingPanel {
+  position: absolute;
+  top: 15%;
+  right: -5%;
+  width: 230px;
+}
+
+/* Responsive: stack columns on mobile/tablet */
+@media (max-width: 1024px) {
+  .hero {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .leftCol {
+    width: 100%;
+    padding: 32px 20px;
+  }
+  .rightCol {
+    width: 100%;
+    min-height: 50vh;
+  }
+  .floatingPanel {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-width: 280px;
+    margin: 20px auto 0;
+  }
+}
