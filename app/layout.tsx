@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { Syne, Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { Syne, Inter, Instrument_Serif, JetBrains_Mono, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import StructuredData from "@/components/StructuredData";
+import PostHogProvider from "@/components/PostHogProvider";
 import { checkEnv } from "@/lib/env-check";
 
 // Validate required env vars at server startup — throws immediately if any are missing.
@@ -43,51 +45,58 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+// Mono / Labels — DM Mono: uppercase system labels, status indicators
+const dmMono = DM_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-dm-mono",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   ),
-  title: "Blue Zone \u2014 Blood + Training Intelligence",
+  title: "Blue Zone — Know Your Biological Age | AI Longevity Platform",
   description:
-    "Blue Zone combines your blood panel data with wearable training metrics to identify why your body isn\u2019t adapting \u2014 and generate a precise, personalized protocol. Built on peer-reviewed exercise physiology. Not AI guesswork.",
+    "Blue Zone decodes your biology with an 8-domain AI analysis covering cardiovascular, metabolic, neurological, hormonal, inflammatory, immune, circadian, and musculoskeletal health. Built with 18 world-class longevity scientists.",
   keywords: [
-    "blood biomarker analysis",
-    "athlete blood testing",
-    "HRV and blood correlation",
-    "personalized supplement protocol",
-    "endurance athlete recovery",
-    "biohacker health optimization",
-    "WHOOP blood panel integration",
-    "ferritin athlete performance",
-    "longevity platform athletes",
-    "training load blood markers",
+    "biological age",
+    "VO2max",
+    "HRV",
+    "longevity",
+    "biohacking",
+    "endurance athlete health",
+    "biological age test",
+    "performance optimization",
+    "functional health markers",
+    "AI health analysis",
   ],
-  authors: [{ name: "Ori Hofnung", url: "https://bluezone.ai" }],
+  authors: [{ name: "Blue Zone" }],
   creator: "Blue Zone",
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://bluezone.ai",
+    url: "https://bluezone.health",
     siteName: "Blue Zone",
-    title: "You have the data. You still don\u2019t have the answer.",
+    title: "What\u2019s dragging your VO\u2082max? — Blue Zone",
     description:
-      "Blue Zone reads your blood panel and wearable data together \u2014 and tells you exactly what to fix. In minutes.",
+      "Your complete biological readout. Every system. Every morning. Built with 18 world-class longevity scientists.",
     images: [
       {
-        url: "/og",
+        url: "/api/og",
         width: 1200,
         height: 630,
-        alt: "Blue Zone — Blood + Training Intelligence",
+        alt: "Blue Zone — Biological Age Score",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "You have the data. You still don\u2019t have the answer.",
+    title: "What\u2019s dragging your VO\u2082max? — Blue Zone",
     description:
-      "Blue Zone reads your blood panel and wearable data together \u2014 and tells you exactly what to fix. In minutes.",
-    images: ["/og"],
-    creator: "@orhofnung",
+      "Your complete biological readout. Every system. Every morning.",
+    images: ["/api/og"],
   },
   robots: {
     index: true,
@@ -97,19 +106,21 @@ export const metadata: Metadata = {
       follow: true,
     },
   },
+  alternates: { canonical: "https://bluezone.health" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${syne.variable} ${inter.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} dark`}
+      className={`${syne.variable} ${inter.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} ${dmMono.variable} dark`}
       suppressHydrationWarning
     >
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-        <meta name="theme-color" content="#07080e" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#050A1F" />
         <link rel="manifest" href="/manifest.json" />
+        <StructuredData />
       </head>
       <body
         className="antialiased"
@@ -123,7 +134,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         {/* Content layer sits above background */}
         <div style={{ position: "relative", zIndex: 1 }}>
-          <Providers>{children}</Providers>
+          <Providers>
+            <PostHogProvider>{children}</PostHogProvider>
+          </Providers>
         </div>
         <ServiceWorkerRegistration />
       </body>

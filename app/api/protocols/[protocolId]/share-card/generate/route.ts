@@ -14,11 +14,14 @@ interface ShareCardData {
   protocolHow: string;
   recoveryScore: number;
   readinessScore: number;
+  metabolicScore: number;
   signalCount: number;
   protocolDate: string;
   firstName: string;
   protocolId: string;
   cardVariant: "discovery" | "progress";
+  retestIn: string;
+  whatToWatch: string;
 }
 
 const HEADLINE_SYSTEM_PROMPT = `You generate viral revelation headlines for health insights. Your headlines follow this exact structure: '[Felt symptom] isn't [assumed cause] — it's [actual root cause].'
@@ -31,10 +34,12 @@ Rules:
 - The actual cause comes from the root cause
 - Never use the word 'deficiency'
 - Never start with 'Your'
+- IMPORTANT: The assumed cause (after "isn't") should be something the person has been blaming THEMSELVES for — laziness, age, not trying hard enough, stress. The actual cause should feel like absolution. This is the most viral framing because it reframes self-blame as a solvable biological fact.
 - Examples of good headlines:
-  'HRV decline isn't overtraining — it's iron'
-  'Poor recovery isn't sleep — it's inflammation'
-  'Stalled fitness isn't effort — it's cortisol'
+  'Your fatigue isn't laziness — it's iron'
+  'Your plateau isn't effort — it's cortisol'
+  'Your poor sleep isn't stress — it's vitamin D'
+  'Your slow recovery isn't age — it's inflammation'
 - Return ONLY the headline string. No quotes, no explanation, nothing else.`;
 
 async function generateHeadline(
@@ -186,6 +191,7 @@ export async function POST(
 
   const recoveryScore = Math.round(payload.scores.recovery);
   const readinessScore = Math.round(payload.scores.readiness);
+  const metabolicScore = Math.round(payload.scores.metabolic);
 
   const bioAgeHeadline = payload.biologicalAgeNarrative?.headline ?? null;
 
@@ -210,6 +216,10 @@ export async function POST(
   );
 
   // ── Step 5: Build card data object ──
+  const retestIn = "6 weeks";
+  const whatToWatch =
+    primaryDriver?.evidence?.[0] ?? "Morning energy and HRV trend";
+
   const cardData: ShareCardData = {
     revelationHeadline,
     rootCause,
@@ -218,11 +228,14 @@ export async function POST(
     protocolHow: protocolHow.slice(0, 65),
     recoveryScore,
     readinessScore,
+    metabolicScore,
     signalCount: Math.max(signalCount, evidenceSignals.length),
     protocolDate,
     firstName,
     protocolId,
     cardVariant: "discovery",
+    retestIn,
+    whatToWatch,
   };
 
   // ── Step 6: Cache in protocol_share_cards ──

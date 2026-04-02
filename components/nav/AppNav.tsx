@@ -1,7 +1,7 @@
 /// components/nav/AppNav.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   LogOut, Settings, Menu, X, Share2, UserCircle, Shield,
   Activity, Sparkles, LayoutDashboard, Watch, TrendingUp, ClipboardCheck, ShoppingBag,
+  type LucideIcon,
 } from "lucide-react";
 import { ShareBottomSheet } from "@/components/share/ShareBottomSheet";
 
@@ -18,7 +19,7 @@ const ACTIVE_BG = "rgba(99,102,241,0.15)";
 
 interface NavItem {
   href:  string;
-  icon:  React.ElementType;
+  icon:  LucideIcon;
   label: string;
 }
 interface NavGroup {

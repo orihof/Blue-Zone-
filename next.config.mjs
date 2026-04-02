@@ -40,7 +40,7 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://*.posthog.com https://*.i.posthog.com wss://*.posthog.com",
               "img-src 'self' data: blob: https:",
               "font-src 'self' https://fonts.gstatic.com",
               "frame-ancestors 'none'",
