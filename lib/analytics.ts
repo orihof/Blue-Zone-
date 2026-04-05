@@ -1,4 +1,6 @@
 /// lib/analytics.ts
+import posthog from "posthog-js";
+
 type EventName =
   | "protocol_requested"
   | "protocol_ready"
@@ -17,16 +19,38 @@ type EventName =
   | "how_it_works_cta_click"
   | "scroll_depth";
 
+const capture = (event: string, properties?: Record<string, unknown>) => {
+  if (typeof window === "undefined") return;
+  posthog.capture(event, properties);
+};
+
 export function track(event: EventName, properties?: Record<string, unknown>) {
-  if (typeof window !== "undefined") {
-    // Client-side
-    console.debug(`[analytics] ${event}`, properties ?? "");
-  } else {
-    // Server-side
-    console.log(`[analytics:server] ${event}`, properties ?? "");
-  }
-  // Replace with real analytics (PostHog, Mixpanel, Segment, etc.)
+  capture(event, properties);
 }
+
+// ── Typed analytics API (Prompt 7) ──────────────────────────────────────────
+export const analytics = {
+  primaryCtaClicked: (variant?: string) =>
+    capture("primary_cta_clicked", { source: "hero_left_column", variant }),
+  waitlistSignup: (emailDomain: string) =>
+    capture("waitlist_signup", { email_domain: emailDomain }),
+  holoHotspotClicked: (organId: string) =>
+    capture("holo_hotspot_clicked", { organ_id: organId }),
+  holoPanelCtaClicked: (organId: string) =>
+    capture("holo_protocol_cta", { organ_id: organId }),
+  bioAgeRingViewed: (biologicalAge: number) =>
+    capture("bio_age_ring_viewed", { biological_age: biologicalAge }),
+  reckoningCardClicked: (flaggedDomains: string[]) =>
+    capture("reckoning_card_clicked", { flagged_domains: flaggedDomains }),
+  bioAgeCardPreviewClicked: () => capture("bio_age_card_preview"),
+  onboardPageReached: () => capture("onboard_page_reached"),
+  holoRenderError: (errorMessage: string, stack?: string) =>
+    capture("holo_render_error", {
+      error: errorMessage,
+      stack: stack?.slice(0, 200),
+    }),
+  scrollDepth: (percent: 50 | 100) => capture("scroll_depth", { percent }),
+};
 
 export function trackPrimaryCtaClick() {
   try { track("primary_cta_click", { location: "hero", text: "Get My Personal Protocol" }); } catch {}

@@ -1,13 +1,19 @@
 "use client";
-const SPOTS_CLAIMED = 47;
-const TOTAL_SPOTS = 50;
 
-export default function UrgencyBadge() {
+interface UrgencyBadgeProps {
+  spotsLeft: number;
+}
+
+export function UrgencyBadge({ spotsLeft }: UrgencyBadgeProps) {
   return (
     <div
-      style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}
+      aria-live="polite"
+      aria-atomic="true"
+      aria-label={`${spotsLeft} founding cohort spots remaining`}
+      style={{ display: "flex", alignItems: "center", gap: 6 }}
     >
       <span
+        aria-hidden="true"
         style={{
           display: "inline-block",
           width: 6,
@@ -16,25 +22,22 @@ export default function UrgencyBadge() {
           background: "var(--bz-amber)",
           boxShadow: "0 0 6px var(--bz-amber)",
           flexShrink: 0,
-          animation: "urgencyPulse 1.5s ease-in-out infinite",
         }}
       />
       <span
         style={{
-          fontSize: 9,
-          color: "var(--bz-amber)",
           fontFamily: "var(--font-label)",
-          letterSpacing: "0.06em",
+          fontSize: 10,
+          color: "var(--bz-amber)",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
         }}
       >
-        {SPOTS_CLAIMED} of {TOTAL_SPOTS} founding athlete spots claimed
+        {spotsLeft} founding spots left
       </span>
-      <style>{`
-        @keyframes urgencyPulse {
-          0%,100% { opacity:1; }
-          50%      { opacity:0.4; }
-        }
-      `}</style>
     </div>
   );
 }
+
+// Keep default export for backward compatibility
+export default UrgencyBadge;
