@@ -88,6 +88,18 @@ html {
   --font-label:       var(--font-dm-mono), 'Courier New', monospace;
   --font-data:        var(--font-mono), 'Courier New', monospace;
 
+  /* Extended palette (Prompt 1/8) */
+  --bz-elevated:  #141d35;
+  --bz-secondary: #8fa3cc;
+  --bz-indigo:    #8b8ef8;
+  --bz-green:     #10b981;
+  --bz-red:       #ef4444;
+  --bz-border-subtle:  rgba(255,255,255,0.06);
+  --bz-border-default: rgba(255,255,255,0.12);
+  --font-heading: var(--font-syne), 'Syne', sans-serif;
+  --font-body:    var(--font-inter), 'Inter', sans-serif;
+  --font-number:  var(--font-instrument-serif), 'Instrument Serif', serif;
+
   /* Aurora Gradients — The Visual Signature */
   --gradient-aurora: linear-gradient(
     var(--aurora-angle),
@@ -1689,5 +1701,76 @@ main { scroll-behavior: smooth; }
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+/* ════════════════════════════════════════════════════
+   ACCESSIBILITY + LAYOUT UTILITIES (Prompt 1/8)
+════════════════════════════════════════════════════ */
+
+:focus-visible {
+  outline: 2px solid var(--bz-indigo);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--bz-surface) 25%, var(--bz-elevated) 50%, var(--bz-surface) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer { background: var(--bz-surface); }
+}
+
+.desktop-only { display: block; }
+.mobile-only  { display: none;  }
+
+@media (max-width: 767px) {
+  .desktop-only { display: none;  }
+  .mobile-only  { display: block; }
+}
+
+/* ── Film grain — hero section only ─────────────────────────
+   Scoped to hero to avoid performance cost on other sections.
+   opacity 0.04 = "visible" grain per the design system spec.
+   Imperceptible as a single element, felt as texture+depth. */
+.hero-section {
+  position: relative;
+}
+
+.hero-section::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  filter: url(#film-grain);
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* grain is static — no animation — keep it on reduced motion */
 }

@@ -2,21 +2,22 @@
 
 import Script from "next/script";
 import Link from "next/link";
-import { InsightCard } from "@/components/InsightCard";
+import { HoloBodyReveal } from "@/components/ui/HoloBodyReveal";
 import { PrimaryCtaButton } from "@/components/landing/TrackedCtaButtons";
 import { ApplyCtaButton } from "@/components/marketing/ApplyCtaButton";
 import { SampleProtocolTrigger } from "@/components/marketing/SampleProtocolModal";
-import { CausalChainCards } from "@/components/CausalChainCards";
+import DarkMatterSection from "@/components/landing/DarkMatterSection";
 import { ConnectsWithPills } from "@/components/landing/ConnectsWithPills";
 import { ScrollDepthTracker } from "@/components/ScrollDepthTracker";
 import { SynthesisEngine } from "@/components/landing/SynthesisEngine";
 import { CausalChainSection } from "@/components/landing/CausalChainSection";
 import { LiveInsightEngine } from "@/components/landing/LiveInsightEngine";
-import { MethodologyStatement } from "@/components/landing/MethodologyStatement";
-import { HeroStagger, HeroChild, HeroCardEntrance } from "@/components/landing/HeroAnimated";
+import { SectionDiagnosis } from "@/components/landing/SectionDiagnosis";
+import { HeroStagger, HeroChild } from "@/components/landing/HeroAnimated";
 import { RevealSection, RevealChild } from "@/components/landing/RevealSection";
-import { ShieldCheck, GitMerge } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { CountUp } from "@/components/landing/CountUp";
+import { StructuredData } from "@/components/seo/StructuredData";
 
 const GRAD = "linear-gradient(135deg,#3B82F6 0%,#7C3AED 55%,#A855F7 100%)";
 const T = { bg: "#06080F", text: "#F1F5F9", muted: "#64748B" };
@@ -25,6 +26,23 @@ const GT = { background: GRAD, WebkitBackgroundClip: "text" as const, WebkitText
 export default function LandingPage() {
   return (
     <div style={{ minHeight: "100vh", background: T.bg, position: "relative" }}>
+      <StructuredData schema={[
+        {
+          "@context": "https://schema.org", "@type": "Organization",
+          name: "Blue Zone", url: "https://bluezone.health",
+          description: "Biological age operating system for competitive athletes and biohackers.",
+          founder: { "@type": "Person", name: "Ori Hofnung", jobTitle: "Founder & CEO" },
+        },
+        {
+          "@context": "https://schema.org", "@type": "SoftwareApplication",
+          name: "Blue Zone", applicationCategory: "HealthApplication",
+          description: "Reads 100+ blood biomarkers alongside WHOOP, Oura Ring, and Garmin data.",
+        },
+        {
+          "@context": "https://schema.org", "@type": "WebSite",
+          name: "Blue Zone", url: "https://bluezone.health",
+        },
+      ]} />
       {/* Aurora background blobs */}
       <div aria-hidden="true" className="aurora-pulse" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
         <div style={{ position: "absolute", top: "-15%", left: "-10%", width: "55vw", height: "55vw", borderRadius: "50%", background: "radial-gradient(circle,rgba(59,130,246,.11) 0%,transparent 70%)" }} />
@@ -49,13 +67,22 @@ export default function LandingPage() {
         </nav>
 
         {/* ── Hero ── */}
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "90px 28px 48px" }} className="flex flex-col lg:flex-row lg:items-start lg:gap-12">
+        <section className="hero-section relative w-full min-h-screen" style={{ overflowX: "clip", overflowY: "visible" }}>
+          {/* Ambient indigo gradient — sits behind all content */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              background: 'radial-gradient(ellipse 50% 70% at 75% 50%, rgba(99,102,241,0.06), transparent 65%)',
+              zIndex: -1,
+            }}
+          />
+          <div className="max-w-7xl mx-auto w-full px-8 h-full flex flex-col" style={{ padding: "90px 28px 48px" }}>
+          <div className="grid grid-cols-1 xl:grid-cols-[2fr_3fr] gap-12 flex-1 w-full items-stretch">
           {/* Left column — copy */}
-          <HeroStagger className="flex-1 flex flex-col text-center lg:text-left" style={{ maxWidth: 620 }}>
-            <HeroChild className="order-1 md:order-none self-center lg:self-start" style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 16px", borderRadius: 100, background: "rgba(99,102,241,.09)", border: "1px solid rgba(99,102,241,.22)", fontSize: 11, fontWeight: 400, letterSpacing: ".1em", color: "#A5B4FC", marginBottom: 28, fontFamily: "var(--font-ui,'Inter',sans-serif)" }}>
-              <span className="md:hidden">⬡ BLOOD + TRAINING INTELLIGENCE</span>
-              <span className="hidden md:inline">⬡ BLOOD + TRAINING INTELLIGENCE</span>
-            </HeroChild>
+          <HeroStagger className="flex flex-col justify-center h-full text-center xl:text-left" style={{ maxWidth: 640 }}>
             <HeroChild className="order-2 md:order-none">
               <h1 className="font-normal lg:font-light md:max-w-[580px]" style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontSize: "clamp(38px,6vw,72px)", lineHeight: 1.12, marginBottom: 20, letterSpacing: "-.02em", textWrap: "balance", ...GT }}>
                 You have the data. You still don&apos;t have{" "}<span style={{ background: "linear-gradient(135deg, #FFFFFF 0%, var(--stellar, #E8EEFF) 50%, rgba(255,255,255,0.75) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>the answer.</span>
@@ -94,43 +121,8 @@ export default function LandingPage() {
                 <span style={{ color: "rgb(210,105,60)" }}>stalled training</span>
               </div>
             </HeroChild>
-            {/* Mobile-only product card — above CTA on mobile */}
-            <HeroChild className="flex sm:hidden flex-col rounded-xl border border-white/10 bg-[#111118] p-4 text-left w-full max-w-sm mx-auto order-[3] md:order-none mb-6" style={{ marginTop: 16 }}>
-              {/* ZONE 1 — Input rows */}
-              <div className="flex flex-col">
-                <div className="flex justify-between items-center py-1.5">
-                  <span className="text-xs text-white/40 font-ui">Ferritin</span>
-                  <span className="text-xs font-mono font-medium text-orange-400">62 ng/mL ↓ Low</span>
-                </div>
-                <div className="flex justify-between items-center py-1.5">
-                  <span className="text-xs text-white/40 font-ui">Training load</span>
-                  <span className="text-xs font-mono font-medium text-white/70">↑ High this week</span>
-                </div>
-                <div className="flex justify-between items-center py-1.5">
-                  <span className="text-xs text-white/40 font-ui">Sleep quality</span>
-                  <span className="text-xs font-mono font-medium text-orange-400">↓ Low · 3 nights</span>
-                </div>
-              </div>
-              {/* ZONE 2 — Separator */}
-              <div className="relative flex items-center my-4">
-                <div className="h-px w-full" style={{ background: "linear-gradient(90deg, transparent 0%, var(--ion-blue) 50%, transparent 100%)", opacity: 0.6 }} />
-                <div className="absolute left-1/2 -translate-x-1/2 w-1.5 h-1.5 rotate-45 bg-[var(--ion-blue)]" style={{ zIndex: 1 }} aria-hidden="true" />
-              </div>
-              {/* ZONE 3 — Output */}
-              <div className="flex flex-col items-start">
-                <p className="text-2xs tracking-[0.2em] uppercase text-white/40 font-ui">YOUR PROTOCOL</p>
-                <p className="text-xs italic text-white/40 font-ui leading-snug mt-1">Iron depletion under oxidative training stress</p>
-                <p className="text-lg font-serif text-white leading-tight mt-3">Iron bisglycinate</p>
-                <p className="text-3xl font-mono font-semibold leading-none mt-1" style={{ color: "var(--ion-blue)" }}>25 mg</p>
-                <p className="text-xs text-white/50 font-ui mt-2 leading-relaxed">With Vitamin C · Away from training window</p>
-                <div className="flex items-center gap-1.5 text-2xs font-ui mt-3" style={{ color: "var(--ion-blue)", opacity: 0.6 }}>
-                  <GitMerge size={10} className="flex-shrink-0" aria-hidden="true" />
-                  Derived from 3 signals · Personalized to your training phase
-                </div>
-              </div>
-            </HeroChild>
-            <HeroChild className="flex flex-col items-center lg:items-start mt-4 mb-14 gap-3 order-[4] md:order-none">
-              <div className="flex gap-3 flex-wrap justify-center lg:justify-start">
+            <HeroChild className="flex flex-col items-center xl:items-start mt-4 mb-14 gap-3 order-[4] md:order-none">
+              <div className="flex gap-3 flex-wrap justify-center xl:justify-start">
                 <PrimaryCtaButton />
               </div>
               <p className="flex items-center gap-1.5 text-xs text-[var(--muted)] justify-center md:justify-start">
@@ -139,7 +131,7 @@ export default function LandingPage() {
               </p>
               <SampleProtocolTrigger />
             </HeroChild>
-            <div className="hidden lg:flex items-center mt-6 order-8 md:order-none" style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 16, maxWidth: 560 }}>
+            <div className="hidden xl:flex items-center mt-6 order-8 md:order-none" style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 16, maxWidth: 560 }}>
               {["Built for endurance athletes", "Root cause, not just ranges", "Blood data + training load"].map((t, i) => (
                 <div key={t} style={{ display: "flex", alignItems: "center" }}>
                   {i > 0 && (
@@ -153,11 +145,15 @@ export default function LandingPage() {
               ))}
             </div>
           </HeroStagger>
-          {/* Right column — InsightCard */}
-          <HeroCardEntrance className="hidden lg:flex lg:items-center lg:justify-center" style={{ width: 500, flexShrink: 0, position: "sticky", top: 80, alignSelf: "flex-start" }}>
-            <InsightCard />
-          </HeroCardEntrance>
-        </div>
+          {/* Right column — HoloBody SVG (visible xl+ only) */}
+          <div className="hidden xl:flex items-center justify-center h-full overflow-visible pl-14">
+            <div style={{ width: '100%', maxWidth: '720px' }}>
+              <HoloBodyReveal />
+            </div>
+          </div>
+          </div>{/* /grid */}
+          </div>{/* /max-w-7xl */}
+        </section>
 
         {/* ── Sound familiar ── */}
         <div style={{ background: "rgba(14,16,28,0.75)", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
@@ -179,8 +175,8 @@ export default function LandingPage() {
         {/* ── Synthesis engine ── */}
         <SynthesisEngine />
 
-        {/* ── Methodology ── */}
-        <MethodologyStatement />
+        {/* ── Diagnosis ── */}
+        <SectionDiagnosis />
 
         {/* ── Causal chain examples ── */}
         <CausalChainSection />
@@ -206,20 +202,8 @@ export default function LandingPage() {
           </div>
         </RevealSection>
 
-        {/* ── How it works ── */}
-        <div style={{ background: "rgba(14,16,28,0.75)", borderTop: "1px solid rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-        <div id="how-it-works" style={{ maxWidth: 1000, margin: "0 auto", padding: "80px 28px" }}>
-          <RevealSection stagger style={{ textAlign: "center", marginBottom: 52 }}>
-            <RevealChild>
-              <div style={{ fontSize: 13, fontWeight: 400, letterSpacing: ".12em", color: "rgba(255,255,255,0.4)", marginBottom: 12, fontFamily: "var(--font-ui,'Inter',sans-serif)", textTransform: "uppercase" }}>WHY BLUE ZONE IS DIFFERENT</div>
-            </RevealChild>
-            <RevealChild>
-              <h2 style={{ fontFamily: "var(--font-serif,'Syne',sans-serif)", fontWeight: 300, fontSize: "clamp(26px,4vw,40px)", color: T.text, letterSpacing: "-.02em" }}>The only platform that explains why your body isn&apos;t adapting.</h2>
-            </RevealChild>
-          </RevealSection>
-          <CausalChainCards />
-        </div>
-        </div>
+        {/* ── How it works — Dark Matter synthesis ── */}
+        <DarkMatterSection />
 
         {/* ── Wearables ── */}
         <RevealSection stagger style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }} className="px-7 pb-10 md:pb-20">

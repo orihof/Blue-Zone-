@@ -5,6 +5,8 @@ import { Providers } from "@/components/Providers";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import StructuredData from "@/components/StructuredData";
 import PostHogProvider from "@/components/PostHogProvider";
+import { LiveRegionProvider } from "@/lib/live-region";
+import { AxeMonitor } from "@/components/AxeMonitor";
 import { checkEnv } from "@/lib/env-check";
 
 // Validate required env vars at server startup — throws immediately if any are missing.
@@ -126,6 +128,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className="antialiased"
         style={{ background: "var(--void)", color: "var(--stellar)" }}
       >
+        {/* Film grain filter — referenced by CSS .hero-section::after */}
+        <svg
+          style={{ position: "absolute", width: 0, height: 0 }}
+          aria-hidden="true"
+        >
+          <defs>
+            <filter
+              id="film-grain"
+              x="0" y="0" width="100%" height="100%"
+              colorInterpolationFilters="linearRGB"
+            >
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.65"
+                numOctaves="3"
+                stitchTiles="stitch"
+              />
+              <feColorMatrix type="saturate" values="0" />
+            </filter>
+          </defs>
+        </svg>
         {/* Living background — fixed aurora gradients, imperceptibly breathe */}
         <div
           aria-hidden="true"
@@ -135,7 +158,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Content layer sits above background */}
         <div style={{ position: "relative", zIndex: 1 }}>
           <Providers>
-            <PostHogProvider>{children}</PostHogProvider>
+            <PostHogProvider>
+              <LiveRegionProvider>
+                <AxeMonitor />
+                <a
+                  href="#main-content"
+                  className="sr-only"
+                  style={{
+                    position: "absolute",
+                    zIndex: 9999,
+                  }}
+                >
+                  Skip to main content
+                </a>
+                <main id="main-content" tabIndex={-1}>
+                  {children}
+                </main>
+              </LiveRegionProvider>
+            </PostHogProvider>
           </Providers>
         </div>
         <ServiceWorkerRegistration />

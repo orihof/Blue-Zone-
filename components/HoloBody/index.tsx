@@ -4,7 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { HOTSPOTS, DEFAULT_FLAGGED } from "./hotspots";
 import DataPanel from "./DataPanel";
 import Scene from "./Scene";
-import MobileSilhouette from "./MobileSilhouette";
+import { MobileSilhouette } from "./MobileSilhouette";
 import type { Hotspot, HoloBodyProps } from "./types";
 import { useAnalytics } from "@/hooks/useAnalytics";
 
