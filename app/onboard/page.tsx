@@ -1,18 +1,25 @@
+import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import OnboardAnalytics from "./OnboardAnalytics";
 
+export const metadata: Metadata = {
+  title: "Get Started",
+  description:
+    "Upload your blood panel and connect your wearable to get your Blue Zone protocol.",
+};
+
 export default async function OnboardPage() {
   const session = await getServerSession(authOptions);
 
-  // If already authenticated, skip onboarding intake
   if (session?.user) {
     redirect("/app/dashboard");
   }
 
   return (
-    <main
+    <section
+      aria-labelledby="onboard-title"
       style={{
         minHeight: "100vh",
         background: "var(--bz-bg)",
@@ -33,31 +40,30 @@ export default async function OnboardPage() {
       >
         BLUE ZONE
       </div>
-      <div
+      <h1
+        id="onboard-title"
         style={{
           fontSize: 22,
           color: "white",
           fontFamily: "var(--font-label)",
           fontWeight: 400,
+          margin: 0,
         }}
       >
-        Let&apos;s build your biological profile.
-      </div>
-      <div
+        Get started with Blue Zone
+      </h1>
+      <p
         style={{
-          fontSize: 12,
-          color: "var(--bz-muted)",
+          fontSize: 14,
+          color: "var(--bz-secondary)",
           fontFamily: "var(--font-label)",
+          margin: 0,
         }}
       >
-        Intake loading...
-      </div>
+        Upload your blood panel and connect your wearable to receive your
+        protocol.
+      </p>
       <OnboardAnalytics />
-      {/*
-        TODO: Replace with full onboarding flow component.
-        This placeholder prevents a 404 on the primary CTA.
-        The full onboarding funnel already exists at /app/onboarding/.
-      */}
-    </main>
+    </section>
   );
 }
